@@ -1,0 +1,19 @@
+name = "HScheduler"
+uuid = "d1549cb6-e9f4-42f8-98cc-ffc8d067ff5b"
+authors = ["Luiz M. Faria <maltezfaria@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
+LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+
+[compat]
+julia = "^1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
