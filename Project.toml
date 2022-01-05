@@ -1,13 +1,15 @@
-name = "HScheduler"
+name = "DataFlowScheduler"
 uuid = "d1549cb6-e9f4-42f8-98cc-ffc8d067ff5b"
 authors = ["Luiz M. Faria <maltezfaria@gmail.com>"]
 version = "0.1.0"
 
 [deps]
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
-LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
 
 [compat]
 julia = "^1"

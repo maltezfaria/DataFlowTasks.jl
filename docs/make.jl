@@ -1,11 +1,11 @@
 push!(LOAD_PATH,joinpath(@__DIR__, ".."))
-using Documenter, HScheduler
+using Documenter, DataFlowScheduler
 
 makedocs(
-    modules = [HScheduler],
+    modules = [DataFlowScheduler],
     format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"),
     authors = "Luiz M. Faria",
-    sitename = "HScheduler.jl",
+    sitename = "DataFlowScheduler.jl",
     pages = Any["index.md"]
     # strict = true,
     # clean = true,
@@ -13,5 +13,5 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/maltezfaria/HScheduler.jl.git",
+    repo = "github.com/maltezfaria/DataFlowScheduler.jl.git",
 )
