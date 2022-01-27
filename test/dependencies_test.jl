@@ -1,12 +1,10 @@
 using Test
-using SafeTestsets
+using DataFlowTasks
+using DataFlowTasks: memory_overlap
+using LinearAlgebra
 
-@safetestset "Dependencies" begin
-    using LinearAlgebra
-    using DataFlowScheduler
-    R,W,RW  = DataFlowScheduler.READ, DataFlowScheduler.WRITE, DataFlowScheduler.READWRITE
+@testset "Dependencies" begin
     @testset "Arrays and subarrays" begin
-        using DataFlowScheduler: memory_overlap
         m,n = 20,20
         A   = rand(m,n)
         C   = A

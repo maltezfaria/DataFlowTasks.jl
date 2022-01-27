@@ -1,3 +1,8 @@
+#=
+This file defines `memory_overlap` for some commonly used (native) arrays. It
+covers some interseting use cases, and show how to implement the interface.
+=#
+
 using LinearAlgebra
 
 """
@@ -29,12 +34,21 @@ function memory_overlap(di::SubArray,dj::SubArray)
     end
 end
 
-#case where both subarrays have the same dimension
-function _memory_overlap(di::SubArray{_,N},dj::SubArray{__,N}) where {_,__,N}
-    for dim in 1:N
-        idx1 = di.indices[dim]
-        idx2 = dj.indices[dim]
-        isempty(intersect(idx1,idx2)) && (return false)
-    end
-    return true
+# for subarrays, check their indices. For now assume that the indices have the
+# same length since this simplifies the logic
+function _memory_overlap(di::SubArray,dj::SubArray)
+    idx1 = di.indices
+    idx2 = dj.indices
+    length(idx1) == length(idx2) || error()
+    N = length(idx1)
+    inter = ntuple(i->idxintersect(idx1[i],idx2[i]),N)
+    all(inter)
+    # for d in 1:length(idx1)
+    #     isempty(intersect(idx1[d],idx2[d])) && (return false)
+    # end
+    # if you are here it is because all axis intersect
+    # return true
 end
+
+idxintersect(a,b) = !isempty(intersect(a,b))
+idxintersect(a::Number,b::Number) = a == b

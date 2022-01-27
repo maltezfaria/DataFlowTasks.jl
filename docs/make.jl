@@ -1,17 +1,26 @@
-push!(LOAD_PATH,joinpath(@__DIR__, ".."))
-using Documenter, DataFlowScheduler
+using DataFlowTasks
+using Documenter
 
-makedocs(
-    modules = [DataFlowScheduler],
-    format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"),
-    authors = "Luiz M. Faria",
-    sitename = "DataFlowScheduler.jl",
-    pages = Any["index.md"]
-    # strict = true,
-    # clean = true,
-    # checkdocs = :exports,
+DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true)
+
+makedocs(;
+    modules=[DataFlowTasks],
+    authors="Luiz M. Faria <maltezfaria@gmail.com> and contributors",
+    repo="https://github.com/maltezfaria/DataFlowTasks.jl/blob/{commit}{path}#{line}",
+    sitename="DataFlowTasks.jl",
+    format=Documenter.HTML(;
+        prettyurls=get(ENV, "CI", "false") == "true",
+        canonical="https://maltezfaria.github.io/DataFlowTasks.jl",
+        assets=String[],
+    ),
+    pages=[
+        "Getting started" => "index.md",
+        "Examples" => "examples.md",
+        "References" => "references.md"
+    ],
 )
 
-deploydocs(
-    repo = "github.com/maltezfaria/DataFlowScheduler.jl.git",
+deploydocs(;
+    repo="github.com/WaveProp/DataFlowTasks.jl",
+    devbranch="main"
 )
