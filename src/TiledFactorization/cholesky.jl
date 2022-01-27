@@ -39,7 +39,7 @@ function _cholesky!(A::PseudoTiledMatrix,tturbo::Val{T}=Val(false)) where {T}
     end
     # wait for all computations before returning
     DataFlowTasks.sync()
-    return Cholesky(A.data,'U',zero(Int32))
+    return Cholesky(A.data,'U',zero(BlasInt))
 end
 
 # a fork-join approach for comparison with the data-flow parallelism

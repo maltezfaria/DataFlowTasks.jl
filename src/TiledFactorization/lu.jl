@@ -41,7 +41,7 @@ function _lu!(A::PseudoTiledMatrix,tturbo::Val{T}=Val(false)) where {T}
     end
     # wait for all computations before returning
     DataFlowTasks.sync()
-    return LU(A.data,Int32[],zero(Int32))
+    return LU(A.data,BlasInt[],zero(BlasInt))
 end
 
 # a fork-join approach for comparison with the data-flow parallelism
@@ -69,5 +69,5 @@ function _lu_forkjoin!(A::PseudoTiledMatrix,tturbo::Val{T}=Val(false)) where {T}
     end
     # wait for all computations before returning
     DataFlowTasks.sync()
-    return LU(A.data,Int32[],zero(Int32))
+    return LU(A.data,BlasInt[],zero(BlasInt))
 end
