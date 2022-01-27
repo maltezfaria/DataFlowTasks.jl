@@ -21,6 +21,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/WaveProp/DataFlowTasks.jl",
+    repo="github.com/maltezfaria/DataFlowTasks.jl",
     devbranch="main"
 )
