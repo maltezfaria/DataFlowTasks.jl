@@ -10,4 +10,3 @@ for a great discussion on the subject.
 !!! note
     The examples in this page were inspired by the discussion on 
     page.
-

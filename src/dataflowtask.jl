@@ -136,31 +136,9 @@ end
 """
     macro dtask(expr,data,mode)
 
-Create a `DataFlowTask` to execute `expr`, where `mode::NTuple{N,AccessMode}
+Create a `DataFlowTask` to execute `expr`, where `mode::NTuple{N,AccessMode}`
 species how `data::Tuple{N,<:Any}` is accessed in `expr`. Note that the task is
-not scheduled for execution.
-
-## Examples:
-
-```jldoctest
-using DataFlowTasks
-using DataFlowTasks: R,W,RW # Read, Write, ReadWrite
-using DataFlowTasks: @dtask
-
-A  = rand(10)
-
-# a task which writes to A
-t1 = @dtask fill!(A,0) (A,) (W,)
-
-# a task which reads from A
-t2 = @dtask sum(A) (A,) (R,)
-
-DataFlowTasks.data_dependency(t1,t2) # true
-
-# output
-
-true
-```
+not automatically scheduled for execution.
 
 ## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """

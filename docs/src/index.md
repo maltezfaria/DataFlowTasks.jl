@@ -10,14 +10,13 @@ CurrentModule = DataFlowTasks
 This package defines a `DataFlowTask` type which behaves very much like a Julia
 `Task`, except that it allows the user to specify explicit *data dependencies*.
 This information is then be used to automatically infer *task dependencies* by
-constructing and analyzing an underlying directed acyclic graph based on how
-tasks access the underlying data. The premise is that it is sometimes simpler to
+constructing and analyzing a directed acyclic graph based on how
+tasks access the underlying data. Three The premise is that it is sometimes simpler to
 specify how *tasks depend on data* than to specify how *tasks depend on each
 other*.
 
-The strategy implemented here differs `Dagger.jl` in that ... See the
-[TiledFactorization](@ref tiledfactorization-section) for a more detailed
-comparison. 
+!!! important "Similarities and differences with `Dagger.jl`"
+    TODO
 
 The use of a `DataFlowTask` is intended to be as similar to a native `Task` as
 possible. The API revolves around three macros:
@@ -86,7 +85,7 @@ outcome is thus always zero.
     may access an element of `A` before it has been replaced by zero!
 
 No parallelism was allowed in the previous example due to a data conflict. To
-see that when parallelism is possible, spawning `DataFlowTask`s will preserve it,
+see that when parallelism is possible, spawning `DataFlowTask`s will exploit it,
 consider this one last example:
 
 ```@example simple-example
@@ -104,7 +103,7 @@ end (A,) (W,)
 
 d2 = @dspawn begin
     # some long computation 
-    sleep(10)
+    sleep(5)
     # reduce A
     sum(A)
 end (A,) (R,)
@@ -125,9 +124,13 @@ executed concurrently with `d2`. The result is, as expected, `0`.
 
 All examples this far have been simple enough that the dependencies between the
 tasks could have been inserted *by hand*. There are certain problems, however,
-where a data-flow approach to parallelism is a rather natural way to implicitly
-describe task dependencies. See the [Tiled Factorization](@ref
-tiledfactorization-section) for some examples where that may be the case.
+where the constant reuse of memory (mostly for performance reasons) makes a
+data-flow approach to parallelism a rather natural way to implicitly describe
+task dependencies. This is the case, for instance, of tiled (also called
+blocked) matrix factorization algorithms, where task dependencies can become
+rather difficult to describe in an explicit manner. The [tiled factorization section](@ref
+tiledfactorization-section) showcases some non-trivial problems for which
+`DataFlowTask`s may be useful.
 
 !!! tip
     The main goal of `DataFlowTask`s is to expose parallelism: two tasks `ti`
@@ -201,7 +204,6 @@ v = rand(5);
 M1 = CirculantMatrix(v);
 M2 = CirculantMatrix(copy(v));
 
-
 Base.sum(M::CirculantMatrix) = length(M.data)*sum(M.data)
 
 d1 = @dspawn begin
@@ -228,30 +230,81 @@ fetch(d3)
 ## Scheduler
 
 When loaded, the `DataFlowTasks` package will initialize an internal scheduler
-(of type [`JuliaScheduler`](@ref)), running on the background, to handle the
-execution of the spawned `DataFlowTask`s. The default strategy implemented is
-very simple: the scheduler will compute the implicit task dependencies based on
-its `dag` and immediately pass the task to the Julia scheduler (the *real*
-scheduler here). Once the task is finished, it adds itself to a `finished`
-channel so that the internal scheduler can remove it from the `dag`. This
-strategy makes `DataFlowTask`s very composable with other `Task` passed to the
-Julia scheduler. One thing to keep in mind is that tasks are executed as soon as possible, and
-that the underlying `dag` is constantly being mutated during execution to
-add/remove nodes and edges as required.
+(of type [`JuliaScheduler`](@ref)), running on the background, to handle
+implicit dependencies of the spawned `DataFlowTask`s. In order to retrieve the
+current scheduler, you may use the [`getscheduler`](@ref) method:
 
-In order to retrieve the internal scheduler, you may use the
-[`getscheduler`](@ref) method.
-
-```@example
+```@example scheduler
 using DataFlowTasks # hide
+DataFlowTasks.sync() # hide
 sch = DataFlowTasks.getscheduler()
 ```
-### `JuliaScheduler`
-TODO
-### `StaticScheduler`
-TODO
-### `PriorityScheduler`
+
+The default scheduler can be changed through [`setscheduler!`](@ref).
+
+There are two important things to know about the default `JuliaScheduler` type. First,
+it contains a buffered `dag` that can handle up to `sz_max` nodes: trying to
+`spawn` a task when the `dag` is full will block. This is done to keep the cost
+of analyzing the data dependencies under control, and it means that a
+full/static `dag` may in practice never be constructed. You can modify the
+buffer size as follows:
+
+```@example scheduler
+resize!(sch.dag,50)
+```
+
+Second, when the computation of a `DataFlowTask` `ti` is completed, it gets
+pushed into a `finished` channel, to be eventually processed and `pop`ed from the `dag` by
+the `dag_worker`. This is done to avoid concurrent access to the `dag`: only the
+`dag_worker` should modify it. If you want to stop nodes from being removed from the `dag`,
+you may stop the `dag_worker` using:
+
+```@example scheduler
+DataFlowTasks.stop_dag_worker(sch)
+```
+
+Finished nodes will now remain in the `dag`:
+
+```@example scheduler
+using DataFlowTasks: R,W,RW, num_nodes
+A = ones(5)
+@dspawn begin 
+    A .= 2 .* A
+end (A,) (RW,)
+@dspawn sum(A) (A,) (R,)
+sch
+```
+
+Note that stopping the `dag_worker` means `finished` nodes are no longer removed
+from the `dag`; since the `dag` is a buffered structure, this may cause the
+execution to halt if the `dag` is at full capacity. You can then either
+`resize!` it, or simply star the worker (which will result in the processing of
+the `finished` channel):
+
+```@example scheduler
+DataFlowTasks.start_dag_worker(sch)
+sch
+```
+
+!!! tip
+    There are situations where you may want to change the default scheduler
+    temporarily to execute a block of code, and revert to the default scheduler
+    after. This can be done using the [`with_scheduler`](@ref) method. 
+
+
+## Logging
+
 TODO
 
 ## Limitations
-TODO
+
+Some current limitations are listed below:
+
+- At present, errors are rather poorly handled. The only way to know if a task
+  has failed is to manually inspect the `dag`
+- There is no way to specify priorities for a task.
+- The main thread executes tasks, and is responsible for adding/removing nodes
+  from the `dag`. This may hinder parallelism if the main thread is given a long
+  task since the processing of the dag will halt until the main thread becomes
+  free again.
+- ...

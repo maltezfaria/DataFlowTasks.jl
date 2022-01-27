@@ -18,6 +18,8 @@ end
 Base.lock(c::FinishedChannel)   = lock(c.cond_take)
 Base.unlock(c::FinishedChannel) = unlock(c.cond_take)
 
+Base.length(c::FinishedChannel) = length(c.data)
+
 function Base.take!(c::FinishedChannel)
     lock(c)
     try
@@ -93,6 +95,12 @@ Return the active scheduler.
 """
 getscheduler() = (SCHEDULER[])
 
+"""
+    with_scheduler(f,sch)
+
+Run `f`, but push `DataFlowTask`s to the scheduler `dag` in `sch` instead of the
+default `dag`.
+"""
 function with_scheduler(f,sch)
     old = getscheduler()
     setscheduler!(sch)
@@ -197,6 +205,17 @@ end
 function Base.schedule(tj,::JuliaScheduler)
     schedule(tj.task)
     return tj
+end
+
+function Base.show(io::IO, sch::JuliaScheduler)
+    dag = sch.dag
+    n = num_nodes(dag)
+    e = num_edges(dag)
+    f = length(sch.finished)
+    s1 = n==1 ? "" : "s"
+    s2 = f==1 ? "" : "s"
+    s3 = e==1 ? "" : "s"
+    print(io, typeof(sch)," with $n active node$s1, $f finished node$s2, and $e edge$s3 (capacity of $(dag.sz_max[]) nodes)")
 end
 
 """
