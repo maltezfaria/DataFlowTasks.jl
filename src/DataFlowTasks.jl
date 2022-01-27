@@ -48,7 +48,7 @@ include("TiledFactorization/TiledFactorization.jl")
 
 function __init__()
     # default scheduler
-    capacity  = 20
+    capacity  = 50
     sch       = JuliaScheduler(capacity)
     setscheduler!(sch)
 end

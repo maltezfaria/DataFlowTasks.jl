@@ -1,14 +1,11 @@
 # DataFlowTasks.jl
 
-![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-orange.svg)<!--
-![Lifecycle](https://img.shields.io/badge/lifecycle-maturing-blue.svg)
-![Lifecycle](https://img.shields.io/badge/lifecycle-stable-green.svg)
-![Lifecycle](https://img.shields.io/badge/lifecycle-retired-orange.svg)
-![Lifecycle](https://img.shields.io/badge/lifecycle-archived-red.svg)
-![Lifecycle](https://img.shields.io/badge/lifecycle-dormant-blue.svg) -->
-[![Build Status](https://travis-ci.com/maltezfaria/DataFlowTasks.jl.svg?branch=master)](https://travis-ci.com/maltezfaria/DataFlowTasks.jl)
-[![codecov.io](http://codecov.io/github/maltezfaria/DataFlowTasks.jl/coverage.svg?branch=master)](http://codecov.io/github/maltezfaria/DataFlowTasks.jl?branch=master)
-
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://maltezfaria.github.io/DataFlowTasks.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://maltezfaria.github.io/DataFlowTasks.jl/dev)
+[![Build
+Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)](https://github.com/maltezfaria/DataFlowTasks.jl/actions)
+[![codecov](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl/branch/main/graph/badge.svg?token=DRT75WR7V2)](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl)
+![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-blue.svg)
 
 ## TODO:
     [ ] Better error propagation

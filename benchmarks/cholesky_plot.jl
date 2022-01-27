@@ -1,3 +1,4 @@
+# using MKL
 using Test
 using DataFlowTasks
 using DataFlowTasks.TiledFactorization
@@ -7,12 +8,19 @@ using VectorizationBase
 
 nc = min(Int(VectorizationBase.num_cores()), Threads.nthreads())
 
+capacity = 50
+sch = DataFlowTasks.JuliaScheduler(capacity)
+DataFlowTasks.setscheduler!(sch)
+
+tilesize = 256
+TiledFactorization.TILESIZE[] = tilesize
+
 PLOT    = true
 SAVEFIG = true
 
-nn    = 500:500:7000 |> collect
+nn    = 1000:100:5000 |> collect
 t_openblas = Float64[]
-# t_forkjoin = Float64[]
+t_forkjoin = Float64[]
 t_dataflow = Float64[]
 
 for m in nn
@@ -28,7 +36,7 @@ for m in nn
     BLAS.set_num_threads(nc)
     @info "NBLAS = $(BLAS.get_num_threads())"
     b = @benchmark cholesky!(B) setup=(B=copy($A)) evals=1
-    push!(t_openblas,minimum(b).time)
+    push!(t_openblas,median(b).time)
 
 
     # test DataFlowTasks parallelism
@@ -36,11 +44,11 @@ for m in nn
     BLAS.set_num_threads(1)
     @info "NBLAS = $(BLAS.get_num_threads())"
     b = @benchmark TiledFactorization.cholesky!(B) setup=(B=copy($A)) evals=1
-    push!(t_dataflow,minimum(b).time)
+    push!(t_dataflow,median(b).time)
 
     # test fork-join parallelism
-    # b = @benchmark TiledFactorization._cholesky_forkjoin!(B) setup=(B=PseudoTiledMatrix(copy(A),TILESIZE))
-    # push!(t_forkjoin,minimum(b).time)
+    b = @benchmark TiledFactorization._cholesky_forkjoin!(B) setup=(B=PseudoTiledMatrix(copy($A),TiledFactorization.TILESIZE[]))
+    push!(t_forkjoin,median(b).time)
 
     # compute the error
     DataFlowTasks.TASKCOUNTER[] = 1 # reset task counter to display how many tasks were created for
@@ -63,17 +71,19 @@ for m in nn
     @info "er_blas           = $er_blas"
     @info "t_blas            = $(t_openblas[end])"
     @info "t_dataflow        = $(t_dataflow[end])"
+    @info "t_forkjoin        = $(t_forkjoin[end])"
     println("="^80)
 end
 
 if PLOT
     using Plots
     flops = @. 1/3*nn^3 + 1/2*nn^2 # I think this is correct (up to O(n)), but double check
-    plot(nn,flops./(t_openblas),label="openblas",xlabel="n",ylabel="GFlops/second",m=:x,title="Cholesky factorization",legend=:bottomright)
-    plot!(nn,t_forkjoin./1e9,label="forkjoin",m=:x)
-    plot!(nn,flops./(t_dataflow),label="TiledFactorization",m=:x)
-    SAVEFIG && savefig(joinpath(DataFlowTasks.PROJECT_ROOT,"benchmarks/choleskyperf.png"))
+    plot(nn,flops./(t_openblas),label="OpenBLAS",xlabel="n",ylabel="GFlops/second",m=:x,title="Cholesky factorization",legend=:bottomright)
+    plot!(nn,flops./(t_forkjoin),label="TiledFactorization (forkjoin)",m=:x)
+    plot!(nn,flops./(t_dataflow),label="TiledFactorization (dataflow)",m=:x)
+    SAVEFIG && savefig(joinpath(DataFlowTasks.PROJECT_ROOT,"benchmarks/choleskyperf_capacity_$(capacity)_tilesize_$(tilesize).png"))
     # peakflops vary, not sure how to measure it. Maybe use cpuinfo?
     # peak = LinearAlgebra.peakflops()
     # plot!(nn,peak/1e9*ones(length(nn)))
+    nothing
 end
