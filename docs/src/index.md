@@ -129,7 +129,7 @@ data-flow approach to parallelism a rather natural way to implicitly describe
 task dependencies. This is the case, for instance, of tiled (also called
 blocked) matrix factorization algorithms, where task dependencies can become
 rather difficult to describe in an explicit manner. The [tiled factorization section](@ref
-tiledfactorization-section) showcases some non-trivial problems for which
+tiledcholesky-section) showcases some non-trivial problems for which
 `DataFlowTask`s may be useful.
 
 !!! tip

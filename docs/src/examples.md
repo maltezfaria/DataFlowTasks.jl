@@ -1,12 +1,23 @@
 # [Examples](@id examples-section)
 
-## [Tiled factorization](@id tiledfactorization-section)
+TODO: 
+- add a description of the examples and more hardware info
+- mention the effects of `tilesize` ahd `capacity` on the results of tiled factorization
+- compare 'fork-join' approach to `HLU` to dataflow approach
+ 
+## [Tiled Cholesky factorization](@id tiledcholesky-section)
 
-In this example we write a parallel pure `Julia` implementation of the
-`Cholesky` factorization. See [this
-page](https://hpc2n.github.io/Task-based-parallelism/branch/spring2021/task-basics-lu/)
-for a great discussion on the subject.
+### Computer 1
+![Cholesky 8 cores](benchmarks/mac_choleskyperf_capacity_50_tilesize_256_cores_8.png)
 
-!!! note
-    The examples in this page were inspired by the discussion on 
-    page.
+### Computer 2
+![Cholesky 20
+cores](benchmarks/workstation_choleskyperf_capacity_50_tilesize_256_cores_20.png)
+
+## [Tiled LU factorization](@id tiledlu-section)
+
+!!! tip
+    See [this page](https://hpc2n.github.io/Task-based-parallelism/branch/spring2021/task-basics-lu/)
+    for a discussion on thread-based parallelization of `LU` factorization.
+
+## [Hierarchical `LU` factorization]
