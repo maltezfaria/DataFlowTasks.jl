@@ -8,11 +8,14 @@ TODO:
 ## [Tiled Cholesky factorization](@id tiledcholesky-section)
 
 ### Computer 1
-![Cholesky 8 cores](benchmarks/mac_choleskyperf_capacity_50_tilesize_256_cores_8.png)
+![Cholesky 8
+cores](https://github.com/maltezfaria/DataFlowTasks.jl/blob/9958341ed6f2a1b94b6e4323a64bf12533bcf2ab/benchmarks/mac_choleskyperf_capacity_50_tilesize_256_cores_8.png)
+
+
 
 ### Computer 2
 ![Cholesky 20
-cores](benchmarks/workstation_choleskyperf_capacity_50_tilesize_256_cores_20.png)
+cores](https://github.com/maltezfaria/DataFlowTasks.jl/blob/9958341ed6f2a1b94b6e4323a64bf12533bcf2ab/benchmarks/workstation_choleskyperf_capacity_50_tilesize_256_cores_20.png)
 
 ## [Tiled LU factorization](@id tiledlu-section)
 
