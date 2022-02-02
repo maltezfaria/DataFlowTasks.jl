@@ -11,7 +11,7 @@ This package defines a `DataFlowTask` type which behaves very much like a Julia
 `Task`, except that it allows the user to specify explicit *data dependencies*.
 This information is then be used to automatically infer *task dependencies* by
 constructing and analyzing a directed acyclic graph based on how
-tasks access the underlying data. Three The premise is that it is sometimes simpler to
+tasks access the underlying data. The premise is that it is sometimes simpler to
 specify how *tasks depend on data* than to specify how *tasks depend on each
 other*.
 

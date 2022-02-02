@@ -41,7 +41,6 @@ for m in nn
 
     # test DataFlowTasks parallelism
     @info "pseudotiled cholesky"
-    BLAS.set_num_threads(1)
     @info "NBLAS = $(BLAS.get_num_threads())"
     b = @benchmark TiledFactorization.cholesky!(B) setup=(B=copy($A)) evals=1
     push!(t_dataflow,median(b).time)
@@ -55,10 +54,10 @@ for m in nn
     F = TiledFactorization.cholesky(A)
 
     BLAS.set_num_threads(8)
-    er = norm(F.L*F.U-A,Inf)
+    er = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 
     F = cholesky!(copy(A))
-    er_blas = norm(F.L*F.U-A,Inf)
+    er_blas = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 
     # for m×m tiled matrix, there should be 1/6*(m^3-m) + 1/2*(m^2-m) + m tasks
     # created

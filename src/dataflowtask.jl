@@ -23,6 +23,7 @@ mutable struct DataFlowTask
     task::Task
     function DataFlowTask(code,data,mode::NTuple{N,AccessMode},priority=0,label="",sch=getscheduler()) where {N}
         @assert length(data) == N
+        TASKCOUNTER[] += 1
         tj    = new(data,mode,TASKCOUNTER[],priority,label)
         addnode!(sch,tj,true)
         deps  = inneighbors(sch.dag,tj) |> copy
@@ -39,7 +40,6 @@ mutable struct DataFlowTask
             put!(sch.finished,tj)
             res
         end
-        TASKCOUNTER[] += 1
         return tj
     end
 end
@@ -49,7 +49,7 @@ end
 
 Global counter of created `DataFlowTask`s.
 """
-const TASKCOUNTER = Ref(1)
+const TASKCOUNTER = Ref(0)
 
 """
     data(t::DataFlowTask[,i])

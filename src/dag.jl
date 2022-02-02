@@ -140,8 +140,7 @@ function update_edges!(dag::DAG,nodej)
         nodei < nodej  || continue
         dep    = data_dependency(nodei,nodej)
         dep   || continue
-        # addedge_transitive!(dag,nodei,nodej)
-        addedge!(dag,nodei,nodej)
+        addedge_transitive!(dag,nodei,nodej)
     end
     return dag
 end
