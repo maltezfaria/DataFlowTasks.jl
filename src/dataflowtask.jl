@@ -32,11 +32,14 @@ mutable struct DataFlowTask
                 wait(ti)
             end
             # run the underlying code block and time its execution for logging
-            t₀  = time_ns()
+            t₀  = time()
             res = code()
-            t₁  = time_ns()
+            t₁  = time()
             tid = Threads.threadid()
-            @trace "task_info $tid $t₀ $t₁ $(tj.tag) $(tj.label)"
+            if should_log()
+                task_log = TaskLog(tid, t₀, t₁, tj.tag, tj.label)
+                push!(LOGGER[tid], task_log)
+            end
             put!(sch.finished,tj)
             res
         end

@@ -41,7 +41,8 @@ include("otherschedulers.jl")
 export
     @dtask,
     @dasync,
-    @dspawn
+    @dspawn,
+    should_log, LOGGER
 
 
 function __init__()
