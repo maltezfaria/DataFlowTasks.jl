@@ -43,8 +43,6 @@ export
     @dasync,
     @dspawn
 
-# a module showcasing some usecases. To be removed eventually...
-include("TiledFactorization/TiledFactorization.jl")
 
 function __init__()
     # default scheduler

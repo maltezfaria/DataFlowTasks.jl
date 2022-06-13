@@ -7,3 +7,4 @@ Manifest.toml
 /deps/deps.jl
 /docs/build
 /references/**
+.vscode
