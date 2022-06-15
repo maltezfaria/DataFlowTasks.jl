@@ -27,9 +27,8 @@ mutable struct DataFlowTask
         tj    = new(data,mode,TASKCOUNTER[],priority,label)
         addnode!(sch,tj,true)
 
-        # Logging
         if should_log()
-            push!(dag_logger, [task.tag for task ∈ inneighbors(sch.dag, tj)])
+            inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)]
         end
 
         deps  = inneighbors(sch.dag,tj) |> copy
@@ -45,8 +44,8 @@ mutable struct DataFlowTask
 
             # Logging
             if should_log()
-                task_log = TaskLog(tid, t₀, t₁, tj.tag, tj.label)
-                push!(task_logger[tid], task_log)
+                task_log = TaskLog(tid, t₀, t₁, tj.tag, inneighbors_, tj.label)
+                push!(logger[tid], task_log)
             end
 
             put!(sch.finished,tj)

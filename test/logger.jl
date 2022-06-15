@@ -9,11 +9,10 @@ task(a) = a + exp(a)
 computing(a) = (sleep(1) ; task(a))
 
 # Log activation
-should_log() = true
+DataFlowTasks.should_log() = true
 
 # Reset logger and taskcounter
-DataFlowTasks.clear_task_logger()
-DataFlowTasks.clear_dag_logger()
+DataFlowTasks.clear_logger()
 DataFlowTasks.TASKCOUNTER[] = 0
 
 A = ones(4,4)
@@ -26,12 +25,8 @@ t4 = @dspawn computing(B) (B,) (RW,)
 t5 = @dspawn computing(A) (A,) (RW,)
 t6 = @dspawn computing(B) (B,) (RW,)
 
-DataFlowTasks.sync()
-
-@show dag_logger
-plot(task_logger)
-
-plot(dag_logger)
+plot(TraceLog)
+plot(DagLog)
 
 fig_path = joinpath(DataFlowTasks.PROJECT_ROOT, "tmp")
 fig_path = joinpath(fig_path, "graph.png")

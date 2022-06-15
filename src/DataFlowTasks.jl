@@ -43,7 +43,7 @@ export
     @dtask,
     @dasync,
     @dspawn,
-    should_log, task_logger, dag_logger
+    TraceLog, DagLog
 
 
 function __init__()

@@ -32,53 +32,84 @@ macro trace(expr)
 end
 
 struct TaskLog
-    threadid::Int
+    tid::Int
     time_start::Float64
     time_finish::Float64
-    task_tag::Int
-    task_label::String
+    tag::Int
+    inneighbors::Vector{Int64}
+    label::String
 end
 
-should_log() = true
-const task_logger = [TaskLog[] for _ in 1:Threads.nthreads()]
-const dag_logger = Vector{Vector{Int64}}()
-clear_task_logger() = [empty!(logs) for logs ∈ task_logger]
-clear_dag_logger() = ([empty!(outneighbors) for outneighbors ∈ dag_logger] ; empty!(dag_logger))
+# Contains vectors of TaskLog (as many vectors as there are threads)
+const logger = [Vector{TaskLog}() for _ ∈ 1:Threads.nthreads()]
+
+should_log() = false
+# const task_logger = [TaskLog[] for _ in 1:Threads.nthreads()]
+# const dag_logger = Vector{Vector{Int64}}()
+
+function clear_logger()
+    # Empty neighbors
+    for thread ∈ logger
+        for tasklog ∈ thread
+            empty!(tasklog.inneighbors)
+        end
+        empty!(thread)
+    end
+end
 
 
-# Plot Task Logger
-@recipe function f(logger::Vector{Vector{TaskLog}})
-    # Get ref time
+struct TraceLog end
+struct DagLog end
+
+function get_trace_xlims()
     first_time = Inf
     last_time = 0
-    for tasklogs in task_logger
-        for tasklog in tasklogs
+
+    # For every tasklog in every thread
+    for thread in logger
+        for tasklog in thread
+            # Update first_time
             if tasklog.time_start < first_time
                 first_time = tasklog.time_start
             end
+
+            # Update last_time
             if tasklog.time_finish > last_time
                 last_time = tasklog.time_finish
             end
         end
     end
 
+    first_time, last_time
+end
+
+@recipe function f(::Type{TraceLog})
+    if !should_log()
+        error("Logger is not active")
+    end
+
+    # Make sure all tasks are finished
+    sync()
+    
+    (first_time, last_time) = get_trace_xlims()
+
     xlabel --> "time (s)"
     ylabel --> "threadid"
     xlims --> (0, (last_time - first_time)/1e9)
     # yflip  := true
     seriestype := :shape
-    for tasklogs in task_logger
+    for thread in logger
         # yticks --> unique(t.threadid for t in tasklogs)        
         seriesalpha  --> 0.5
         # for (tid,ts,te,tag) in tasklog
-        for tasklog in tasklogs
+        for tasklog in thread
             # loop all data and plot the lines
             @series begin
                 label --> nothing
                 x1 = (tasklog.time_start  - first_time) / 1e9
                 x2 = (tasklog.time_finish - first_time) / 1e9
-                y1 = tasklog.threadid - 0.25
-                y2 = tasklog.threadid + 0.25
+                y1 = tasklog.tid - 0.25
+                y2 = tasklog.tid + 0.25
                 [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
             end
         end
@@ -86,24 +117,38 @@ clear_dag_logger() = ([empty!(outneighbors) for outneighbors ∈ dag_logger] ; e
 end
 
 function get_dag_matrix()
-    if !should_log()
-        error("Logger is not active")
+    # Get number of tasks
+    size = 0
+    for thread ∈ logger
+        for tasklog ∈ thread
+            size += 1
+        end
     end
+    println(size)
 
-    # Get node of max index
-    size = length(dag_logger)
+    # Allocate adjacency matrix
     adj_matrix = zeros(size, size)
 
-    for i ∈ 1:size
-        for inneighbor ∈ dag_logger[i]
-            adj_matrix[inneighbor, i] = 1
+    #
+    for thread ∈ logger
+        for tasklog ∈ thread
+            for neighbor ∈ tasklog.inneighbors
+                adj_matrix[neighbor, tasklog.tag] = 1
+            end
         end
     end
 
     adj_matrix
 end
 
-@recipe function f(logger::Vector{Vector{Int64}})
+@recipe function f(::Type{DagLog})
+    if !should_log()
+        error("Logger is not active")
+    end
+
+    # Make sure all tasks are finished
+    sync()
+    
     adj_matrix = get_dag_matrix()
     n = size(adj_matrix)[1]
     nodesize --> 2/n
@@ -111,59 +156,3 @@ end
     nodeshape --> :circle
     GraphRecipes.GraphPlot([adj_matrix])    
 end
-
-# function plot_dag_logger(kwargs...)
-
-#     graphplot(
-#         adj_matrix,
-    
-#         #axis_buffer = 1.0,
-#         names = 1:size(adj_matrix)[1],
-        
-#         # Shapes
-#         # method = :chorddiagram,
-#         nodeshape = :circle,
-#         curves = false,
-        
-#         # Size
-#         nodesize = 0.5,
-#         # linewidth = 3,
-    
-#         # Colors
-#         # edgecolor = :black,
-#         # markercolor = :darkgray,
-
-#         ; kwargs...
-#     )
-# end
-
-
-
-# struct PlotFinished end
-# struct PlotRunnable end
-
-# @recipe function f(::PlotFinished,log::Logger)
-#     xlabel --> "time (s)"
-#     ylabel --> "length"
-#     xlims --> (0,Inf)
-#     lw --> 2
-#     label --> "finished channel"
-#     # yflip  := true
-#     seriestype := :line
-#     l,t = log.finishedlog # length,time
-#     yticks --> unique(l)
-#     (t .- ref_time[])/1e9,l
-# end
-
-# @recipe function f(::PlotRunnable,log::Logger)
-#     xlabel --> "time (s)"
-#     ylabel --> "length"
-#     xlims --> (0,Inf)
-#     lw --> 2
-#     label --> "runnable channel"
-#     # yflip  := true
-#     seriestype := :line
-#     l,t = log.runnablelog # length,time
-#     yticks --> unique(l)
-#     (t .- ref_time[])/1e9,l
-# end
