@@ -39,17 +39,19 @@ struct TaskLog
     task_label::String
 end
 
-const LOGGER = [TaskLog[] for _ in 1:Threads.nthreads()]
 should_log() = true
+const task_logger = [TaskLog[] for _ in 1:Threads.nthreads()]
+const dag_logger = Vector{Vector{Int64}}()
+clear_task_logger() = [empty!(logs) for logs ∈ task_logger]
+clear_dag_logger() = ([empty!(outneighbors) for outneighbors ∈ dag_logger] ; empty!(dag_logger))
 
 
-# # plot the logger
-
+# Plot Task Logger
 @recipe function f(logger::Vector{Vector{TaskLog}})
     # Get ref time
     first_time = Inf
     last_time = 0
-    for tasklogs in logger
+    for tasklogs in task_logger
         for tasklog in tasklogs
             if tasklog.time_start < first_time
                 first_time = tasklog.time_start
@@ -65,7 +67,7 @@ should_log() = true
     xlims --> (0, (last_time - first_time)/1e9)
     # yflip  := true
     seriestype := :shape
-    for tasklogs in logger
+    for tasklogs in task_logger
         # yticks --> unique(t.threadid for t in tasklogs)        
         seriesalpha  --> 0.5
         # for (tid,ts,te,tag) in tasklog
@@ -82,6 +84,60 @@ should_log() = true
         end
     end
 end
+
+function get_dag_matrix()
+    if !should_log()
+        error("Logger is not active")
+    end
+
+    # Get node of max index
+    size = length(dag_logger)
+    adj_matrix = zeros(size, size)
+
+    for i ∈ 1:size
+        for inneighbor ∈ dag_logger[i]
+            adj_matrix[inneighbor, i] = 1
+        end
+    end
+
+    adj_matrix
+end
+
+@recipe function f(logger::Vector{Vector{Int64}})
+    adj_matrix = get_dag_matrix()
+    n = size(adj_matrix)[1]
+    nodesize --> 2/n
+    names --> 1:n
+    nodeshape --> :circle
+    GraphRecipes.GraphPlot([adj_matrix])    
+end
+
+# function plot_dag_logger(kwargs...)
+
+#     graphplot(
+#         adj_matrix,
+    
+#         #axis_buffer = 1.0,
+#         names = 1:size(adj_matrix)[1],
+        
+#         # Shapes
+#         # method = :chorddiagram,
+#         nodeshape = :circle,
+#         curves = false,
+        
+#         # Size
+#         nodesize = 0.5,
+#         # linewidth = 3,
+    
+#         # Colors
+#         # edgecolor = :black,
+#         # markercolor = :darkgray,
+
+#         ; kwargs...
+#     )
+# end
+
+
 
 # struct PlotFinished end
 # struct PlotRunnable end

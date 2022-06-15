@@ -26,6 +26,12 @@ mutable struct DataFlowTask
         TASKCOUNTER[] += 1
         tj    = new(data,mode,TASKCOUNTER[],priority,label)
         addnode!(sch,tj,true)
+
+        # Logging
+        if should_log()
+            push!(dag_logger, [task.tag for task ∈ inneighbors(sch.dag, tj)])
+        end
+
         deps  = inneighbors(sch.dag,tj) |> copy
         tj.task = @task begin
             for ti in deps
@@ -36,10 +42,13 @@ mutable struct DataFlowTask
             res = code()
             t₁  = time()
             tid = Threads.threadid()
+
+            # Logging
             if should_log()
                 task_log = TaskLog(tid, t₀, t₁, tj.tag, tj.label)
-                push!(LOGGER[tid], task_log)
+                push!(task_logger[tid], task_log)
             end
+
             put!(sch.finished,tj)
             res
         end
