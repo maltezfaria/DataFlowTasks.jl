@@ -93,6 +93,7 @@ end
     
     (first_time, last_time) = get_trace_xlims()
 
+    size --> (800,600)
     xlabel --> "time (s)"
     ylabel --> "threadid"
     xlims --> (0, (last_time - first_time)/1e9)
@@ -124,7 +125,6 @@ function get_dag_matrix()
             size += 1
         end
     end
-    println(size)
 
     # Allocate adjacency matrix
     adj_matrix = zeros(size, size)
@@ -151,8 +151,11 @@ end
     
     adj_matrix = get_dag_matrix()
     n = size(adj_matrix)[1]
-    nodesize --> 2/n
+
+    size --> (800,600)
+    nodesize --> 3/n
     names --> 1:n
     nodeshape --> :circle
+    curves --> false
     GraphRecipes.GraphPlot([adj_matrix])    
 end
