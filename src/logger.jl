@@ -57,10 +57,6 @@ function clear_logger()
     end
 end
 
-
-struct TraceLog end
-struct DagLog end
-
 function get_trace_xlims()
     first_time = Inf
     last_time = 0
@@ -83,6 +79,8 @@ function get_trace_xlims()
     first_time, last_time
 end
 
+struct TraceLog end
+struct DagLog end
 @recipe function f(::Type{TraceLog})
     if !should_log()
         error("Logger is not active")
@@ -96,7 +94,7 @@ end
     size --> (800,600)
     xlabel --> "time (s)"
     ylabel --> "threadid"
-    xlims --> (0, (last_time - first_time)/1e9)
+    xlims --> (0, last_time - first_time)
     # yflip  := true
     seriestype := :shape
     for thread in logger
@@ -107,8 +105,8 @@ end
             # loop all data and plot the lines
             @series begin
                 label --> nothing
-                x1 = (tasklog.time_start  - first_time) / 1e9
-                x2 = (tasklog.time_finish - first_time) / 1e9
+                x1 = (tasklog.time_start  - first_time)
+                x2 = (tasklog.time_finish - first_time)
                 y1 = tasklog.tid - 0.25
                 y2 = tasklog.tid + 0.25
                 [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
@@ -117,45 +115,34 @@ end
     end
 end
 
-function get_dag_matrix()
-    # Get number of tasks
-    size = 0
-    for thread ∈ logger
-        for tasklog ∈ thread
-            size += 1
-        end
-    end
 
-    # Allocate adjacency matrix
-    adj_matrix = zeros(size, size)
 
-    #
+function write_graph()
+    str = "strict digraph dag {rankdir=LR;layout=dot;"
+
     for thread ∈ logger
         for tasklog ∈ thread
             for neighbor ∈ tasklog.inneighbors
-                adj_matrix[neighbor, tasklog.tag] = 1
+                str *= """ $neighbor -> $(tasklog.tag);"""
             end
         end
     end
 
-    adj_matrix
+    str *= "}"
+
+    return str
 end
 
-@recipe function f(::Type{DagLog})
+function plot_dag()
     if !should_log()
         error("Logger is not active")
     end
 
     # Make sure all tasks are finished
     sync()
-    
-    adj_matrix = get_dag_matrix()
-    n = size(adj_matrix)[1]
 
-    size --> (800,600)
-    nodesize --> 3/n
-    names --> 1:n
-    nodeshape --> :circle
-    curves --> false
-    GraphRecipes.GraphPlot([adj_matrix])    
+    # Write DOT graph
+    graph_str = write_graph()
+    
+    Graph(graph_str)
 end
