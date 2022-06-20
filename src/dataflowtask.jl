@@ -19,12 +19,12 @@ mutable struct DataFlowTask
     access_mode::NTuple{<:Any,AccessMode}
     tag::Int
     priority::Float64
-    label::String
+    label_id::Int64
     task::Task
-    function DataFlowTask(code,data,mode::NTuple{N,AccessMode},priority=0,label="",sch=getscheduler()) where {N}
+    function DataFlowTask(code,data,mode::NTuple{N,AccessMode},priority=0,label_id=1,sch=getscheduler()) where {N}
         @assert length(data) == N
         TASKCOUNTER[] += 1
-        tj    = new(data,mode,TASKCOUNTER[],priority,label)
+        tj    = new(data,mode,TASKCOUNTER[],priority,label_id)
         addnode!(sch,tj,true)
 
         if should_log()
@@ -37,14 +37,14 @@ mutable struct DataFlowTask
                 wait(ti)
             end
             # run the underlying code block and time its execution for logging
-            t₀  = time()
+            t₀  = Float64(time_ns())
             res = code()
-            t₁  = time()
+            t₁  = Float64(time_ns())
             tid = Threads.threadid()
 
             # Logging
             if should_log()
-                task_log = TaskLog(tid, t₀, t₁, tj.tag, inneighbors_, tj.label)
+                task_log = TaskLog(tid, t₀, t₁, tj.tag, inneighbors_, tj.label_id)
                 push!(logger[tid], task_log)
             end
 
@@ -153,12 +153,13 @@ not automatically scheduled for execution.
 
 ## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
-macro dtask(expr,data,mode,p=0)
+macro dtask(expr, data, mode, p=0, label_id=1)
     :(DataFlowTask(
         ()->$(esc(expr)),
         $(esc(data)),
         $(esc(mode)),
-        $(esc(p))
+        $(esc(p)),
+        $(esc(label_id))
         )
     )
 end

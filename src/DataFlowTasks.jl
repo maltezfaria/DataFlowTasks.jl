@@ -10,7 +10,6 @@ const PROJECT_ROOT =  pkgdir(DataFlowTasks)
 using Logging
 using ThreadPools
 using DataStructures
-using GraphViz: Graph
 using RecipesBase
 
 """
@@ -42,7 +41,7 @@ export
     @dtask,
     @dasync,
     @dspawn,
-    TraceLog, DagLog, plot_dag
+    Trace, getdag, set_tracelabels
 
 
 function __init__()

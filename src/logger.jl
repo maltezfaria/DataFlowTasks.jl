@@ -37,15 +37,19 @@ struct TaskLog
     time_finish::Float64
     tag::Int
     inneighbors::Vector{Int64}
-    label::String
+    label_id::Int64
 end
 
 # Contains vectors of TaskLog (as many vectors as there are threads)
 const logger = [Vector{TaskLog}() for _ ∈ 1:Threads.nthreads()]
 
+const tracelabels = Vector{String}()
+function set_tracelabels(args...)
+    empty!(tracelabels)
+    push!(tracelabels, args...)
+end
+
 should_log() = false
-# const task_logger = [TaskLog[] for _ in 1:Threads.nthreads()]
-# const dag_logger = Vector{Vector{Int64}}()
 
 function clear_logger()
     # Empty neighbors
@@ -57,7 +61,7 @@ function clear_logger()
     end
 end
 
-function get_trace_xlims()
+function get_minmax_times()
     first_time = Inf
     last_time = 0
 
@@ -79,9 +83,11 @@ function get_trace_xlims()
     first_time, last_time
 end
 
-struct TraceLog end
-struct DagLog end
-@recipe function f(::Type{TraceLog})
+struct Trace end
+struct Graph end
+
+@recipe function f(::Type{Trace})
+    # Ensure logger was active
     if !should_log()
         error("Logger is not active")
     end
@@ -89,35 +95,132 @@ struct DagLog end
     # Make sure all tasks are finished
     sync()
     
-    (first_time, last_time) = get_trace_xlims()
+    (first_time, last_time) = get_minmax_times() .* 10^(-9)
 
+    # Label management
+    # ---------------
+    if length(tracelabels) == 0
+        push!(tracelabels, "task")
+    end
+    colors = [:purple, :orange, :blue, :green, :yellow, :red]
+    already_labeled = [false for _ ∈ 1:length(tracelabels)]
+
+    # General plot features
     size --> (800,600)
-    xlabel --> "time (s)"
-    ylabel --> "threadid"
-    xlims --> (0, last_time - first_time)
-    # yflip  := true
-    seriestype := :shape
+    layout := @layout [ a{0.8h} ; [b{0.5w} c{0.5w}]]
+
+    # Informations
+    workingtime = length(logger) * (last_time - first_time)
+    waitingtime = 0
+    timespercategory = zeros(length(tracelabels))
+
+    # Plot each tasklog
     for thread in logger
-        # yticks --> unique(t.threadid for t in tasklogs)        
-        seriesalpha  --> 0.5
-        # for (tid,ts,te,tag) in tasklog
+        
         for tasklog in thread
             # loop all data and plot the lines
             @series begin
-                label --> nothing
-                x1 = (tasklog.time_start  - first_time)
-                x2 = (tasklog.time_finish - first_time)
+                # Plots attributes
+                xlabel --> "time (s)"
+                ylabel --> "threadid"
+                xlims --> (0, last_time - first_time)
+                title --> "Trace"
+                seriestype := :shape
+                seriesalpha  --> 0.5
+                subplot := 1
+
+                if length(tracelabels) < tasklog.label_id
+                    error("label ids assigned but tracelabels not defined")
+                end
+                if !already_labeled[tasklog.label_id]
+                    label --> tracelabels[tasklog.label_id]
+                    already_labeled[tasklog.label_id] = true
+                else
+                    label --> nothing
+                end
+                color --> colors[tasklog.label_id]
+
+                x1 = (tasklog.time_start  * 10^(-9)  - first_time)
+                x2 = (tasklog.time_finish * 10^(-9) - first_time)
                 y1 = tasklog.tid - 0.25
                 y2 = tasklog.tid + 0.25
+
+                # Informations
+                workingtime -= x2-x1
+                waitingtime += x2-x1
+                timespercategory[tasklog.label_id] += x2-x1
+
                 [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
             end
+        end
+    end
+
+    # Informations
+    # ------------
+    total_time = length(logger) * (last_time - first_time)
+    rel_time_waiting = 100 * workingtime / total_time
+    @info "Proportion of time waiting   : $rel_time_waiting %"
+    @info "Cumulative working time      : $waitingtime s"
+    @info "Cumulative waiting time      : $workingtime s"
+
+    # Waiting (s)
+    # -----------
+    xmax = max(waitingtime, workingtime)
+    xmin = 0
+    @series begin
+        subplot := 2
+        seriestype := :bar
+        orientation --> :h
+        label --> "Working"
+        title --> "Activity"
+        xlims --> (xmin, xmax)
+        xticks --> 0:round(xmax/4, digits=2):xmax
+        xlabel --> "time (s)"
+        yticks --> nothing
+        ["Working"], [waitingtime]
+    end
+    @series begin
+        subplot := 2
+        seriestype := :bar
+        orientation --> :h
+        label --> "Waiting"
+        title --> "Activity"
+        xlims --> (xmin, xmax)
+        xticks --> 0:round(xmax/4, digits=2):xmax
+        xlabel --> "time (s)"
+        yticks --> nothing
+        ["Waiting"], [workingtime]
+    end
+
+    # Category repartition
+    # --------------------
+    tmax = max(timespercategory...)
+    for i ∈ 1:length(tracelabels)
+        l = tracelabels[i]
+        @series begin
+            subplot := 3
+            seriestype := :bar
+            label --> nothing
+            title --> "Repartition (%)"
+            yticks --> 0:50:100
+            ylims --> (0, 100)
+            seriesalpha --> 0.5
+            color --> colors[i]
+            [l], [100 * timespercategory[i]/tmax]
         end
     end
 end
 
 
+function getdag()
+    if !should_log()
+        error("Logger is not active")
+    end
 
-function write_graph()
+    # Make sure all tasks are finished
+    sync()
+
+    # Write DOT graph
     str = "strict digraph dag {rankdir=LR;layout=dot;"
 
     for thread ∈ logger
@@ -129,20 +232,4 @@ function write_graph()
     end
 
     str *= "}"
-
-    return str
-end
-
-function plot_dag()
-    if !should_log()
-        error("Logger is not active")
-    end
-
-    # Make sure all tasks are finished
-    sync()
-
-    # Write DOT graph
-    graph_str = write_graph()
-    
-    Graph(graph_str)
 end
