@@ -4,8 +4,7 @@ using DataFlowTasks: R,W,RW
 using LinearAlgebra
 using DataFlowTasks.TiledFactorization
 
-
-background = true
+background = false
 sch = DataFlowTasks.PriorityScheduler(100,background)
 DataFlowTasks.setscheduler!(sch)
 

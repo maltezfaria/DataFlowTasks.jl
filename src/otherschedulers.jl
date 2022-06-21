@@ -202,9 +202,9 @@ function execute(t::DataFlowTask,i)
     task.sticky = VERSION >= v"1.7"
     ccall(:jl_set_task_tid, Cvoid, (Any, Cint), task, i-1)
     # ccall(:jl_set_next_task, Cvoid, (Any,), task)
-    yield(task)
-    # schedule(task)
-    # wait(task)
+    # yield(task)
+    schedule(task)
+    wait(task)
     # task = t.task
     # task.result = Base.invokelatest(task.code)
     # task._state = 1
