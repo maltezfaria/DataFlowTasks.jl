@@ -21,22 +21,23 @@ If `mode` is true (the default), enable debug mode: errors inside tasks will be
 shown.
 """
 function enable_debug(mode = true)
-    @eval debug_mode() = $mode
+    @eval _debug_mode() = $mode
 end
 
-debug_mode() = true
+_debug_mode() = true
+
+function _handle_error(exceptions)
+    Base.emphasize(stderr, "Failed Task\n")
+    Base.display_error(stderr, exceptions)
+end
 
 function handle_errors(body)
-    if debug_mode()
+    if _debug_mode()
         try
             body()
         catch e
             e == :stop && return
-            showerror(stderr, e)
-            println(stderr, "\nStacktrace:")
-            foreach(stacktrace(catch_backtrace())) do s
-                println("  ", s)
-            end
+            _handle_error(current_exceptions())
             rethrow()
         end
     else
