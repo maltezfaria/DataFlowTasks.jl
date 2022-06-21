@@ -27,7 +27,7 @@ mutable struct DataFlowTask
         tj    = new(data,mode,TASKCOUNTER[],priority,label)
         addnode!(sch,tj,true)
         deps  = inneighbors(sch.dag,tj) |> copy
-        tj.task = @task begin
+        tj.task = @task handle_errors() do
             for ti in deps
                 wait(ti)
             end
