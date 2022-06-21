@@ -121,7 +121,7 @@ struct PriorityScheduler{T} <: TaskGraphScheduler
     finished::FinishedChannel{T}
     dag_worker::Task
     task_workers::Vector{Task}
-    function PriorityScheduler{T}(sz = typemax(Int),background=false) where {T}
+    function PriorityScheduler{T}(sz = typemax(Int),background=true) where {T}
         if sz <= 0
             throw(ArgumentError("Scheduler buffer size must be a positive integer"))
         end
@@ -170,33 +170,41 @@ function priority(j::DataFlowTask)
 end
 
 """
-    consume_runnable(runnable,nt)
+    consume_runnable(runnable,nt,background=false)
 
-Spawn `nt = Threads.nthreads()-1` background workers that will consume tasks
-from `runnable` and execute them. The main thread (`Threads.threadid()==1`) is not used.
+Spawn `nt = Threads.nthreads()` workers that will consume tasks
+from `runnable` and execute them. If `background=true` the main thread
+(`Threads.threadid()==1`) is not used, and only `nt-1` `tasks` are spawned.
 """
-function consume_runnable(runnable,nt,background)
+function consume_runnable(runnable,nt,background=false)
     tasks = Task[]
     i1 = nt == 1 ? 1 : background ? 2 : 1
     for i in i1:nt
         t = @tspawnat i begin
             while true
                 t    = take!(runnable)
-                execute(t)
+                execute(t,i)
             end
         end
+        t.sticky = VERSION >= v"1.7"
         push!(tasks,errormonitor(t))
     end
     return tasks
 end
 
-function execute(t::DataFlowTask)
+function execute(t::DataFlowTask,i)
     # FIXME: how to properly `execute` a Task without passing it to the
     # scheduler? Naive approach is to schedule and wait, but that seems silly in
     # the cases where where we know the task can just run immediately, so it is
     # safe to bypass the julia scheduler.
-    schedule(t.task)
-    wait(t)
+    # idea taken from ThreadPools (https://github.com/tro3/ThreadPools.jl)
+    task = t.task
+    task.sticky = VERSION >= v"1.7"
+    ccall(:jl_set_task_tid, Cvoid, (Any, Cint), task, i-1)
+    # ccall(:jl_set_next_task, Cvoid, (Any,), task)
+    yield(task)
+    # schedule(task)
+    # wait(task)
     # task = t.task
     # task.result = Base.invokelatest(task.code)
     # task._state = 1

@@ -16,7 +16,7 @@ using DataFlowTasks
 using DataFlowTasks: R,W,RW
 
 function schur_complement!(C,A,B,tturbo::Val{T}) where {T}
-    # RecursiveFactorization.schur_complement!(C,A,B,tturbo) // usually slower than Octavian
+    # RecursiveFactorization.schur_complement!(C,A,B,tturbo) # usually slower than Octavian
     if T
         Octavian.matmul!(C,A,B,-1,1)
     else

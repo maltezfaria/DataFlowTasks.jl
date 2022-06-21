@@ -8,6 +8,6 @@ using SafeTestsets
     include("juliascheduler_test.jl")
     # other schedulers are left out for now until the API settles. They may not
     # be needed in any case after all....
-    # include("priorityscheduler_test.jl")
+    include("priorityscheduler_test.jl")
     # include("staticscheduler_test.jl")
 end

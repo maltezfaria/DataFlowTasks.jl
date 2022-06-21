@@ -28,8 +28,12 @@ mutable struct DataFlowTask
         addnode!(sch,tj,true)
         deps  = inneighbors(sch.dag,tj) |> copy
         tj.task = @task handle_errors() do
-            for ti in deps
-                wait(ti)
+            if sch isa JuliaScheduler
+                # in this case julia handles the scheduling, so we must pass the
+                # dependencies to the julia scheduler
+                for ti in deps
+                    wait(ti)
+                end
             end
             # run the underlying code block and time its execution for logging
             t₀  = time_ns()
@@ -142,12 +146,13 @@ not automatically scheduled for execution.
 
 ## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
-macro dtask(expr,data,mode,p=0)
+macro dtask(expr,data,mode,p=0,label="")
     :(DataFlowTask(
         ()->$(esc(expr)),
         $(esc(data)),
         $(esc(mode)),
-        $(esc(p))
+        $(esc(p)),
+        $(esc(label))
         )
     )
 end
