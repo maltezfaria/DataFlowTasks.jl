@@ -154,22 +154,88 @@ function memory_overlap(di,dj)
     return true
 end
 
-"""
-    macro dtask(expr,data,mode)
 
-Create a `DataFlowTask` to execute `expr`, where `mode::NTuple{N,AccessMode}`
-species how `data::Tuple{N,<:Any}` is accessed in `expr`. Note that the task is
-not automatically scheduled for execution.
+
+function _dtask(expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
+    data = []
+    mode = []
+
+    # Register access mode `m` for all data listed in `expr`
+    # If multiple data are listed, only return the first one
+    function register_modes(expr, m)
+        for i in 3:length(expr.args)
+            push!(data, expr.args[i])
+            push!(mode, m)
+        end
+        return expr.args[3]
+    end
+
+    # Detect @R/@W/@RW tags in the task body:
+    # - register the associated data and mode
+    # - remove tags from the final expression
+    transform(x) = x
+    function transform(x::Expr)
+        if x.head == :macrocall
+            tags = (READ      => ("@R",  "@←"),
+                    WRITE     => ("@W",  "@→"),
+                    READWRITE => ("@RW", "@↔"))
+            for (m, t) in tags
+                x.args[1] ∈ Symbol.(t) && return register_modes(x, m)
+            end
+        end
+
+        return Expr(x.head, transform.(x.args)...)
+    end
+
+    new_expr = transform(expr)
+    data = Expr(:tuple, data...)
+    mode = Tuple(mode)
+
+
+    # Handle optional keyword arguments
+    defaults = (
+        label    = "",  # task label
+        priority = 0,   # task priority
+    )
+
+    params = foldl(kwargs, init=defaults) do params, opt
+        if !(opt isa Expr && opt.head == :(=))
+            @warn("Malformed DataFlowTask parameter: `$opt`",
+                  _file = string(source.file),
+                  _line = source.line)
+            return params
+        end
+
+        opt_name = opt.args[1]
+        opt_val  = opt.args[2]
+        if opt_name ∉ keys(params)
+            @warn("Unknown DataFlowTask parameter: `$opt`",
+                  _file = string(source.file),
+                  _line = source.line)
+            return params
+        end
+
+        return Base.setindex(params, opt_val, opt_name)
+    end
+
+    :($DataFlowTask(
+        ()->$(esc(new_expr)),
+        $(esc(data)),
+        $(mode),
+        $(esc(params.priority)),
+        $(esc(params.label)),
+    ))
+end
+
+"""
+    @dtask expr [kw_args...]
+
+Create a `DataFlowTask` to execute `expr`, where data have been tagged to
+specify how they are accessed. Note that the task is not automatically scheduled
+for execution.
 
 ## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
-macro dtask(expr,data,mode,p=0,label="")
-    :(DataFlowTask(
-        ()->$(esc(expr)),
-        $(esc(data)),
-        $(esc(mode)),
-        $(esc(p)),
-        $(esc(label))
-        )
-    )
+macro dtask(expr, kwargs)
+    _dtask(expr, kwargs; source=__source__)
 end

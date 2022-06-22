@@ -253,21 +253,23 @@ I automatically wait for `t1` to finish
 Note that in the example above `t2` waited for `t1` because it read a data field
 that `t1` accessed in a writtable manner.
 """
-macro dspawn(expr,data,mode,p=0,label="")
+macro dspawn(expr, kwargs...)
     quote
-        t = @dtask $(esc(expr)) $(esc(data)) $(esc(mode)) $(esc(p)) $(esc(label))
-        spawn(t)
+        t = $(_dtask(expr, kwargs; source=__source__))
+        $spawn(t)
     end
 end
+
+
 
 """
     macro dasync(expr,data,mode)
 
 Like [`@dspawn`](@ref), but schedules the task to run on the current thread.
 """
-macro dasync(expr,data,mode,p=0)
+macro dasync(expr, kwargs...)
     quote
-        t = @dtask $(esc(expr)) $(esc(data)) $(esc(mode)) $(esc(p))
-        schedule(t)
+        t = $(_dtask(expr, kwargs; source=__source__))
+        $schedule(t)
     end
 end
