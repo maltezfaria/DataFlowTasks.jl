@@ -41,7 +41,7 @@ export
     @dtask,
     @dasync,
     @dspawn,
-    Trace, getdag, resetlogger
+    Trace, getdag, resetlogger!, setlabels!, resetlabels!
 
 
 function __init__()
@@ -53,6 +53,8 @@ function __init__()
     # Logger
     logger    = Logger()
     setlogger!(logger)
+    labels    = Vector{String}()
+    setlabels!(labels)
 end
 
 end # module

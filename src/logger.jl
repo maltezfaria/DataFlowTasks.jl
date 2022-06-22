@@ -25,10 +25,19 @@ As a post-processing step, the logger.io stream can be parsed to generate
 relevant data structures which can be e.g. plotted.
 =#
 
+
+# Not currently used
+# -----------------------------------------
 const TraceLogLevel = Logging.LogLevel(-1)
 macro trace(expr)
     :(@logmsg $TraceLogLevel $(esc(expr)))
 end
+# -----------------------------------------
+
+
+# -------------------------------------------------------
+# ---------------------- LOGGING ------------------------
+# -------------------------------------------------------
 
 """
     TaskLog  
@@ -81,9 +90,9 @@ end
 
 """
     resetlogger()  
-Clear LOGGER memory
+Clear LOGGER memory and all logging states
 """
-function resetlogger()
+function resetlogger!()
     for threadlog ∈ LOGGER[].threadlogs
         for tasklog ∈ threadlog
             empty!(tasklog.inneighbors)
@@ -93,18 +102,30 @@ function resetlogger()
 end
 
 """
-    const LOGGER  
-Global Ref Logger.
-"""
-const LOGGER = Ref{Logger}()
-
-"""
     shouldlog()  
 Global to switch between logging or not.
 """
 function shouldlog()
     false
 end
+
+"""
+    const LOGGER  
+Global Ref Logger.
+"""
+const LOGGER = Ref{Logger}()
+
+
+
+# -------------------------------------------------------
+# ----------------------- PLOTTING ----------------------
+# -------------------------------------------------------
+
+"""
+    LABELS  
+Store user defined category labels
+"""
+const LABELS = Ref{Vector{String}}()
 
 """
     Trace  
@@ -126,15 +147,21 @@ Plot recipe to visualize parallel trace
     sync()
     
     # Get first and last time recorded
-    (first_time, last_time) = timelimits() .* 10^(-9)
+    (firsttime, lasttime) = timelimits() .* 10^(-9)
 
     # General plot features
     size --> (800,600)
-    layout := @layout [ a{0.8h} ; [b{0.5w} c{0.5w}]]
+    layout := isassigned(LABELS[]) ? @layout[a{0.8h} ; [b{0.5w} c{0.5w}]] : @layout[a{0.8h} ; b]
+    colors = [:green, :orange, :purple, :blue, :yellow, :red]
+    alr_labeled = [false for _ ∈ LABELS[]]  # we want only 1 label per category
 
     # Informations
-    workingtime = 0
-    waitingtime = length(LOGGER[].threadlogs) * (last_time - first_time)
+    # ------------
+    computingtime = 0
+    othertime = length(LOGGER[].threadlogs) * (lasttime - firsttime)
+    if isassigned(LABELS[])
+        times_per_category = zeros(length(LABELS[]))
+    end
 
     # Loop on all tasklogs to plot computing times
     for threadlog in LOGGER[].threadlogs
@@ -144,66 +171,107 @@ Plot recipe to visualize parallel trace
                 # ---------------
                 xlabel --> "time (s)"
                 ylabel --> "threadid"
-                xlims --> (0, last_time - first_time)
+                xlims --> (0, lasttime - firsttime)
                 title --> "Trace"
                 seriestype := :shape
-                seriesalpha  --> 0.5
+                seriesalpha  --> 0.6
                 subplot := 1
 
-                label --> nothing
-
-                x1 = (tasklog.time_start  * 10^(-9)  - first_time)
-                x2 = (tasklog.time_finish * 10^(-9) - first_time)
+                # Vertices of task square
+                # -----------------------
+                x1 = (tasklog.time_start  * 10^(-9)  - firsttime)
+                x2 = (tasklog.time_finish * 10^(-9) - firsttime)
                 y1 = tasklog.tid - 0.25
                 y2 = tasklog.tid + 0.25
 
-                # Informations
-                workingtime += x2-x1
-                waitingtime -= x2-x1
+                # General Informations
+                # ------------
+                computingtime += x2-x1
+                othertime -= x2-x1
 
+                # Task category management
+                # ------------------------
+                if isassigned(LABELS[])
+                    for i ∈ 1:length(LABELS[])
+                        if occursin(LABELS[][i], tasklog.label)
+                            times_per_category[i] += x2-x1
+                            color --> colors[i]
+                            if !alr_labeled[i]
+                                label --> LABELS[][i]
+                                alr_labeled[i] = true
+                            else
+                                label--> nothing
+                            end
+                        end
+                    end
+                else
+                    label --> nothing
+                end
+
+                # Returns
                 [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
             end
         end
     end
 
-    # Informations
-    # ------------
-    total_time = length(LOGGER[].threadlogs) * (last_time - first_time)
-    rel_time_waiting = 100 * waitingtime / total_time
-    rel_time_working = 100 * workingtime / total_time
+    # General Informations
+    # --------------------
+    total_time = length(LOGGER[].threadlogs) * (lasttime - firsttime)
+    rel_time_waiting = 100 * othertime / total_time
+    rel_time_working = 100 * computingtime / total_time
     @info "Proportion of time waiting   : $rel_time_waiting %"
-    @info "Cumulative working time      : $waitingtime s"
-    @info "Cumulative waiting time      : $workingtime s"
+    @info "Computing time               : $othertime s"
+    @info "Other time                   : $computingtime s"
 
-    # Plot activity
-    # -------------
+    # Plot activity (Computing / Other)
+    # ---------------------------------
     @series begin
         subplot := 2
         seriestype := :bar
         orientation := :h
-        label  --> "Other"
         title  --> "Activity (%)"
+        label  --> "Other"
         xlims  --> (0, 100)
         xticks --> 0:25:100
         yticks --> nothing
         color  --> :white
+        seriesalpha --> 0.8
         [rel_time_working, rel_time_waiting]
     end
     @series begin
         subplot := 2
         seriestype := :bar
         orientation := :h
-        label  --> "Computing"
         title  --> "Activity (%)"
+        label  --> "Other"
         xlims  --> (0, 100)
         xticks --> 0:25:100
         yticks --> nothing
-        # color  --> :purple
         color --> :purple
         seriesalpha --> 0.8
         [rel_time_working]
     end
 
+    # Category Labels
+    # ---------------
+    if isassigned(LABELS[])       
+        # Get max category_time
+        tmax = max(times_per_category...)
+
+        @series begin
+            subplot := 3
+            seriestype := :bar
+            label --> nothing
+            labels  --> LABELS[]
+            ylabel --> "Time (s)"
+            title  --> "Times per category (%)"
+            ylims  --> (0, tmax)
+            yticks --> 0:round(tmax/4, digits=2):tmax
+            color  --> colors[1:length(LABELS[])]
+            seriesalpha --> 0.8
+            LABELS[], times_per_category
+        end
+    end
 end
 
 # Utility function
@@ -230,7 +298,33 @@ function timelimits()
 end
 
 
+# Label Management
+# ----------------
 
+"""
+    setlabels()  
+Set trace plot task labels and activate it
+"""
+function setlabels!(labels::Vector{String})
+    LABELS[] = labels
+end
+function setlabels!(labels...)
+    resetlabels!()
+    LABELS[] = [label for label ∈ labels]
+end
+
+"""
+    resetlabels()
+Reset trace lpot task labels
+"""
+function resetlabels!()
+    empty!(LABELS[])
+end
+
+
+
+# DAG Plotting
+# ------------
 """
     getdag()  
 Get DAG's DOT file to be plotted by GraphViz with Graph(getdag())
