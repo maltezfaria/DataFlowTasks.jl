@@ -259,9 +259,9 @@ I automatically wait for `t1` to finish
 Note that in the example above `t2` waited for `t1` because it read a data field
 that `t1` accessed in a writtable manner.
 """
-macro dspawn(expr, data, mode, p=0, label_id=1)
+macro dspawn(expr, data, mode, p=0, label="")
     quote
-        t = @dtask $(esc(expr)) $(esc(data)) $(esc(mode)) $(esc(p)) $(esc(label_id))
+        t = @dtask $(esc(expr)) $(esc(data)) $(esc(mode)) $(esc(p)) $(esc(label))
         spawn(t)
     end
 end

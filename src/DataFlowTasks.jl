@@ -41,7 +41,7 @@ export
     @dtask,
     @dasync,
     @dspawn,
-    Trace, getdag, set_tracelabels
+    Trace, getdag, resetlogger
 
 
 function __init__()
@@ -49,6 +49,10 @@ function __init__()
     capacity  = 50
     sch       = JuliaScheduler(capacity)
     setscheduler!(sch)
+    
+    # Logger
+    logger    = Logger()
+    setlogger!(logger)
 end
 
 end # module

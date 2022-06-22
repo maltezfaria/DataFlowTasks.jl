@@ -19,33 +19,36 @@ mutable struct DataFlowTask
     access_mode::NTuple{<:Any,AccessMode}
     tag::Int
     priority::Float64
-    label_id::Int64
+    label::String
     task::Task
-    function DataFlowTask(code,data,mode::NTuple{N,AccessMode},priority=0,label_id=1,sch=getscheduler()) where {N}
+    function DataFlowTask(code,data,mode::NTuple{N,AccessMode},priority=0,label="",sch=getscheduler()) where {N}
         @assert length(data) == N
         TASKCOUNTER[] += 1
-        tj    = new(data,mode,TASKCOUNTER[],priority,label_id)
+        tj    = new(data,mode,TASKCOUNTER[],priority,label)
         addnode!(sch,tj,true)
 
-        if should_log()
+        # Store inneighbors if logging activated
+        if shouldlog()
             inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)]
         end
 
         deps  = inneighbors(sch.dag,tj) |> copy
         tj.task = @task begin
+            # Wait for dependencies
             for ti in deps
                 wait(ti)
             end
-            # run the underlying code block and time its execution for logging
-            t₀  = Float64(time_ns())
-            res = code()
-            t₁  = Float64(time_ns())
-            tid = Threads.threadid()
 
-            # Logging
-            if should_log()
-                task_log = TaskLog(tid, t₀, t₁, tj.tag, inneighbors_, tj.label_id)
-                push!(logger[tid], task_log)
+            # run the underlying code block and time its execution for logging
+            t₀  = time_ns()
+            res = code()
+            t₁  = time_ns()
+            
+            # Push new TaskLog if logging activated
+            if shouldlog()
+                tid = Threads.threadid()
+                task_log = TaskLog(tj.tag, t₀, t₁, tid, inneighbors_, tj.label)
+                push!(LOGGER[].threadlogs[tid], task_log)
             end
 
             put!(sch.finished,tj)
@@ -153,13 +156,13 @@ not automatically scheduled for execution.
 
 ## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
-macro dtask(expr, data, mode, p=0, label_id=1)
+macro dtask(expr, data, mode, p=0, label="")
     :(DataFlowTask(
         ()->$(esc(expr)),
         $(esc(data)),
         $(esc(mode)),
         $(esc(p)),
-        $(esc(label_id))
+        $(esc(label))
         )
     )
 end
