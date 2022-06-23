@@ -26,9 +26,7 @@ function Base.take!(c::FinishedChannel)
         while isempty(c.data)
             wait(c.cond_take)
         end
-        @trace "length_finished $(length(c.data)) $(time_ns())"
         v = popfirst!(c.data)
-        @trace "length_finished $(length(c.data)) $(time_ns())"
         return v
     finally
         unlock(c)
@@ -38,9 +36,7 @@ end
 function Base.put!(c::FinishedChannel{T},t::T) where {T}
     lock(c)
     try
-        @trace "length_finished $(length(c.data)) $(time_ns())"
         push!(c.data, t)
-        @trace "length_finished $(length(c.data)) $(time_ns())"
         notify(c.cond_take)
     finally
         unlock(c)
@@ -126,8 +122,6 @@ function sync(sch::TaskGraphScheduler=getscheduler())
     isempty(dag) || wait(dag.cond_empty)
     return sch
 end
-
-graphplot(sch::TaskGraphScheduler=getscheduler()) = graphplot(sch.dag)
 
 """
     struct JuliaScheduler{T} <: TaskGraphScheduler{T}

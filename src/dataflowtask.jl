@@ -26,6 +26,12 @@ mutable struct DataFlowTask
         TASKCOUNTER[] += 1
         tj    = new(data,mode,TASKCOUNTER[],priority,label)
         addnode!(sch,tj,true)
+
+        # Store inneighbors if logging activated
+        if _log_mode()
+            inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)]
+        end
+
         deps  = inneighbors(sch.dag,tj) |> copy
         tj.task = @task handle_errors() do
             if sch isa JuliaScheduler
@@ -39,8 +45,12 @@ mutable struct DataFlowTask
             t₀  = time_ns()
             res = code()
             t₁  = time_ns()
+            # Push new TaskLog if logging activated
+            if _log_mode()
             tid = Threads.threadid()
-            @trace "task_info $tid $t₀ $t₁ $(tj.tag) $(tj.label)"
+                task_log = TaskLog(tj.tag, t₀, t₁, tid, inneighbors_, tj.label)
+                push!(LOGGER[].threadlogs[tid], task_log)
+            end
             put!(sch.finished,tj)
             res
         end
@@ -54,6 +64,15 @@ end
 Global counter of created `DataFlowTask`s.
 """
 const TASKCOUNTER = Ref(0)
+
+"""
+    resetcounter!()
+
+Reset the [`TASKCOUNTER`](@ref) to `0`.
+"""
+function resetcounter!()
+    TASKCOUNTER[] = 0
+end
 
 """
     data(t::DataFlowTask[,i])

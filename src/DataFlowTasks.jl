@@ -10,8 +10,8 @@ const PROJECT_ROOT =  pkgdir(DataFlowTasks)
 using Logging
 using ThreadPools
 using DataStructures
-using GraphViz: Graph
 using RecipesBase
+using GraphViz: Graph
 
 """
     @enum AccessMode READ WRITE READWRITE
@@ -48,6 +48,9 @@ function __init__()
     capacity  = 50
     sch       = JuliaScheduler(capacity)
     setscheduler!(sch)
+    # default logger
+    logger    = Logger()
+    setlogger!(logger)
 end
 
 end # module

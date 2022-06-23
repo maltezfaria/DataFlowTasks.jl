@@ -226,22 +226,3 @@ function Base.show(io::IO, dag::DAG{T}) where {T}
     s2 = e==1 ? "" : "s"
     print(io, typeof(dag)," with $n node$s1 and $e edge$s2 (capacity of $(dag.sz_max[]) nodes)")
 end
-
-################################################################################
-## visualization
-################################################################################
-function graphplot(dag)
-    str = "strict digraph dag {rankdir=LR;layout=dot;"
-    for (k,(inlist,outlist)) in dag.inoutlist
-        if isempty(outlist) && isempty(outlist)
-            str *= """ $(tag(k));"""
-        end
-
-        for j in inlist
-            str *= """ $(tag(j)) -> $(tag(k));"""
-        end
-    end
-    str *= "}"
-    # return str
-    return Graph(str)
-end
