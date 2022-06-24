@@ -21,17 +21,40 @@ struct TaskLog
 end
 
 """
+    struct InsertionLog
+
+Logs the execution trace of a [`DataFlowTask`](@ref) insertion.
+
+## Fields:
+- `time_start`  : time the insertion began
+- `time_finish` : time the insertion finished
+- `taskid`      : the thread it is inserting
+- `tid`         : the thread on wich the insertion is happening
+"""
+struct InsertionLog
+    time_start::UInt64
+    time_finish::UInt64
+    taskid::Int
+    tid::Int
+end
+
+
+"""
     struct Logger
 
 Contains informations on the program's progress. For thread-safety, the `Logger`
 structure uses one vector of [`TaskLog`](@ref) per thread.
 """
 struct Logger
-    threadlogs::Vector{Vector{TaskLog}}
+    tasklogs::Vector{Vector{TaskLog}}
+    insertionlogs::Vector{Vector{InsertionLog}}
     function Logger()
         # internal constructor to guarantee that there is always one vector per
         # thread to do the loggin
-        new([Vector{TaskLog}() for _ ∈ 1:Threads.nthreads()])
+        new(
+            [Vector{TaskLog}()      for _ ∈ 1:Threads.nthreads()],
+            [Vector{InsertionLog}() for _ ∈ 1:Threads.nthreads()]
+        )
     end
 end
 
@@ -59,7 +82,8 @@ end
 Clear the `logger`'s memory and logging states.
 """
 function resetlogger!(logger=getlogger())
-    map(empty!,logger.threadlogs)
+    map(empty!, logger.tasklogs)
+    map(empty!, logger.insertionlogs)
 end
 
 """
@@ -79,7 +103,7 @@ const LOGGER = Ref{Logger}()
 Plot recipe to visualize the logged events in `logger`.
 """
 @recipe function f(logger::Logger;categories=String[])
-    if isempty(Iterators.flatten(logger.threadlogs))
+    if isempty(Iterators.flatten(logger.tasklogs))
         error("logger is empty: nothing to plot")
     end
 
@@ -99,71 +123,108 @@ Plot recipe to visualize the logged events in `logger`.
     # Informations
     # ------------
     computingtime = 0
-    othertime = length(logger.threadlogs) * (lasttime - firsttime)
+    insertingtime = 0
+    othertime = length(logger.tasklogs) * (lasttime - firsttime)
     times_per_category = zeros(length(categories))
 
     # Loop over all tasklogs to plot computing times
-    for threadlog in logger.threadlogs
-        for tasklog in threadlog
-            @series begin
-                # Plots attributes
-                # ---------------
-                xlabel --> "time (s)"
-                ylabel --> "threadid"
-                xlims --> (0, lasttime - firsttime)
-                title --> "Trace"
-                seriestype := :shape
-                seriesalpha  --> 0.6
-                subplot := 1
+    # ----------------------------------------------
+    for tasklog ∈ Iterators.flatten(logger.tasklogs)
+        @series begin
+            # Plots attributes
+            # ---------------
+            xlabel --> "time (s)"
+            ylabel --> "threadid"
+            xlims --> (0, lasttime - firsttime)
+            title --> "Trace"
+            seriestype := :shape
+            seriesalpha  --> 0.6
+            subplot := 1
 
-                # Vertices of task square
-                # -----------------------
-                x1 = (tasklog.time_start  * 10^(-9)  - firsttime)
-                x2 = (tasklog.time_finish * 10^(-9) - firsttime)
-                y1 = tasklog.tid - 0.25
-                y2 = tasklog.tid + 0.25
+            # Vertices of task square
+            # -----------------------
+            x1 = (tasklog.time_start  * 10^(-9)  - firsttime)
+            x2 = (tasklog.time_finish * 10^(-9) - firsttime)
+            y1 = tasklog.tid - 0.25
+            y2 = tasklog.tid + 0.25
 
-                # General Informations
-                # ------------
-                computingtime += x2-x1
-                othertime -= x2-x1
-                if tasklog.tag ∈ path
-                    t∞ += x2 - x1
-                end
+            # General Informations
+            # ------------
+            computingtime += x2-x1
+            othertime -= x2-x1
+            if tasklog.tag ∈ path
+                t∞ += x2 - x1
+            end
 
-                # Task category management
-                # ------------------------
-                if !isempty(categories)
-                    for i ∈ 1:length(categories)
-                        if occursin(categories[i], tasklog.label)
-                            times_per_category[i] += x2-x1
-                            color --> colors[i]
-                            if !alr_labeled[i]
-                                label --> categories[i]
-                                alr_labeled[i] = true
-                            else
-                                label--> nothing
-                            end
+            # Task category management
+            # ------------------------
+            if !isempty(categories)
+                for i ∈ 1:length(categories)
+                    if occursin(categories[i], tasklog.label)
+                        times_per_category[i] += x2-x1
+                        color --> colors[i]
+                        if !alr_labeled[i]
+                            label --> categories[i]
+                            alr_labeled[i] = true
+                        else
+                            label--> nothing
                         end
                     end
-                else
-                    label --> nothing
                 end
-
-                # Returns
-                [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
+            else
+                label --> nothing
             end
+
+            # Returns
+            [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
+        end
+    end
+
+    # Loop over all insertionlogs to plot computing times
+    # ----------------------------------------------------
+    count = 0
+    for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
+        @series begin
+            # Plots attributes
+            # ---------------
+            subplot := 1
+            xlabel --> "time (s)"
+            ylabel --> "threadid"
+            xlims --> (0, lasttime - firsttime)
+            title --> "Trace"
+            seriestype := :shape
+            seriesalpha  --> 0.8
+            color --> :red
+            count == 0 ? label --> "task insertion" : label --> nothing
+            count += 1
+        
+            # Vertices of log square
+            # -----------------------
+            x1 = (insertionlog.time_start  * 10^(-9)  - firsttime)
+            x2 = (insertionlog.time_finish * 10^(-9) - firsttime)
+            y1 = insertionlog.tid - 0.25
+            y2 = insertionlog.tid + 0.25
+
+            # General informations
+            # --------------------
+            othertime -= x2-x1
+            insertingtime += x2-x1
+        
+            # Returns
+            [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
         end
     end
 
     # General Informations
     # --------------------
-    total_time = length(logger.threadlogs) * (lasttime - firsttime)
-    rel_time_waiting = 100 * othertime / total_time
-    rel_time_working = 100 * computingtime / total_time
-    @info "Proportion of time waiting   : $rel_time_waiting %"
-    @info "Computing time               : $othertime s"
-    @info "Other time                   : $computingtime s"
+    total_time = length(logger.tasklogs) * (lasttime - firsttime)
+    rel_time_other     = 100 * othertime / total_time
+    rel_time_computing = 100 * computingtime / total_time
+    rel_time_inserting = 100 * insertingtime / total_time
+    @info "Proportion of time waiting   : $rel_time_other %"
+    @info "Computing time               : $computingtime s"
+    @info "Insertion time               : $insertingtime s"
+    @info "Other time                   : $othertime s"
 
     # Plot activity (Computing / Other)
     # ---------------------------------
@@ -172,13 +233,13 @@ Plot recipe to visualize the logged events in `logger`.
         seriestype := :bar
         orientation := :h
         title  --> "Activity (%)"
-        labels  --> ["Computing" "Other"]
+        labels  --> ["Computing" "Inserting" "Other"]
         xlims  --> (0, 100)
         xticks --> 0:25:100
         yticks --> nothing
-        fillcolor  --> [:purple :red]
+        fillcolor  --> [:green :red :purple]
         seriesalpha --> 0.8
-        [1 2],[rel_time_working rel_time_waiting]
+        [1 2 3],[rel_time_other rel_time_computing rel_time_inserting]
     end
 
     # Plot infinite proc time
@@ -211,7 +272,7 @@ Plot recipe to visualize the logged events in `logger`.
 end
 
 function timelimits(logger)
-    iter = Iterators.flatten(logger.threadlogs)
+    iter = Iterators.flatten(logger.tasklogs)
     minimum(t->t.time_start,iter), maximum(t->t.time_finish,iter)
 end
 
@@ -235,7 +296,7 @@ function logger_to_dot(logger=getlogger())
     # ---------------
     str = "strict digraph dag {rankdir=LR;layout=dot;"
     str *= """concentrate=true;"""
-    for tasklog ∈ Iterators.flatten(logger.threadlogs)
+    for tasklog ∈ Iterators.flatten(logger.tasklogs)
         # Defines edges
         for neighbor ∈ tasklog.inneighbors
             str *= """ $neighbor -> $(tasklog.tag)"""
@@ -259,26 +320,24 @@ Finds the critical path of the logger's DAG
 function criticalpath()
     # Declaration of the adjacency matrix for DAG analysis
     # Note : we add a virtual first node 1 that represent the beginning of the DAG
-    nb_nodes = sum(length(threadlog) for threadlog ∈ LOGGER[].threadlogs)
+    nb_nodes = sum(length(threadlog) for threadlog ∈ getlogger().tasklogs)
     adj = NaN * ones(nb_nodes+1, nb_nodes+1)
     
     # Find Critical Path
     # ------------------
-    for threadlog ∈ LOGGER[].threadlogs
-        for tasklog ∈ threadlog
-            # Weight of the arc from tasklog.tag to other nodes
-            task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
+    for tasklog ∈ Iterators.flatten(getlogger().tasklogs)
+        # Weight of the arc from tasklog.tag to other nodes
+        task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
 
-            # If no inneighbors than it's one of the first tasks
-            # Note : considering we remove nodes from the dag, it's not necessarly true
-            if length(tasklog.inneighbors) == 0
-                adj[1, tasklog.tag + 1] = 0
-            end
+        # If no inneighbors than it's one of the first tasks
+        # Note : considering we remove nodes from the dag, it's not necessarly true
+        if length(tasklog.inneighbors) == 0
+            adj[1, tasklog.tag + 1] = 0
+        end
 
-            # Defines edges
-            for neighbor ∈ tasklog.inneighbors
-                adj[neighbor+1, tasklog.tag+1] = task_duration
-            end
+        # Defines edges
+        for neighbor ∈ tasklog.inneighbors
+            adj[neighbor+1, tasklog.tag+1] = task_duration
         end
     end
     longestpath(adj, 1)

@@ -122,9 +122,16 @@ function addnode!(dag::DAG,kv::Pair,check=false)
     while num_nodes(dag) == dag.sz_max[]
         wait(dag.cond_push)
     end
+
+    t₀ = time_ns()
     push!(dag.inoutlist,kv)
     k,v = kv
     check  && update_edges!(dag,k)
+    t₁ = time_ns()
+
+    tid = Threads.threadid()
+    _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, k.tag, tid))
+    
     return dag
 end
 

@@ -28,9 +28,7 @@ mutable struct DataFlowTask
         addnode!(sch,tj,true)
 
         # Store inneighbors if logging activated
-        if _log_mode()
-            inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)]
-        end
+        _log_mode() && (inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)])
 
         deps  = inneighbors(sch.dag,tj) |> copy
         tj.task = @task handle_errors() do
@@ -47,9 +45,9 @@ mutable struct DataFlowTask
             t₁  = time_ns()
             # Push new TaskLog if logging activated
             if _log_mode()
-            tid = Threads.threadid()
+                tid = Threads.threadid()
                 task_log = TaskLog(tj.tag, t₀, t₁, tid, inneighbors_, tj.label)
-                push!(LOGGER[].threadlogs[tid], task_log)
+                push!(getlogger().tasklogs[tid], task_log)
             end
             put!(sch.finished,tj)
             res
