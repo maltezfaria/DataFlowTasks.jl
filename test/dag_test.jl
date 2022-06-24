@@ -37,12 +37,12 @@ end
 @testset "TaskGraph" begin
     dag = TaskGraph()
     C = rand(3,3)
-    cl1 = @dtask rmul!(C,2) (C,) (RW,)
+    cl1 = @dtask rmul!(@RW(C), 2)
     @test num_nodes(dag) == 0
     addnode!(dag,cl1)
     @test num_nodes(dag) == 1
     @test num_edges(dag) == 0
-    cl2 = @dtask rmul!(C,2) (C,) (RW,)
+    cl2 = @dtask rmul!(@RW(C), 2)
     addnode!(dag, cl2)
     @test num_nodes(dag) == 2
     addedge!(dag, cl1, cl2)
@@ -53,8 +53,8 @@ end
     @test inneighbors(dag, cl1) == Set()
     @test outneighbors(dag, cl2) == Set()
     @test inneighbors(dag, cl2) == Set([cl1])
-    cl3 = @dtask rmul!(C,2) (C,) (RW,)
-    cl4 = @dtask rmul!(C,2) (C,) (RW,)
+    cl3 = @dtask rmul!(@RW(C), 2)
+    cl4 = @dtask rmul!(@RW(C), 2)
     addnode!(dag, cl3)
     addnode!(dag, cl4)
     addedge!(dag,cl2,cl4)

@@ -236,6 +236,6 @@ for execution.
 
 ## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
-macro dtask(expr, kwargs)
+macro dtask(expr, kwargs...)
     _dtask(expr, kwargs; source=__source__)
 end
