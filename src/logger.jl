@@ -82,12 +82,17 @@ Plot recipe to visualize the logged events in `logger`.
     if isempty(Iterators.flatten(logger.threadlogs))
         error("logger is empty: nothing to plot")
     end
+
     # Get first and last time recorded
     (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
 
+    # Get critical path
+    path = criticalpath()
+    t∞ = 0
+
     # General plot features
-    size --> (800,600)
-    layout := !isempty(categories) ? @layout[a{0.8h} ; [b{0.5w} c{0.5w}]] : @layout[a{0.8h} ; b]
+    size --> (1000,600)
+    layout := !isempty(categories) ? @layout[a{0.8h} ; [b{0.33w} c{0.34w} d{0.33w}]] : @layout[a{0.8h} ; [b{0.5w} c{0.5w}]]
     colors = [:green, :orange, :purple, :blue, :yellow, :red]
     alr_labeled = [false for _ ∈ categories]  # we want only 1 label per category
 
@@ -122,6 +127,9 @@ Plot recipe to visualize the logged events in `logger`.
                 # ------------
                 computingtime += x2-x1
                 othertime -= x2-x1
+                if tasklog.tag ∈ path
+                    t∞ += x2 - x1
+                end
 
                 # Task category management
                 # ------------------------
@@ -164,7 +172,7 @@ Plot recipe to visualize the logged events in `logger`.
         seriestype := :bar
         orientation := :h
         title  --> "Activity (%)"
-        labels  --> ["Working" "Other"]
+        labels  --> ["Computing" "Other"]
         xlims  --> (0, 100)
         xticks --> 0:25:100
         yticks --> nothing
@@ -173,21 +181,28 @@ Plot recipe to visualize the logged events in `logger`.
         [1 2],[rel_time_working rel_time_waiting]
     end
 
+    # Plot infinite proc time
+    # -----------------------
+    @series begin
+        subplot := 3
+        seriestype := :bar
+        title --> "Infinite Proc"
+        label --> nothing
+        fillcolor --> [:green :red]
+        seriesalpha --> 0.8
+        ["Inf. proc. t" "Real total t"], [t∞ (lasttime - firsttime)]
+    end
+
     # Category Labels
     # ---------------
     if !isempty(categories)
-        # Get max category_time
-        tmax = max(times_per_category...)
-
         @series begin
-            subplot := 3
+            subplot := 4
             seriestype := :bar
             label --> nothing
             labels  --> categories
             ylabel --> "Time (s)"
-            title  --> "Times per category (%)"
-            ylims  --> (0, tmax)
-            yticks --> 0:round(tmax/4, digits=2):tmax
+            title  --> "Times per category"
             color  --> colors[1:length(categories)]
             seriesalpha --> 0.8
             categories, times_per_category
@@ -200,26 +215,71 @@ function timelimits(logger)
     minimum(t->t.time_start,iter), maximum(t->t.time_finish,iter)
 end
 
-# DAG Plotting
-# ------------
-"""
-    getdag(logger)
 
+
+############################################################################
+#                           Dag Plotting                                  
+############################################################################
+
+"""
+    logger_to_dot(logger)  --> dagstring
 Return a string in the
 [DOT](https://en.wikipedia.org/wiki/DOT_(graph_description_language)) format
-representing the underlying graph in `logger`.
+representing the underlying graph in `logger`
+and to be plotted by GraphViz with Graph(logger_to_dot())
 """
-function getdag(logger=getlogger())
+function logger_to_dot(logger=getlogger())
+    path = criticalpath()
+    
     # Write DOT graph
+    # ---------------
     str = "strict digraph dag {rankdir=LR;layout=dot;"
-    for tasklog in Iterators.flatten(logger.threadlogs)
+    str *= """concentrate=true;"""
+    for tasklog ∈ Iterators.flatten(logger.threadlogs)
+        # Defines edges
         for neighbor ∈ tasklog.inneighbors
-            str *= """ $neighbor -> $(tasklog.tag);"""
+            str *= """ $neighbor -> $(tasklog.tag)"""
+            if neighbor+1 ∈ path && tasklog.tag+1 ∈ path
+                str *= """ [color=red];"""
+                str *= """ $neighbor [color=red];"""
+                str *= """ $(tasklog.tag) [color=red]"""
+            end
+            str *= """;"""
         end
     end
+
     str *= "}"
 end
 
-function graphplot(logger=getlogger())
-    Graph(getdag(logger))
+
+"""
+    criticalpath() --> path  
+Finds the critical path of the logger's DAG
+"""
+function criticalpath()
+    # Declaration of the adjacency matrix for DAG analysis
+    # Note : we add a virtual first node 1 that represent the beginning of the DAG
+    nb_nodes = sum(length(threadlog) for threadlog ∈ LOGGER[].threadlogs)
+    adj = NaN * ones(nb_nodes+1, nb_nodes+1)
+    
+    # Find Critical Path
+    # ------------------
+    for threadlog ∈ LOGGER[].threadlogs
+        for tasklog ∈ threadlog
+            # Weight of the arc from tasklog.tag to other nodes
+            task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
+
+            # If no inneighbors than it's one of the first tasks
+            # Note : considering we remove nodes from the dag, it's not necessarly true
+            if length(tasklog.inneighbors) == 0
+                adj[1, tasklog.tag + 1] = 0
+            end
+
+            # Defines edges
+            for neighbor ∈ tasklog.inneighbors
+                adj[neighbor+1, tasklog.tag+1] = task_duration
+            end
+        end
+    end
+    longestpath(adj, 1)
 end

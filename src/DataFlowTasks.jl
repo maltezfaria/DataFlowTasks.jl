@@ -11,7 +11,6 @@ using Logging
 using ThreadPools
 using DataStructures
 using RecipesBase
-using GraphViz: Graph
 
 """
     @enum AccessMode READ WRITE READWRITE
