@@ -130,8 +130,8 @@ function addnode!(dag::DAG,kv::Pair,check=false)
     t₁ = time_ns()
 
     tid = Threads.threadid()
-    _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, k.tag, tid))
-    
+    _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, tag(k), tid))
+
     return dag
 end
 
@@ -236,11 +236,11 @@ end
 
 
 ############################################################################
-#                           Critical Path                                  
+#                           Critical Path
 ############################################################################
 
 """
-    notvisited_min(dist, visited) --> minnode 
+    notvisited_min(dist, visited) --> minnode
 Extract the index minnode of the minimum value of dist
 such that visited[minnode] = false
 """
@@ -258,15 +258,15 @@ function notvisited_min(dist, visited)
 end
 
 """
-    longestpath(adj, source) -> path  
-Finds the critical path of a DAG G by using Dijsktra's shortest path algorithm on -G  
+    longestpath(adj, source) -> path
+Finds the critical path of a DAG G by using Dijsktra's shortest path algorithm on -G
 Returns the nodes constituting the path
 """
 function longestpath(adj, source)
     n = size(adj)[1]                # Number of nodes
     adj *= -1                       # DAG G=(V,E) longest path <=> g=(V,-E) shortest path
     dist     = [Inf   for _ ∈ 1:n]  # dist[i] gives the shortest path from source to i
-    visited  = [false for _ ∈ 1:n]  # visited[i]=true if node already studied 
+    visited  = [false for _ ∈ 1:n]  # visited[i]=true if node already studied
     previous = [0     for _ ∈ 1:n]  # previous[i] gives the antecedent of i in longest path
     path     = Vector{Int64}()      # explicit storage for the longest path
     dist[source] = 0
