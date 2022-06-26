@@ -155,8 +155,25 @@ function memory_overlap(di,dj)
 end
 
 
+"""
+    enable_sequential(mode = false)
 
-function _dtask(expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
+If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
+code is simply run as it appears in the sources. In effect, this makes `@dspawn`
+a no-op.
+"""
+function enable_sequential(seq::Bool = false; static::Bool = false)
+    dyn = static ? :sta : :dyn
+    par = seq    ? :seq : :par
+    if static
+        @warn "Statically setting sequential/parallel mode is not recommended"
+    end
+    @eval _sequential_mode() = $(tuple(dyn, par))
+end
+enable_sequential()
+
+
+function _dtask(continuation, expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
     data = []
     mode = []
 
@@ -218,14 +235,41 @@ function _dtask(expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
         return Base.setindex(params, opt_val, opt_name)
     end
 
-    :($DataFlowTask(
-        ()->$(esc(new_expr)),
-        $(esc(data)),
-        $(mode),
-        $(esc(params.priority)),
-        $(esc(params.label)),
-    ))
+    t = gensym(:task)
+    (dyn, par) = _sequential_mode()
+    if dyn == :dyn      # Dynamic mode -> choose at compile time
+        quote
+            (dyn, par) = $_sequential_mode()
+            if par == :par
+                $t = $DataFlowTask(
+                    ()->$(esc(new_expr)),
+                    $(esc(data)),
+                    $(mode),
+                    $(esc(params.priority)),
+                    $(esc(params.label)),
+                )
+                $(continuation(t))
+            else
+                $(esc(new_expr))
+            end
+        end
+    elseif par == :par  # Static mode -> generate specific, parallel code
+        quote
+            $t = $DataFlowTask(
+                ()->$(esc(new_expr)),
+                $(esc(data)),
+                $(mode),
+                $(esc(params.priority)),
+                $(esc(params.label)),
+            )
+            $(continuation(t))
+        end
+    else                # Static mode -> generate specific, sequential code
+        esc(new_expr)
+    end
 end
+
+_dtask(expr::Expr, params; kwargs...) = _dtask(identity, expr, params; kwargs...)
 
 """
     @dtask expr [kw_args...]
