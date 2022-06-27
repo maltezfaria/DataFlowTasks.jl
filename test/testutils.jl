@@ -10,12 +10,15 @@ using DataFlowTasks: R,W,RW
 function fork_join(n,s,m=1)
     A = rand(2n)
     @dspawn do_work(s,@RW A) label="first"
-    for i in 1:n
-        Av = view(A,[i,i+n])
-        @dspawn do_work(s,Av) label="indep($i)"
+    for iter in 1:m
+        for i in 1:n
+            Av = view(A,[i,i+n])
+            @dspawn do_work(s, @RW Av) label="indep($i)"
+        end
+        @dspawn do_work(s, @RW A) label="dep($iter)"
     end
-    res = @dspawn do_work(s,@R A) label="last"
-    return res
+    res = @dspawn identity(@R A) label="last"
+    return fetch(res)
 end
 
 function do_work(t,args...)
