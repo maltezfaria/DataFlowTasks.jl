@@ -210,9 +210,8 @@ should work as expected:
 
 ```@repl memory-overlap
 using DataFlowTasks
-using DataFlowTasks: R,W,RW
 
-v = rand(5);
+v  = ones(5);
 M1 = CirculantMatrix(v);
 M2 = CirculantMatrix(copy(v));
 
@@ -220,29 +219,15 @@ Base.sum(M::CirculantMatrix) = length(M.data)*sum(M.data)
 
 d1 = @dspawn begin
     @W v
-
     sleep(0.5)
-    println("d1: I write to v")
     fill!(v,0) 
 end;
+d2 = @dspawn sum(@R M1)
+d3 = @dspawn sum(@R M2)
 
-d2 = @dspawn begin
-    @R M1
+fetch(d3) # 25
 
-    println("d2: I wait for d1 to write")
-    sum(M1)
-end;
-
-d3 = @dspawn begin
-    @R M2
-
-    println("d3: I don't need to wait for d1 to write")
-    sum(M2)
-end;
-
-fetch(d3)
-
-fetch(d2)
+fetch(d2) # 0
 ```
 
 ## Scheduler
