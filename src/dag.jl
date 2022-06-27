@@ -14,6 +14,7 @@ struct DAG{T}
     cond_push::Condition
     cond_empty::Condition
     sz_max::Ref{Int}
+    _buffer::Set{Int} # used to keep track of visited nodes when needed
 end
 
 """
@@ -29,7 +30,8 @@ function DAG{T}(sz = typemax(Int)) where T
     inoutlist  = OrderedDict{T,Tuple{Set{T},Set{T}}}()
     cond_push  = Condition()
     cond_empty = Condition()
-    return DAG{T}(inoutlist,cond_push,cond_empty,Ref(sz))
+    _buffer    = Set{Int}()
+    return DAG{T}(inoutlist,cond_push,cond_empty,Ref(sz),_buffer)
 end
 
 function Base.resize!(dag::DAG,sz)
@@ -142,14 +144,32 @@ Perform the data-flow analysis to update the edges of node `i`. Both incoming
 and outgoing edges are updated.
 """
 function update_edges!(dag::DAG,nodej)
-    # update dependencies from newer to older and reinfornce transitivity
+    transitively_connected = dag._buffer
+    empty!(transitively_connected)
+    # update dependencies from newer to older and reinfornce transitivity by
+    # skipping predecessors of nodes which are already connected
     for (nodei,_) in Iterators.reverse(dag)
-        nodei < nodej  || continue
+        ti     = tag(nodei)
+        (ti ∈ transitively_connected) && continue
+        @assert nodei ≤ nodej
+        nodei == nodej  && continue
         dep    = data_dependency(nodei,nodej)
         dep   || continue
-        addedge_transitive!(dag,nodei,nodej)
+        addedge!(dag,nodei,nodej)
+        update_transitively_connected!(transitively_connected,nodei,dag)
+        # addedge_transitive!(dag,nodei,nodej)
     end
     return dag
+end
+
+function update_transitively_connected!(transitively_connected,node,dag)
+    for nodei in inneighbors(dag,node)
+        ti = tag(nodei)
+        (ti ∈ transitively_connected) && continue
+        push!(transitively_connected,ti)
+        update_transitively_connected!(transitively_connected,nodei,dag)
+    end
+    return transitively_connected
 end
 
 """
