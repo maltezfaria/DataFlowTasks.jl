@@ -27,7 +27,7 @@ DataFlowTasks.setscheduler!(sch)
         # stopping the dag_worker will mean finished nodes are no longer cleaned up
         DataFlowTasks.stop_dag_worker()
         fork_join(m,s)
-        @test DataFlowTasks.num_nodes(sch.dag) == m+2
+        @test DataFlowTasks.num_nodes(sch.dag) == m+3
         # resuming dag_worker will now cleanup nodes
         DataFlowTasks.start_dag_worker()
         DataFlowTasks.sync() # wait for dag to be empty
