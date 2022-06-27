@@ -156,7 +156,7 @@ end
 
 
 """
-    enable_sequential(mode = true)
+    force_sequential(mode = true)
 
 If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
 code is simply run as it appears in the sources. In effect, this makes `@dspawn`
@@ -164,7 +164,7 @@ a no-op.
 
 By default, sequential mode is disabled when the program starts.
 """
-function enable_sequential(seq::Bool = true; static::Bool = false)
+function force_sequential(seq::Bool = true; static::Bool = false)
     dyn = static ? :sta : :dyn
     par = seq    ? :seq : :par
     if static
@@ -173,7 +173,7 @@ function enable_sequential(seq::Bool = true; static::Bool = false)
     @eval _sequential_mode() = $(tuple(dyn, par))
     nothing
 end
-enable_sequential(false)
+force_sequential(false)
 
 
 function _dtask(continuation, expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))

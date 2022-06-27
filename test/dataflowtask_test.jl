@@ -69,14 +69,14 @@ end
     test_seq_mode(x) = @dtask sum(@R x) label="test_seq_mode" priority=1
 
     # Sequential mode
-    DataFlowTasks.enable_sequential()
+    DataFlowTasks.force_sequential()
 
     s = test_seq_mode(x)
     @test typeof(s) == Float64
     @inferred test_seq_mode(x)
 
     # Parallell mode
-    DataFlowTasks.enable_sequential(false)
+    DataFlowTasks.force_sequential(false)
 
     s = test_seq_mode(x)
     @test typeof(s) == DataFlowTasks.DataFlowTask
