@@ -154,22 +154,140 @@ function memory_overlap(di,dj)
     return true
 end
 
-"""
-    macro dtask(expr,data,mode)
 
-Create a `DataFlowTask` to execute `expr`, where `mode::NTuple{N,AccessMode}`
-species how `data::Tuple{N,<:Any}` is accessed in `expr`. Note that the task is
-not automatically scheduled for execution.
-
-## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
-macro dtask(expr,data,mode,p=0,label="")
-    :(DataFlowTask(
-        ()->$(esc(expr)),
-        $(esc(data)),
-        $(esc(mode)),
-        $(esc(p)),
-        $(esc(label))
-        )
+    force_sequential(mode = true)
+
+If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
+code is simply run as it appears in the sources. In effect, this makes `@dspawn`
+a no-op.
+
+By default, sequential mode is disabled when the program starts.
+"""
+function force_sequential(seq::Bool = true; static::Bool = false)
+    dyn = static ? :sta : :dyn
+    par = seq    ? :seq : :par
+    if static
+        @warn "Statically setting sequential/parallel mode is not recommended"
+    end
+    @eval _sequential_mode() = $(tuple(dyn, par))
+    nothing
+end
+force_sequential(false)
+
+
+function _dtask(continuation, expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
+    data = []
+    mode = []
+
+    # Register access mode `m` for all data listed in `expr`
+    # If multiple data are listed, only return the first one
+    function register_modes(expr, m)
+        for i in 3:length(expr.args)
+            push!(data, expr.args[i])
+            push!(mode, m)
+        end
+        return expr.args[3]
+    end
+
+    # Detect @R/@W/@RW tags in the task body:
+    # - register the associated data and mode
+    # - remove tags from the final expression
+    transform(x) = x
+    function transform(x::Expr)
+        if x.head == :macrocall
+            tags = (READ      => ("@R",  "@←"),
+                    WRITE     => ("@W",  "@→"),
+                    READWRITE => ("@RW", "@↔"))
+            for (m, t) in tags
+                x.args[1] ∈ Symbol.(t) && return register_modes(x, m)
+            end
+        end
+
+        return Expr(x.head, transform.(x.args)...)
+    end
+
+    new_expr = transform(expr)
+    data = Expr(:tuple, data...)
+    mode = Tuple(mode)
+
+
+    # Handle optional keyword arguments
+    defaults = (
+        label    = "",  # task label
+        priority = 0,   # task priority
     )
+
+    params = foldl(kwargs, init=defaults) do params, opt
+        if !(opt isa Expr && opt.head == :(=))
+            @warn("Malformed DataFlowTask parameter: `$opt`",
+                  _file = string(source.file),
+                  _line = source.line)
+            return params
+        end
+
+        opt_name = opt.args[1]
+        opt_val  = opt.args[2]
+        if opt_name ∉ keys(params)
+            @warn("Unknown DataFlowTask parameter: `$opt`",
+                  _file = string(source.file),
+                  _line = source.line)
+            return params
+        end
+
+        return Base.setindex(params, opt_val, opt_name)
+    end
+
+    t = gensym(:task)
+    (dyn, par) = _sequential_mode()
+    if dyn == :dyn      # Dynamic mode -> choose at compile time
+        quote
+            (dyn, par) = $_sequential_mode()
+            if par == :par
+                $t = $DataFlowTask(
+                    ()->$(esc(new_expr)),
+                    $(esc(data)),
+                    $(mode),
+                    $(esc(params.priority)),
+                    $(esc(params.label)),
+                )
+                $(continuation(t))
+            else
+                $(esc(new_expr))
+            end
+        end
+    elseif par == :par  # Static mode -> generate specific, parallel code
+        quote
+            $t = $DataFlowTask(
+                ()->$(esc(new_expr)),
+                $(esc(data)),
+                $(mode),
+                $(esc(params.priority)),
+                $(esc(params.label)),
+            )
+            $(continuation(t))
+        end
+    else                # Static mode -> generate specific, sequential code
+        esc(new_expr)
+    end
+end
+
+_dtask(expr::Expr, params; kwargs...) = _dtask(identity, expr, params; kwargs...)
+
+"""
+    @dtask expr [kwargs...]
+
+Create a `DataFlowTask` to execute `expr`, where data have been tagged to
+specify how they are accessed. Note that the task is not automatically scheduled
+for execution.
+
+See [`@dspawn`](@ref) for information on how to annotate `expr` to specify data
+dependencies, and a list of supported keyword arguments.
+
+## See also:
+
+[`@dspawn`](@ref), [`@dasync`](@ref)
+"""
+macro dtask(expr, kwargs...)
+    _dtask(expr, kwargs; source=__source__)
 end

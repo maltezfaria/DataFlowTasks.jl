@@ -1,14 +1,14 @@
 using Test
 using LinearAlgebra
 using DataFlowTasks
-using DataFlowTasks: data_dependency,R,W,RW
+using DataFlowTasks: data_dependency
 
 @testset "Macros" begin
     m,n  = 100,100
     A    = rand(n,m)
     b    = 2
     # verbose way of defining task
-    t    = @dtask rmul!(A,b) (A,) (RW,)
+    t    = @dtask rmul!(@RW(A), b)
     tmp  = A*b
     @test A !== tmp
     schedule(t)
@@ -21,12 +21,12 @@ end
     A    = rand(n,m)
     a    = -π
     b    = 2
-    t1 = @dtask rmul!(A,b) (A,b) (RW,R)
-    t2 = @dtask rmul!(A,b) (A,b) (RW,R)
+    t1 = @dtask rmul!(@RW(A), @R(b))
+    t2 = @dtask rmul!(@RW(A), @R(b))
     @test data_dependency(t1,t2) == true
     # rebind A to a different matrix, and make sure independency is inferred
     A = rand(100,100)
-    t3 = @dtask rmul!(A,b) (A,b) (RW,R)
+    t3 = @dtask rmul!(@RW(A), @R(b))
     @test data_dependency(t1,t3) == false
 end
 
@@ -42,23 +42,43 @@ end
     # Errors are not handled when debug mode is off
     DataFlowTasks.enable_debug(false)
     empty!(ERRORS)
-    t = @dspawn error("Unseen error") () ()
+    t = @dspawn error("Unseen error")
     @test_throws TaskFailedException wait(t)
     @test isempty(ERRORS)
 
     # Errors are handled when debug mode is on
     DataFlowTasks.enable_debug(true)
     empty!(ERRORS)
-    t = @dspawn error("Expected error") () ()
+    t = @dspawn error("Expected error")
     @test_throws TaskFailedException wait(t)
     @test length(ERRORS) == 1
     @test ERRORS[1][1].exception.msg == "Expected error"
 
     # Tasks can be stopped when debug mode is on
     empty!(ERRORS)
-    t = @dspawn sleep(3600) () ()
+    t = @dspawn sleep(3600)
     sleep(0.1); @test !istaskdone(t.task)
     schedule(t.task, :stop, error=true)
     sleep(0.1); @test istaskdone(t.task)
     @test isempty(ERRORS)
+end
+
+
+@testset "Sequential mode" begin
+    x = rand(10)
+    test_seq_mode(x) = @dtask sum(@R x) label="test_seq_mode" priority=1
+
+    # Sequential mode
+    DataFlowTasks.force_sequential()
+
+    s = test_seq_mode(x)
+    @test typeof(s) == Float64
+    @inferred test_seq_mode(x)
+
+    # Parallell mode
+    DataFlowTasks.force_sequential(false)
+
+    s = test_seq_mode(x)
+    @test typeof(s) == DataFlowTasks.DataFlowTask
+    @inferred test_seq_mode(x)
 end

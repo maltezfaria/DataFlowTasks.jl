@@ -9,18 +9,19 @@ using DataFlowTasks: R,W,RW
 # each block works for `s` seconds
 function fork_join(n,s,m=1)
     A = rand(2n)
-    @dspawn do_work(s) (A,) (RW,) 1 "join"
+    @dspawn do_work(s,@RW A) label="first"
     for iter in 1:m
         for i in 1:n
-            @dspawn do_work(s) (view(A,[i,i+n]),) (RW,) 1 "fork"
+            Av = view(A,[i,i+n])
+            @dspawn do_work(s, @RW Av) label="indep($i)"
         end
-        @dspawn do_work(s) (A,) (RW,) 1 "join"
+        @dspawn do_work(s, @RW A) label="dep($iter)"
     end
-    res = @dspawn identity(A) (A,) (R,) 1 "sync"
+    res = @dspawn identity(@R A) label="last"
     return fetch(res)
 end
 
-function do_work(t)
+function do_work(t,args...)
     ti = time()
     while (time()-ti) < t end
     return
