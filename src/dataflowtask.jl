@@ -275,13 +275,18 @@ end
 _dtask(expr::Expr, params; kwargs...) = _dtask(identity, expr, params; kwargs...)
 
 """
-    @dtask expr [kw_args...]
+    @dtask expr [kwargs...]
 
 Create a `DataFlowTask` to execute `expr`, where data have been tagged to
 specify how they are accessed. Note that the task is not automatically scheduled
 for execution.
 
-## See also: [`@dspawn`](@ref), [`@dasync`](@ref)
+See [`@dspawn`](@ref) for information on how to annotate `expr` to specify data
+dependencies, and a list of supported keyword arguments.
+
+## See also:
+
+[`@dspawn`](@ref), [`@dasync`](@ref)
 """
 macro dtask(expr, kwargs...)
     _dtask(expr, kwargs; source=__source__)

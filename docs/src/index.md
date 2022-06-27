@@ -26,45 +26,51 @@ possible. The API revolves around three macros:
 - [`@dasync`](@ref)
 
 They behave like their `Base` counterparts (`@task`, `Threads.@spawn`
-and `@async`), but two additional arguments specifying explicit *data
+and `@async`), but additional annotations specifying explicit *data
 dependencies* are required. The example below shows the most basic usage:
 
 ```@example simple-example
 using DataFlowTasks # hide
-using DataFlowTasks: R,W,RW
 
 A = ones(5)
 B = ones(5)
 d = @dspawn begin
+    @RW A   # A is accessed in READWRITE mode
+    @R  B   # B is accessed in READ mode
     A .= A .+ B
-end (A,B) (RW,R)
+end
 
 fetch(d)
 ```
 
 This creates (and schedules for execution) a `DataFlowTask` `d`
-which access `A` in `READWRITE` mode, and `B` in `READ` mode. The benefit of
+which accesses `A` in `READWRITE` mode, and `B` in `READ` mode. The benefit of
 `DataFlowTask`s comes when you start to compose operations which may mutate the
 same data:
 
 ```@example simple-example
 using DataFlowTasks # hide
-using DataFlowTasks: R,W,RW
 
 n = 100_000
 A = ones(n)
 
 d1 = @dspawn begin
+    @RW A
+
     # in-place work on A
     for i in eachindex(A)
         A[i] = log(A[i]) # A[i] = 0
     end
-end (A,) (RW,)
+end
 
-d2 = @dspawn begin
-    # reduce A
-    sum(A)
-end (A,) (R,)
+# reduce A
+d2 = @dspawn sum(@R A)
+# The above is a shortcut for:
+#   d2 = @dspawn begin
+#       @R A
+#       sum(A)
+#   end
+
 
 c = fetch(d2) # 0
 ```
@@ -84,34 +90,40 @@ outcome is thus always zero.
     an `n` large enough) you will see that you no longer get `0` because `d2`
     may access an element of `A` before it has been replaced by zero!
 
+!!! tip
+    In the `d2` example above, a shortcut syntax was introduced, which
+    allows putting `READ`/`WRITE` annotations directly around arguments in a
+    function call. This is especially useful when the task body is a one-liner.
+
 No parallelism was allowed in the previous example due to a data conflict. To
 see that when parallelism is possible, spawning `DataFlowTask`s will exploit it,
 consider this one last example:
 
 ```@example simple-example
 using DataFlowTasks # hide
-using DataFlowTasks: R,W,RW
 
 n = 100
 A = ones(n)
 
 d1 = @dspawn begin
+    @W A
+
     # write to A
     sleep(1)
     fill!(A,0)
-end (A,) (W,)
+end
 
 d2 = @dspawn begin
+    @R A
+
     # some long computation 
     sleep(5)
     # reduce A
     sum(A)
-end (A,) (R,)
+end
 
-d3 = @dspawn begin
-    # another reduction on A
-    sum(x->sin(x),A)
-end (A,) (R,)
+# another reduction on A
+d3 = @dspawn sum(x->sin(x), @R(A))
 
 t = @elapsed c = fetch(d3)
 
@@ -207,24 +219,30 @@ M2 = CirculantMatrix(copy(v));
 Base.sum(M::CirculantMatrix) = length(M.data)*sum(M.data)
 
 d1 = @dspawn begin
+    @W v
+
     sleep(0.5)
-    println("I write to v")
+    println("d1: I write to v")
     fill!(v,0) 
-end (v,) (W,);
+end;
 
 d2 = @dspawn begin
-    println("I wait for d1 to write")
+    @R M1
+
+    println("d2: I wait for d1 to write")
     sum(M1)
-end (M1,) (R,);
+end;
 
-d3= @dspawn begin
-    println("I don't wait for d1 to write")
+d3 = @dspawn begin
+    @R M2
+
+    println("d3: I don't need to wait for d1 to write")
     sum(M2)
-end (M2,) (R,);
-
-fetch(d2)
+end;
 
 fetch(d3)
+
+fetch(d2)
 ```
 
 ## Scheduler
@@ -269,16 +287,17 @@ Finished nodes will now remain in the `dag`:
 using DataFlowTasks: R,W,RW, num_nodes
 A = ones(5)
 @dspawn begin 
+    @RW A
     A .= 2 .* A
-end (A,) (RW,)
-@dspawn sum(A) (A,) (R,)
+end
+@dspawn sum(@R A)
 sch
 ```
 
 Note that stopping the `dag_worker` means `finished` nodes are no longer removed
 from the `dag`; since the `dag` is a buffered structure, this may cause the
 execution to halt if the `dag` is at full capacity. You can then either
-`resize!` it, or simply star the worker (which will result in the processing of
+`resize!` it, or simply start the worker (which will result in the processing of
 the `finished` channel):
 
 ```@example scheduler

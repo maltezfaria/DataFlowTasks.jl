@@ -213,33 +213,45 @@ function Base.show(io::IO, sch::JuliaScheduler)
 end
 
 """
-    macro dspawn expr data mode
+    @dspawn expr [kwargs...]
 
-Create a [`DataFlowTask`](@ref) and schedule it to run on any available thread.
-The `data` and `mode` arguments are passed to the `DataFlowTask` constructor,
-and can be used to indicate how the code in `expr` accesses `data`. These fields
-are used to automatically infer task dependencies.
+Create a [`DataFlowTask`](@ref) to execute the code given by `expr`, and
+schedule it to run on any available thread. The code in `expr` should be
+annotated with `@R`, `@W` and/or `@RW` tags in order to indicate how it accesses
+data (see examples below). This information is is then used to automatically
+infer task dependencies.
+
+## Supported keyword arguments:
+
+- `label`: provide a label to identify the task. This is useful when logging scheduling information;
+- `priority`: inform the scheduler about the relative priority of the task. This
+  information is not (yet) leveraged by the default scheduler.
+
+## See also:
+
+[`@dtask`](@ref), [`@dasync`](@ref)
 
 ## Examples:
 
 ```jldoctest
 using DataFlowTasks
-using DataFlowTasks: R,W,RW
 
 A = rand(5)
 
 # create a task which writes to A
 t1 = @dspawn begin
+    @W A
     sleep(1)
     fill!(A,0)
     println("finished writing")
-end (A,) (W,)
+end  label="writer"
 
 # create a task which reads from A
 t2 = @dspawn begin
+    @R A
     println("I automatically wait for `t1` to finish")
     sum(A)
-end (A,) (R,)
+end  priority=1
 
 fetch(t2) # 0
 
@@ -251,7 +263,7 @@ I automatically wait for `t1` to finish
 ```
 
 Note that in the example above `t2` waited for `t1` because it read a data field
-that `t1` accessed in a writtable manner.
+that `t1` accessed in a writable manner.
 """
 macro dspawn(expr, kwargs...)
     _dtask(expr, kwargs; source=__source__) do t
@@ -262,9 +274,13 @@ end
 
 
 """
-    macro dasync(expr,data,mode)
+    @dasync expr [kwargs...]
 
 Like [`@dspawn`](@ref), but schedules the task to run on the current thread.
+
+## See also:
+
+[`@dspawn`](@ref), [`@dtask`](@ref)
 """
 macro dasync(expr, kwargs...)
     _dtask(expr, kwargs; source=__source__) do t
