@@ -62,3 +62,23 @@ end
     sleep(0.1); @test istaskdone(t.task)
     @test isempty(ERRORS)
 end
+
+
+@testset "Sequential mode" begin
+    x = rand(10)
+    test_seq_mode(x) = @dtask sum(@R x) label="test_seq_mode" priority=1
+
+    # Sequential mode
+    DataFlowTasks.enable_sequential()
+
+    s = test_seq_mode(x)
+    @test typeof(s) == Float64
+    @inferred test_seq_mode(x)
+
+    # Parallell mode
+    DataFlowTasks.enable_sequential(false)
+
+    s = test_seq_mode(x)
+    @test typeof(s) == DataFlowTasks.DataFlowTask
+    @inferred test_seq_mode(x)
+end

@@ -156,21 +156,24 @@ end
 
 
 """
-    enable_sequential(mode = false)
+    enable_sequential(mode = true)
 
 If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
 code is simply run as it appears in the sources. In effect, this makes `@dspawn`
 a no-op.
+
+By default, sequential mode is disabled when the program starts.
 """
-function enable_sequential(seq::Bool = false; static::Bool = false)
+function enable_sequential(seq::Bool = true; static::Bool = false)
     dyn = static ? :sta : :dyn
     par = seq    ? :seq : :par
     if static
         @warn "Statically setting sequential/parallel mode is not recommended"
     end
     @eval _sequential_mode() = $(tuple(dyn, par))
+    nothing
 end
-enable_sequential()
+enable_sequential(false)
 
 
 function _dtask(continuation, expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
