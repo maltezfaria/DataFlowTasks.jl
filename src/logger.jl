@@ -1,191 +1,344 @@
-#=
-In this file we define a simple log format for keeping track of the various
-computations during the execution of the DAG. @trace events are collected by the
-logger and written to a file which can later be parsed.
+"""
+    struct TaskLog
 
-Some basic rules:
-1- each logging event writes a new line
-2- the first word of the line provides a key to decide how to parse the line
-3- after the key, a list of values is provided. Values are separated by a space
+Logs the execution trace of a [`DataFlowTask`](@ref).
 
-The type of keys are:
-
-dag_node tag intag1 intag2 ... intagk
-task_info pid start_time end_time tid
-length_dag n time
-length_finished n time
-length_runnable n time
-
-All times are in nanoseconds, collected using `time_ns()`.
-
-The logger contains a `ref_time` that can be used to setup the starting time of
-the program. Its default is 0.
-
-As a post-processing step, the logger.io stream can be parsed to generate
-relevant data structures which can be e.g. plotted.
-=#
-
-const TraceLogLevel = Logging.LogLevel(-1)
-
-macro trace(expr)
-    :(@logmsg $TraceLogLevel $(esc(expr)))
+## Fields:
+- `tag`         : task id in DAG
+- `time_start`  : time the task started running
+- `time_finish` : time the task finished running
+- `tid`         : thread on wich the task ran
+- `inneighbors` : vector of incoming neighbors in DAG
+- `label`       : a string used for displaying and/or postprocessing tasks
+"""
+struct TaskLog
+    tag::Int
+    time_start::UInt64
+    time_finish::UInt64
+    tid::Int
+    inneighbors::Vector{Int64}
+    label::String
 end
 
-TaskLog = @NamedTuple begin
-    threadid::Int
-    time_start::Int
-    time_finish::Int
-    task_tag::Int
-    task_label::String
+"""
+    struct InsertionLog
+
+Logs the execution trace of a [`DataFlowTask`](@ref) insertion.
+
+## Fields:
+- `time_start`  : time the insertion began
+- `time_finish` : time the insertion finished
+- `taskid`      : the thread it is inserting
+- `tid`         : the thread on wich the insertion is happening
+"""
+struct InsertionLog
+    time_start::UInt64
+    time_finish::UInt64
+    taskid::Int
+    tid::Int
 end
 
-mutable struct Logger <: AbstractLogger
-    stream::IO
-    ref_time::Int
-    tasklogs::Vector{TaskLog}
-    runnablelog::Tuple{Vector{Int},Vector{Int}}
-    finishedlog::Tuple{Vector{Int},Vector{Int}}
-end
 
-function Logger(io::IOStream)
-    Logger(io,0,TaskLog[],(Int[],Int[]),(Int[],Int[]))
-end
+"""
+    struct Logger
 
-# abstract logger interface
-
-Logging.shouldlog(logger::Logger, level, _module, group, id) = level == TraceLogLevel
-
-Logging.min_enabled_level(::Logger) = TraceLogLevel
-
-function Logging.handle_message(logger::Logger, level::LogLevel, message, _module, group, id,filepath, line; kwargs...)
-    @nospecialize
-    buf    = IOBuffer()
-    stream = logger.stream
-    if !isopen(stream)
-        stream = stderr
+Contains informations on the program's progress. For thread-safety, the `Logger`
+structure uses one vector of [`TaskLog`](@ref) per thread.
+"""
+struct Logger
+    tasklogs::Vector{Vector{TaskLog}}
+    insertionlogs::Vector{Vector{InsertionLog}}
+    function Logger()
+        # internal constructor to guarantee that there is always one vector per
+        # thread to do the loggin
+        new(
+            [Vector{TaskLog}()      for _ ∈ 1:Threads.nthreads()],
+            [Vector{InsertionLog}() for _ ∈ 1:Threads.nthreads()]
+        )
     end
-    iob = IOContext(buf, stream)
-    println(iob, message)
-    for (key, val) in kwargs
-        println(iob, "│   ", key, " = ", val)
+end
+
+"""
+    setlogger!(l::Logger)
+
+Set the global (default) logger to `l`.
+"""
+function setlogger!(l::Logger)
+    LOGGER[] = l
+end
+
+"""
+    getlogger()
+
+Return the global logger.
+"""
+function getlogger()
+    LOGGER[]
+end
+
+"""
+    resetlogger(logger=getlogger())
+
+Clear the `logger`'s memory and logging states.
+"""
+function resetlogger!(logger=getlogger())
+    map(empty!, logger.tasklogs)
+    map(empty!, logger.insertionlogs)
+end
+
+"""
+    const LOGGER::Ref{Logger}
+
+Global `Logger` being used to record the events. Can be changed using [`setlogger!`](@ref).
+"""
+const LOGGER = Ref{Logger}()
+
+# -------------------------------------------------------
+# ----------------------- PLOTTING ----------------------
+# -------------------------------------------------------
+
+"""
+    plot(logger::Logger;categories)
+
+Plot recipe to visualize the logged events in `logger`.
+"""
+@recipe function f(logger::Logger;categories=String[])
+    if isempty(Iterators.flatten(logger.tasklogs))
+        error("logger is empty: nothing to plot")
     end
-    write(stream, take!(buf))
-    nothing
-end
 
-reset_timer!(logger::Logger) = (logger.ref_time = time_ns())
+    # Get first and last time recorded
+    (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
 
-function reset!(logger::Logger)
-    io = logger.stream
-    close(io)
-    logger.stream = open(io.name,"w+")
-    reset_timer!(logger)
-end
+    # Get critical path
+    path = criticalpath()
+    t∞ = 0
 
-# parsing the io into data
-function parse!(log::Logger)
-    _parse_tasks!(log)
-    _parse_runnable!(log)
-    _parse_finished!(log)
-end
+    # General plot features
+    size --> (1000,600)
+    layout := !isempty(categories) ? @layout[a{0.8h} ; [b{0.33w} c{0.34w} d{0.33w}]] : @layout[a{0.8h} ; [b{0.5w} c{0.5w}]]
+    colors = [:green, :orange, :purple, :blue, :yellow, :red]
+    alr_labeled = [false for _ ∈ categories]  # we want only 1 label per category
 
-function _parse_tasks!(log::Logger)
-    io      = log.stream
-    seekstart(io)
-    events  = log.tasklogs
-    for l in eachline(io)
-        words = split(l)
-        words[1] == "task_info" || continue
-        tid,ts,te,tag = parse.(Int,words[2:5])
-        if length(words) == 5 # empty label
-            push!(events,(threadid=tid,time_start=ts,time_finish=te,task_tag=tag,task_label=""))
-        else
-            label = words[6:end]
-            push!(events,(threadid=tid,time_start=ts,time_finish=te,task_tag=tag,task_label=join(label," ")))
-        end
-    end
-    return log
-end
+    # Informations
+    # ------------
+    computingtime = 0
+    insertingtime = 0
+    othertime = length(logger.tasklogs) * (lasttime - firsttime)
+    times_per_category = zeros(length(categories))
 
-function _parse_runnable!(log::Logger)
-    io      = log.stream
-    seekstart(io)
-    nn,tt = log.runnablelog
-    for l in eachline(io)
-        words = split(l)
-        words[1] == "length_runnable" || continue
-        n,t = parse.(Int,words[2:3])
-        push!(nn,n)
-        push!(tt,t)
-    end
-    return log
-end
-
-function _parse_finished!(log::Logger)
-    io      = log.stream
-    seekstart(io)
-    nn,tt = log.finishedlog
-    for l in eachline(io)
-        words = split(l)
-        words[1] == "length_finished" || continue
-        n,t = parse.(Int,words[2:3])
-        push!(nn,n)
-        push!(tt,t)
-    end
-    return log
-end
-
-# plot the logger
-
-# graphplot(logger::Logger) = graphplot(logger.dag)
-
-@recipe function f(log::Logger)
-    xlabel --> "time (s)"
-    ylabel --> "threadid"
-    xlims --> (0,Inf)
-    # yflip  := true
-    seriestype := :shape
-    tasklogs = log.tasklogs
-    yticks --> unique(t.threadid for t in tasklogs)
-    seriesalpha  --> 0.5
-    # loop all data and plot the lines
-    for (tid,ts,te,tag) in log.tasklogs
+    # Loop over all tasklogs to plot computing times
+    # ----------------------------------------------
+    for tasklog ∈ Iterators.flatten(logger.tasklogs)
         @series begin
-            label --> nothing
-            x1 = (ts-log.ref_time)/1e9
-            x2 = (te-log.ref_time)/1e9
-            y1 = tid - 0.25
-            y2 = tid + 0.25
+            # Plots attributes
+            # ---------------
+            xlabel --> "time (s)"
+            ylabel --> "threadid"
+            xlims --> (0, lasttime - firsttime)
+            title --> "Trace"
+            seriestype := :shape
+            seriesalpha  --> 0.6
+            subplot := 1
+
+            # Vertices of task square
+            # -----------------------
+            x1 = (tasklog.time_start  * 10^(-9)  - firsttime)
+            x2 = (tasklog.time_finish * 10^(-9) - firsttime)
+            y1 = tasklog.tid - 0.25
+            y2 = tasklog.tid + 0.25
+
+            # General Informations
+            # ------------
+            computingtime += x2-x1
+            othertime -= x2-x1
+            if tasklog.tag ∈ path
+                t∞ += x2 - x1
+            end
+
+            # Task category management
+            # ------------------------
+            if !isempty(categories)
+                for i ∈ 1:length(categories)
+                    if occursin(categories[i], tasklog.label)
+                        times_per_category[i] += x2-x1
+                        color --> colors[i]
+                        if !alr_labeled[i]
+                            label --> categories[i]
+                            alr_labeled[i] = true
+                        else
+                            label--> nothing
+                        end
+                    end
+                end
+            else
+                label --> nothing
+            end
+
+            # Returns
             [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
         end
     end
+
+    # Loop over all insertionlogs to plot computing times
+    # ----------------------------------------------------
+    count = 0
+    for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
+        @series begin
+            # Plots attributes
+            # ---------------
+            subplot := 1
+            xlabel --> "time (s)"
+            ylabel --> "threadid"
+            xlims --> (0, lasttime - firsttime)
+            title --> "Trace"
+            seriestype := :shape
+            seriesalpha  --> 0.8
+            color --> :red
+            count == 0 ? label --> "task insertion" : label --> nothing
+            count += 1
+        
+            # Vertices of log square
+            # -----------------------
+            x1 = (insertionlog.time_start  * 10^(-9)  - firsttime)
+            x2 = (insertionlog.time_finish * 10^(-9) - firsttime)
+            y1 = insertionlog.tid - 0.25
+            y2 = insertionlog.tid + 0.25
+
+            # General informations
+            # --------------------
+            othertime -= x2-x1
+            insertingtime += x2-x1
+        
+            # Returns
+            [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
+        end
+    end
+
+    # General Informations
+    # --------------------
+    total_time = length(logger.tasklogs) * (lasttime - firsttime)
+    rel_time_other     = 100 * othertime / total_time
+    rel_time_computing = 100 * computingtime / total_time
+    rel_time_inserting = 100 * insertingtime / total_time
+    @info "Proportion of time waiting   : $rel_time_other %"
+    @info "Computing time               : $computingtime s"
+    @info "Insertion time               : $insertingtime s"
+    @info "Other time                   : $othertime s"
+
+    # Plot activity (Computing / Other)
+    # ---------------------------------
+    @series begin
+        subplot := 2
+        seriestype := :bar
+        orientation := :h
+        title  --> "Activity (%)"
+        labels  --> ["Computing" "Inserting" "Other"]
+        xlims  --> (0, 100)
+        xticks --> 0:25:100
+        yticks --> nothing
+        fillcolor  --> [:green :red :purple]
+        seriesalpha --> 0.8
+        [1 2 3],[rel_time_other rel_time_computing rel_time_inserting]
+    end
+
+    # Plot infinite proc time
+    # -----------------------
+    @series begin
+        subplot := 3
+        seriestype := :bar
+        title --> "Infinite Proc"
+        label --> nothing
+        fillcolor --> [:green :red]
+        seriesalpha --> 0.8
+        ["Inf. proc. t" "Real total t"], [t∞ (lasttime - firsttime)]
+    end
+
+    # Category Labels
+    # ---------------
+    if !isempty(categories)
+        @series begin
+            subplot := 4
+            seriestype := :bar
+            label --> nothing
+            labels  --> categories
+            ylabel --> "Time (s)"
+            title  --> "Times per category"
+            color  --> colors[1:length(categories)]
+            seriesalpha --> 0.8
+            categories, times_per_category
+        end
+    end
 end
 
-struct PlotFinished end
-struct PlotRunnable end
-
-@recipe function f(::PlotFinished,log::Logger)
-    xlabel --> "time (s)"
-    ylabel --> "length"
-    xlims --> (0,Inf)
-    lw --> 2
-    label --> "finished channel"
-    # yflip  := true
-    seriestype := :line
-    l,t = log.finishedlog # length,time
-    yticks --> unique(l)
-    (t .- log.ref_time[])/1e9,l
+function timelimits(logger)
+    iter = Iterators.flatten(logger.tasklogs)
+    minimum(t->t.time_start,iter), maximum(t->t.time_finish,iter)
 end
 
-@recipe function f(::PlotRunnable,log::Logger)
-    xlabel --> "time (s)"
-    ylabel --> "length"
-    xlims --> (0,Inf)
-    lw --> 2
-    label --> "runnable channel"
-    # yflip  := true
-    seriestype := :line
-    l,t = log.runnablelog # length,time
-    yticks --> unique(l)
-    (t .- log.ref_time[])/1e9,l
+
+
+############################################################################
+#                           Dag Plotting                                  
+############################################################################
+
+"""
+    logger_to_dot(logger)  --> dagstring
+Return a string in the
+[DOT](https://en.wikipedia.org/wiki/DOT_(graph_description_language)) format
+representing the underlying graph in `logger`
+and to be plotted by GraphViz with Graph(logger_to_dot())
+"""
+function logger_to_dot(logger=getlogger())
+    path = criticalpath()
+    
+    # Write DOT graph
+    # ---------------
+    str = "strict digraph dag {rankdir=LR;layout=dot;"
+    str *= """concentrate=true;"""
+    for tasklog ∈ Iterators.flatten(logger.tasklogs)
+        # Defines edges
+        for neighbor ∈ tasklog.inneighbors
+            str *= """ $neighbor -> $(tasklog.tag)"""
+            if neighbor+1 ∈ path && tasklog.tag+1 ∈ path
+                str *= """ [color=red];"""
+                str *= """ $neighbor [color=red];"""
+                str *= """ $(tasklog.tag) [color=red]"""
+            end
+            str *= """;"""
+        end
+    end
+
+    str *= "}"
+end
+
+
+"""
+    criticalpath() --> path  
+Finds the critical path of the logger's DAG
+"""
+function criticalpath()
+    # Declaration of the adjacency matrix for DAG analysis
+    # Note : we add a virtual first node 1 that represent the beginning of the DAG
+    nb_nodes = sum(length(threadlog) for threadlog ∈ getlogger().tasklogs)
+    adj = NaN * ones(nb_nodes+1, nb_nodes+1)
+    
+    # Find Critical Path
+    # ------------------
+    for tasklog ∈ Iterators.flatten(getlogger().tasklogs)
+        # Weight of the arc from tasklog.tag to other nodes
+        task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
+
+        # If no inneighbors than it's one of the first tasks
+        # Note : considering we remove nodes from the dag, it's not necessarly true
+        if length(tasklog.inneighbors) == 0
+            adj[1, tasklog.tag + 1] = 0
+        end
+
+        # Defines edges
+        for neighbor ∈ tasklog.inneighbors
+            adj[neighbor+1, tasklog.tag+1] = task_duration
+        end
+    end
+    longestpath(adj, 1)
 end

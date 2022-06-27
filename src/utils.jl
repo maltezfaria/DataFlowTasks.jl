@@ -12,12 +12,25 @@ function Base.iterate(rt::Iterators.Reverse{<:OrderedDict}, i)
     return (Pair(t.keys[i], t.vals[i]), i-1)
 end
 
+"""
+    enable_log(mode = false)
 
+If `mode=true`, information regarding the [`DataFlowTask`](@ref)s will be logged
+in the current logger.
+
+## See also: [`getlogger`](@ref), [`setlogger!`](@ref), [`TaskLog`](@ref).
+"""
+function enable_log(mode = true)
+    @eval _log_mode() = $mode
+    mode
+end
+
+_log_mode() = true
 
 """
     enable_debug(mode = true)
 
-If `mode` is true (the default), enable debug mode: errors inside tasks will be
+If `mode` is `true` (the default), enable debug mode: errors inside tasks will be
 shown.
 """
 function enable_debug(mode = true)

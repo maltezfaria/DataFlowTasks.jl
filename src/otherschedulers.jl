@@ -32,9 +32,7 @@ function Base.take!(c::RunnableChannel)
         while isempty(c.data)
             wait(c.cond_take)
         end
-        @trace "length_runnable $(length(c.data)) $(time_ns())"
         v = dequeue!(c.data)
-        @trace "length_runnable $(length(c.data)) $(time_ns())"
         return v
     finally
         unlock(c)
@@ -44,9 +42,7 @@ end
 function Base.put!(c::RunnableChannel{T},t::T,p=1) where {T}
     lock(c)
     try
-        @trace "length_runnable $(length(c.data)) $(time_ns())"
         push!(c.data, t=>p)
-        @trace "length_runnable $(length(c.data)) $(time_ns())"
         notify(c.cond_take)
     finally
         unlock(c)
