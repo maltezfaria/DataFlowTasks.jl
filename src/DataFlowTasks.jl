@@ -11,6 +11,8 @@ using Logging
 using ThreadPools
 using DataStructures
 using RecipesBase
+using GraphViz: Graph
+using GLMakie, GraphViz, Cairo, FileIO  # to be made conditionnal
 
 """
     @enum AccessMode READ WRITE READWRITE
@@ -36,6 +38,7 @@ include("arrayinterface.jl")
 include("dag.jl")
 include("scheduler.jl")
 include("otherschedulers.jl")
+include("plot.jl")
 
 export
     @dtask,
