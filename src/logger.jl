@@ -145,17 +145,21 @@ function loggertodot(logger=getlogger())
     str *= "}"
 end
 
+
 """
     criticalpath() --> path  
 Finds the critical path of the logger's DAG
 """
 function criticalpath()
-    # Declaration of the adjacency matrix for DAG analysis
+    # Declaration of the adjacency list for DAG analysis
     # Note : we add a virtual first node 1 that represent the beginning of the DAG
-    nb_nodes = nbtasknodes()
-    adj = NaN * ones(nb_nodes+1, nb_nodes+1)
+    nbnodes = sum(length(threadlog) for threadlog ∈ getlogger().tasklogs)
+    adj = Dict{Int64, Set{Pair{Int64, Float64}}}()
+    for i ∈ 1:nbnodes+1
+        push!(adj, i=>Set{Pair{Int64, Float64}}())
+    end
     
-    # Find Critical Path
+    # Initialize adjacency list
     # ------------------
     for tasklog ∈ Iterators.flatten(getlogger().tasklogs)
         # Weight of the arc from tasklog.tag to other nodes
@@ -164,13 +168,14 @@ function criticalpath()
         # If no inneighbors than it's one of the first tasks
         # Note : considering we remove nodes from the dag, it's not necessarly true
         if length(tasklog.inneighbors) == 0
-            adj[1, tasklog.tag + 1] = 0
+            push!(adj[1], tasklog.tag+1 => 0)
         end
 
         # Defines edges
-        for neighbor ∈ tasklog.inneighbors
-            adj[neighbor+1, tasklog.tag+1] = task_duration
+        for neighbour ∈ tasklog.inneighbors
+            push!(adj[neighbour+1], tasklog.tag+1 => task_duration)
         end
     end
-    longestpath(adj, 1)
+    
+    longestpath(adj)
 end

@@ -277,41 +277,29 @@ function notvisited_min(dist, visited)
     minnode
 end
 
+
 """
-    longestpath(adj, source) -> path
+    longestpath(adj) -> path
 Finds the critical path of a DAG G by using Dijsktra's shortest path algorithm on -G
 Returns the nodes constituting the path
 """
-function longestpath(adj, source)
-    n = size(adj)[1]                # Number of nodes
-    adj *= -1                       # DAG G=(V,E) longest path <=> g=(V,-E) shortest path
-    dist     = [Inf   for _ ∈ 1:n]  # dist[i] gives the shortest path from source to i
-    visited  = [false for _ ∈ 1:n]  # visited[i]=true if node already studied
-    previous = [0     for _ ∈ 1:n]  # previous[i] gives the antecedent of i in longest path
-    path     = Vector{Int64}()      # explicit storage for the longest path
-    dist[source] = 0
+function longestpath(adj)
+    n = length(adj)                  # number of nodes
+    dist     = [-Inf   for _ ∈ 1:n]  # dist[i] gives the shortest path from source to i
+    previous = [0     for _ ∈ 1:n]   # previous[i] gives the antecedent of i in longest path
+    path     = Vector{Int64}()       # explicit storage for the longest path
+    dist[1] = 0
 
-    # Get longest path from source for all nodes
-    # ------------------------------------------
-    while false ∈ visited
-        currnode = notvisited_min(dist, visited)
-        visited[currnode] = true
-
-        outneighbors = Int64[]
-        for j ∈ 1:size(adj)[1]
-            adj[currnode,j] != NaN && push!(outneighbors, j)
-        end
-
-        for i ∈ outneighbors
-            visited[i] && continue
-
-            if dist[i] > dist[currnode] + adj[currnode, i]
-                dist[i] = dist[currnode] + adj[currnode, i]
-                previous[i] = currnode
+    for currnode ∈ 1:n
+        if dist[currnode] != -Inf
+            for (neighbour, weight) ∈ adj[currnode]
+                if dist[neighbour] < dist[currnode] + weight
+                    dist[neighbour] = dist[currnode] + weight
+                    previous[neighbour] = currnode
+                end
             end
         end
     end
-    dist *= -1
 
     # Extract path
     # ------------
@@ -320,10 +308,11 @@ function longestpath(adj, source)
     push!(path, currnode)
 
     # Run through previous[] to get the path
-    while currnode != source
+    while currnode != 1
         currnode = previous[currnode]
         push!(path, currnode)
     end
 
     path
 end
+
