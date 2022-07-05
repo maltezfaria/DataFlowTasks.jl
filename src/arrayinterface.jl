@@ -10,15 +10,12 @@ using LinearAlgebra
     memory_overlap(di::SubArray,dj::Array)
     memory_overlap(di::Array,dj::SubArray)
 
-When both `di` and `dj` are of type `Array`, compare their addresses. If one is
+When both `di` and `dj` are `Array`s of bitstype, compare their addresses. If one is
 of type `SubArray`, compare the parent.
 """
-memory_overlap(di::Array,dj::Array) = pointer(di)===pointer(dj)
+memory_overlap(di::Array,dj::Array)    = pointer(di)===pointer(dj)
 memory_overlap(di::SubArray,dj::Array) = memory_overlap(di.parent,dj)
 memory_overlap(di::Array,dj::SubArray) = memory_overlap(dj.parent,di)
-
-memory_overlap(di::SubArray,dj::LinearAlgebra.AbstractTriangular) = memory_overlap(parent(dj),di)
-memory_overlap(di::LinearAlgebra.AbstractTriangular,dj::SubArray) = memory_overlap(dj,di)
 
 """
     memory_overlap(di::SubArray,dj::SubArray)

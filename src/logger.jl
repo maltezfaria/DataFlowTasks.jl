@@ -97,11 +97,6 @@ const LOGGER = Ref{Logger}()
 # ----------------------- PLOTTING ----------------------
 # -------------------------------------------------------
 
-"""
-    plot(logger::Logger;categories)
-
-Plot recipe to visualize the logged events in `logger`.
-"""
 @recipe function f(logger::Logger;categories=String[])
     if isempty(Iterators.flatten(logger.tasklogs))
         error("logger is empty: nothing to plot")
@@ -197,7 +192,7 @@ Plot recipe to visualize the logged events in `logger`.
             color --> :red
             count == 0 ? label --> "task insertion" : label --> nothing
             count += 1
-        
+
             # Vertices of log square
             # -----------------------
             x1 = (insertionlog.time_start  * 10^(-9)  - firsttime)
@@ -209,7 +204,7 @@ Plot recipe to visualize the logged events in `logger`.
             # --------------------
             othertime -= x2-x1
             insertingtime += x2-x1
-        
+
             # Returns
             [x1,x2,x2,x1,x1],[y1,y1,y2,y2,y1]
         end
@@ -279,7 +274,7 @@ end
 
 
 ############################################################################
-#                           Dag Plotting                                  
+#                           Dag Plotting
 ############################################################################
 
 """
@@ -291,7 +286,7 @@ and to be plotted by GraphViz with Graph(logger_to_dot())
 """
 function logger_to_dot(logger=getlogger())
     path = criticalpath()
-    
+
     # Write DOT graph
     # ---------------
     str = "strict digraph dag {rankdir=LR;layout=dot;"
@@ -314,7 +309,7 @@ end
 
 
 """
-    criticalpath() --> path  
+    criticalpath() --> path
 Finds the critical path of the logger's DAG
 """
 function criticalpath()
@@ -322,7 +317,7 @@ function criticalpath()
     # Note : we add a virtual first node 1 that represent the beginning of the DAG
     nb_nodes = sum(length(threadlog) for threadlog ∈ getlogger().tasklogs)
     adj = NaN * ones(nb_nodes+1, nb_nodes+1)
-    
+
     # Find Critical Path
     # ------------------
     for tasklog ∈ Iterators.flatten(getlogger().tasklogs)
