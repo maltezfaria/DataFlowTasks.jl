@@ -6,10 +6,10 @@ It's a Struct of Array paradigm where all the entries i
 of all the arrays tells us information about a same task.
 """
 struct Gantt
-    threads::Vector{Int64}
-    jobids::Vector{Int64}
-    starts::Vector{Float64}
-    stops::Vector{Float64}
+    threads::Vector{Int64}      # Thread on wich the task ran
+    jobids::Vector{Int64}       # Task type
+    starts::Vector{Float64}     # Start time
+    stops::Vector{Float64}      # End time
 
     function Gantt()
         threads = Vector{Int64}()
@@ -32,6 +32,7 @@ mutable struct LoggerInfo
     insertingtime::Float64          # Cumulative time spent inserting
     othertime::Float64              # Cumulative other time
     t∞::Float64                     # Inf. proc time
+    t_nowait::Float64               # Time if we didn't wait at all
     timespercat::Vector{Float64}    # timespercat[i] cumulative time for category i
     categories::Vector{String}      # labels
     path::Vector{Int64}             # Critical Path
@@ -39,7 +40,13 @@ mutable struct LoggerInfo
     function LoggerInfo(logger::Logger, categories, path)
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
         othertime     = (lasttime-firsttime) * length(logger.tasklogs)
-        new(firsttime, lasttime, 0, 0, othertime, 0, zeros(length(categories)), categories, path)
+        new(
+            firsttime, lasttime,
+            0, 0, othertime,
+            0, 0,
+            zeros(length(categories)+1), categories,
+            path
+        )
     end
 end
 
@@ -61,8 +68,10 @@ gives the index of the occurence of label in `categories`.
 """
 function jobid(label::String, categories)
     for i ∈ 1:length(categories)
-        occursin(categories[i], label) && return i
+        occursin(categories[i], label) && return i  # find first
     end
+
+    return length(categories)+1
 end
 
 
@@ -84,21 +93,41 @@ function extractloggerinfo!(logger::Logger, loginfo::LoggerInfo, gantt::Gantt)
         # General Informations
         # --------------------
         task_duration  = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
+        # ----
         loginfo.othertime     -= task_duration
         loginfo.computingtime += task_duration
+        # ----
         loginfo.timespercat[jobid(tasklog.label, loginfo.categories)] += task_duration
+        # ----
         (tasklog.tag+1) ∈ loginfo.path && (loginfo.t∞ += task_duration)
+        loginfo.t_nowait += task_duration
     end
 
     # Gantt data : Initialization INSERTIONLOGS
     # -----------------------------------------
     for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
+        if insertionlog.gc_time != 0
+            gc_start = insertionlog.time_start  * 10^(-9) - loginfo.firsttime
+            gc_finish = gc_start + insertionlog.gc_time * 10^(-9)
+            insertion_start = gc_finish
+            insertion_finish = insertionlog.time_finish * 10^(-9) - loginfo.firsttime
+
+            # GC Task
+            push!(gantt.threads , insertionlog.tid)
+            push!(gantt.jobids  , length(loginfo.categories)+3)
+            push!(gantt.starts  , gc_start)
+            push!(gantt.stops   , gc_finish)
+        else
+            insertion_start = insertionlog.time_start  * 10^(-9) - loginfo.firsttime
+            insertion_finish = insertionlog.time_finish * 10^(-9) - loginfo.firsttime
+        end
+
         # Gantt data
         # ----------
         push!(gantt.threads, insertionlog.tid)
-        push!(gantt.jobids , length(loginfo.categories)+1)
-        push!(gantt.starts , insertionlog.time_start  * 10^(-9) - loginfo.firsttime)
-        push!(gantt.stops  , insertionlog.time_finish * 10^(-9) - loginfo.firsttime)
+        push!(gantt.jobids , length(loginfo.categories)+2)
+        push!(gantt.starts , insertion_start)
+        push!(gantt.stops  , insertion_finish)
     
         # General Informations
         # --------------------
@@ -106,6 +135,8 @@ function extractloggerinfo!(logger::Logger, loginfo::LoggerInfo, gantt::Gantt)
         loginfo.othertime     -= task_duration
         loginfo.insertingtime += task_duration
     end
+
+    loginfo.t_nowait /= length(logger.tasklogs)
 
     gantt
 end
@@ -115,13 +146,21 @@ end
     traceplot(ax, gantt, loginfo)  
 Plot the Gantt Chart (parallel trace) on ax.
 """
-function traceplot(ax, gantt::Gantt, loginfo::LoggerInfo)
+function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
+    hasdefault = (loginfo.timespercat[end] !=0 ? true : false) 
+
+    lengthx = length(loginfo.categories)+1
+    hasdefault && (lengthx += 1)
+
     # Axis attributes
     # ---------------
     ax.xlabel = "Time (s)"
     ax.ylabel = "Thread"
     ax.yticks = 1:max(gantt.threads...)
     xlims!(ax, 0, loginfo.lasttime-loginfo.firsttime)
+
+    grad = cgrad(:tab10)[1:length(loginfo.categories)]
+    colors = [grad..., :black, :red, cgrad(:sun)[1]]
 
     # Barplot
     # -------
@@ -131,24 +170,37 @@ function traceplot(ax, gantt::Gantt, loginfo::LoggerInfo)
         gantt.stops,
         fillto = gantt.starts,
         direction = :x,
-        color = cgrad(:tab10)[gantt.jobids],
+        color = colors[gantt.jobids],
         gap = 0.5,
         strokewidth = 0.5,
         strokecolor = :white,
         width = 1.25
     )
 
+    # Check if we measured some gc
+    didgc = false
+    for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
+        insertionlog.gc_time != 0 && (didgc=true)
+    end
+
     # Labels
     # ------
-    elements = [PolyElement(polycolor = cgrad(:tab10)[i]) for i in unique(gantt.jobids)]
-    elements[end].polycolor = :red  # inserting color
+    l = length(loginfo.categories)+1
+    didgc && (l += 1)
+    elements = [PolyElement(polycolor = cgrad(:tab10)[i]) for i in 1:l]
+    elements[end].polycolor = :red
+    didgc && (elements[end-1].polycolor = :red ; elements[end].polycolor = cgrad(:sun)[1])
+    hasdefault && push!(elements, PolyElement(polycolor = :black))
+
+    y = [loginfo.categories..., "insertion"]
+    didgc && push!(y, "gc")
+    hasdefault && push!(y, "default")
     Legend(
-        ax.parent[2,1][1,3],
+        ax.parent[1,1],
         elements,
-        [loginfo.categories..., "insertion"],
-        "Task types",
+        y,
         orientation = :horizontal,
-        halign = :right, valign = :center,
+        halign = :right, valign = :top,
         margin = (5, 5, 5, 5)
     )
 end
@@ -175,7 +227,7 @@ function activityplot(ax, loginfo::LoggerInfo)
             loginfo.insertingtime,
             loginfo.othertime
         ],
-        color = [:green, :red, :black]
+        color = cgrad(:PRGn)[1:3]
     )
 end
 
@@ -185,43 +237,53 @@ end
 Plot on ax the barplot comparing the computation time 
 if we had an infinite number of procs and the real time.
 """
-function infprocplot(ax, loginfo::LoggerInfo)
+function boundsplot(ax, loginfo::LoggerInfo)
     # Axis attributes
     # ---------------
-    ax.xticks = (1:2, ["Inf. Proc", "Real"])
+    ax.xticks = (1:3, ["Critical\nPath", "Without\nWaiting" , "Real"])
     ax.ylabel = "Time (s)"
 
     # Barplot
     # -------
     barplot!(
         ax,
-        1:2,
-        [loginfo.t∞, (loginfo.lasttime-loginfo.firsttime)],
-        color = [:green, :red]
+        1:3,
+        [loginfo.t∞, loginfo.t_nowait , (loginfo.lasttime-loginfo.firsttime)],
+        color = cgrad(:sun)[1:3]
     )
 end
 
-
 """
-    categoriesplot(ax, loginfo)  
-Plots the cumulative times for each given category.
+
 """
 function categoriesplot(ax, loginfo::LoggerInfo)
     categories = loginfo.categories
+    hasdefault = (loginfo.timespercat[end] !=0 ? true : false) 
 
     # Axis attributes
-    # ---------------
-    ax.xticks = (1:length(categories), categories)
+    lengthx = length(categories)
+    ticks = categories
+    hasdefault && (lengthx += 1)
+    hasdefault && (ticks = [ticks..., "default"])
+    ax.xticks = (1:lengthx, ticks)
     ax.ylabel = "Time (s)"
+
+
+    # Colors
+    grad = cgrad(:tab10)[1:length(categories)]
+    hasdefault && (grad = [grad..., :black])
 
     # Barplot
     # -------
+    y = loginfo.timespercat[1:end]
+    !hasdefault && (y = y[1:end-1])
     barplot!(
         ax,
-        1:length(categories),
-        loginfo.timespercat,
-        color = cgrad(:tab10)[1:length(categories)]
+        1:lengthx,
+        y,
+        color = grad
     )
+
 end
 
 
@@ -261,54 +323,30 @@ function dagplot(logger=getlogger())
 end
 
 
-function react(axtrc, logger, loginfo)
+function react(ax, logger::Logger, gantt::Gantt)
     to = Observable("")
 
-    Box(
-        axtrc.parent[2,1][1,1:2],
-        color = RGBAf(0.5, 0.5, 0.8, 0.2),
-        halign=:left,
-        width = Relative(0.9),
-    )
+    on(events(ax.parent).mouseposition) do mp
+        pos = mouseposition(ax.scene)
 
-    header = ""
-    header *= "   Task Dag ID\n"
-    header *= "   Label\n"
-    Label(
-        axtrc.parent[2,1][1,1],
-        header,
-        halign=:left, valign=:center,
-        justification=:left,
-        width = Relative(0.5)
-    )
-    l = Label(
-        axtrc.parent[2,1][1,2],
-        "",
-        textsize = 20,
-        halign=:left, valign=:center,
-        justification=:left,
-        width = Relative(0.5)
-    )
-
-
-    on(to) do t
-        l.text = t
-    end
-
-
-    on(events(axtrc.parent).mouseposition) do mp
-        pos = mouseposition(axtrc.scene)
-        
-        for tasklog ∈ Iterators.flatten(logger.tasklogs) 
-            x1 = tasklog.time_start * 10^(-9) - loginfo.firsttime
-            x2 = tasklog.time_finish * 10^(-9) - loginfo.firsttime
-            y1 = tasklog.tid - 0.3
-            y2 = tasklog.tid + 0.3
-
-            if x1 <= pos[1] <= x2 && y1 <= pos[2] <= y2  
-                to[] = "$(tasklog.tag)\n$(tasklog.label)"
+        k = 1
+        match = false
+        for tasklog ∈ Iterators.flatten(logger.tasklogs)
+            condx = gantt.starts[k] <= pos[1] <= gantt.stops[k]
+            condy = gantt.threads[k] - 0.3 <= pos[2] <= gantt.threads[k] + 0.3
+            if condx && condy
+                match = true
+                tasklog.label != "" && (to[] = "$(tasklog.label)")
             end
+
+            k += 1
         end
+
+        !match && (to[] = "Task Label")
+
+    end
+    on(to) do t
+        ax.title = "Parallel Trace\n$t"
     end
 end
 
@@ -334,30 +372,29 @@ function plot(logger::Logger; categories=String[])
 
     # Layouts (conditionnal depending on DAG size)
     # --------------------------------------------
-    axtrc = Axis(fig[1,1]     , title="Parallel Trace")
-    axact = Axis(fig[3,1][1,1], title="Activity")
-    axinf = Axis(fig[3,1][1,2], title="Time Infinite Proc")
-    axcat = Axis(fig[3,1][1,3], title="Times per Category")
+    axtrc = Axis(fig[1,1]     , title="Parallel Trace\n Task Label")
+    axact = Axis(fig[2,1][1,1], title="Activity")
+    axinf = Axis(fig[2,1][1,2], title="Time Bounds")
+    axcat = Axis(fig[2,1][1,3], title="Times per Category")
     if !shouldplotdag
         @info "The dag has too many nodes, plot it separately with `dagplot()` so it can be readable"
     else
-        axdag = Axis(fig[1:3,2]   , title="Graph")
+        axdag = Axis(fig[1:2,2]   , title="Graph")
         colsize!(fig.layout, 1, Relative(3/4))
     end
     # -------
     rowsize!(fig.layout, 1, Relative(2/3))
 
-
     # Plot each part
     # --------------
-    traceplot(axtrc, gantt, loginfo)
+    traceplot(axtrc, logger, gantt, loginfo)
     activityplot(axact, loginfo)
-    infprocplot(axinf, loginfo)
+    boundsplot(axinf, loginfo)
     categoriesplot(axcat, loginfo)
     shouldplotdag && dagplot(axdag, logger)
 
     # Events management
-    react(axtrc, logger, loginfo)
+    react(axtrc, logger, gantt)
 
     # Terminal Informations
     # ---------------------

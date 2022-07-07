@@ -31,6 +31,7 @@ function DAG{T}(sz = typemax(Int)) where T
     cond_push  = Condition()
     cond_empty = Condition()
     _buffer    = Set{Int}()
+    sz == Inf || sizehint!(_buffer, sz)
     return DAG{T}(inoutlist,cond_push,cond_empty,Ref(sz),_buffer)
 end
 
@@ -126,13 +127,18 @@ function addnode!(dag::DAG,kv::Pair,check=false)
     end
 
     t₀ = time_ns()
+    stats = Base.gc_num()
+    # -------
+
     push!(dag.inoutlist,kv)
     k,v = kv
     check  && update_edges!(dag,k)
-    t₁ = time_ns()
 
+    # -------
+    diff = Base.GC_Diff(Base.gc_num(), stats)
+    t₁ = time_ns()
     tid = Threads.threadid()
-    _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, tag(k), tid))
+    _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
 
     return dag
 end

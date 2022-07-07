@@ -34,6 +34,7 @@ Logs the execution trace of a [`DataFlowTask`](@ref) insertion.
 struct InsertionLog
     time_start::UInt64
     time_finish::UInt64
+    gc_time::Int64
     taskid::Int
     tid::Int
 end
@@ -147,10 +148,10 @@ end
 
 
 """
-    criticalpath() --> path  
+    criticalpath(logger) --> path  
 Finds the critical path of the logger's DAG
 """
-function criticalpath()
+function criticalpath(logger=getlogger())
     # Declaration of the adjacency list for DAG analysis
     # Note : we add a virtual first node 1 that represent the beginning of the DAG
     nbnodes = sum(length(threadlog) for threadlog ∈ getlogger().tasklogs)
