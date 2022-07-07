@@ -1,4 +1,5 @@
 using Test
+using Suppressor
 using LinearAlgebra
 using DataFlowTasks
 using DataFlowTasks: data_dependency
@@ -14,6 +15,59 @@ using DataFlowTasks: data_dependency
     schedule(t)
     wait(t)
     @test A == tmp
+
+
+    fun(args...) = 1
+    (x,y,z) = rand(1), rand(1), rand(1)
+
+    @testset "access tags in arguments list" begin
+        t = @dtask f(@R(x), @W(y), @RW(z))
+        @test t.data === (x, y, z)
+        @test t.access_mode == (DataFlowTasks.READ, DataFlowTasks.WRITE, DataFlowTasks.READWRITE)
+        @test t.priority == 0
+        @test t.label == ""
+    end
+
+    @testset "arrow access tags" begin
+        t = @dtask f(@←(x), @→(y), @↔(z))
+        @test t.data === (x, y, z)
+        @test t.access_mode == (DataFlowTasks.READ, DataFlowTasks.WRITE, DataFlowTasks.READWRITE)
+    end
+
+    @testset "access tags in task body" begin
+        t = @dtask begin
+            @W x
+            @R y z
+            f(x', y', z')
+        end
+        @test t.data === (x, y, z)
+        @test t.access_mode == (DataFlowTasks.WRITE, DataFlowTasks.READ, DataFlowTasks.READ)
+    end
+
+    @testset "access tags in parameters" begin
+        t = @dtask f(x', y', z') @R(x) @W(y) @RW(z)
+        @test t.data === (x, y, z)
+        @test t.access_mode == (DataFlowTasks.READ, DataFlowTasks.WRITE, DataFlowTasks.READWRITE)
+    end
+
+    @testset "optional parameters" begin
+        j = 2
+        t = @dtask f(@W(x), y') @R(y) priority=j label="task($j)"
+        @test t.data === (x, y)
+        @test t.access_mode == (DataFlowTasks.WRITE, DataFlowTasks.READ)
+        @test t.priority == 2
+        @test t.label == "task(2)"
+    end
+
+    @testset "invalid parameters" begin
+        # Check that a warning is issued *at macro expansion time*
+        out = @capture_err begin
+            @macroexpand @dtask f(@W(x), y') @R(y) not_an_assignment unknown_param=1
+        end
+        msgs = split(out, "\n")
+        @test occursin("Malformed", msgs[1]) && occursin("not_an_assignment", msgs[1])
+        @test occursin("Unknown",   msgs[3]) && occursin("unknown_param",     msgs[3])
+    end
 end
 
 @testset "Data dependency" begin
