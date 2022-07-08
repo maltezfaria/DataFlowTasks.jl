@@ -288,7 +288,7 @@ end
 
 
 """
-    dagplot(ax)  
+    dagplot(ax, logger)  
 Plot the dag to the Makie axis ax
 """
 function dagplot(ax, logger)
@@ -352,8 +352,50 @@ end
 
 
 """
+    plot(logger)  
+Plot DataFlowTasks `logger` informations.  
+Note : if there's too many tasks, the DAG won't be plotted,
+although you can manually call `dagplot(logger)`.
+
+## Example  
+```
+# Compilation
+work(copy(variables...))
+
+# Reset logger and taskcounter
+DFT.resetlogger!()
+DFT.TASKCOUNTER[] = 0
+
+# Garbage collector to clean compilation run
+GC.gc()
+
+# Real work
+work(variables...)
+
+# Plot
+plot(DFT.getlogger())
+```  
+
+---
+
     plot(logger; categories)  
-Main plot function.
+Plot DataFlowTasks `logger` labeled informations with categories.  
+Note : if there's too many tasks, the DAG won't be plotted,
+although you can manually call `dagplot(logger)`.
+
+## Example  
+Use the above exemple with
+```
+function work(A, B)
+    @dspawn computing(@RW(A)) label="A"
+    @dspawn computing(@RW(B)) label="B"
+    @dspawn computing(@RW(A)) label="A"
+end
+```
+and
+```
+plot(logger, categories=["A", "B"])
+```
 """
 function plot(logger::Logger; categories=String[])
     # Figure
