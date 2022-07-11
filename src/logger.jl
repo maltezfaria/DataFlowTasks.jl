@@ -154,7 +154,7 @@ Finds the critical path of the logger's DAG
 function criticalpath(logger=getlogger())
     # Declaration of the adjacency list for DAG analysis
     # Note : we add a virtual first node 1 that represent the beginning of the DAG
-    nbnodes = sum(length(threadlog) for threadlog ∈ getlogger().tasklogs)
+    nbnodes = nbtasknodes(logger)
     adj = Dict{Int64, Set{Pair{Int64, Float64}}}()
     for i ∈ 1:nbnodes+1
         push!(adj, i=>Set{Pair{Int64, Float64}}())
