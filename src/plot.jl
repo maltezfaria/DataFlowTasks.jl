@@ -358,32 +358,6 @@ end
 
 
 """
-    plot(logger)  
-Plot DataFlowTasks `logger` informations.  
-Note : if there's too many tasks, the DAG won't be plotted,
-although you can manually call `dagplot(logger)`.
-
-## Example  
-```
-# Compilation
-work(copy(variables...))
-
-# Reset logger and taskcounter
-DFT.resetlogger!()
-DFT.TASKCOUNTER[] = 0
-
-# Garbage collector to clean compilation run
-GC.gc()
-
-# Real work
-work(variables...)
-
-# Plot
-plot(DFT.getlogger())
-```  
-
----
-
     plot(logger; categories)  
 Plot DataFlowTasks `logger` labeled informations with categories.  
 Note : if there's too many tasks, the DAG won't be plotted,
@@ -391,16 +365,36 @@ although you can manually call `dagplot(logger)`.
 
 ## Example  
 Use the above exemple with
-```
+```jldoctest
+using GLMakie, GraphViz
+using DataFlowTasks
+using DataFlowTasks: RW
+import DataFlowTasks as DFT
+
+computing(A) = exp.(sum(A).^2).^2
 function work(A, B)
     @dspawn computing(@RW(A)) label="A"
     @dspawn computing(@RW(B)) label="B"
     @dspawn computing(@RW(A)) label="A"
+    @dspawn computing(@RW(B)) label="B"
 end
-```
-and
-```
-plot(logger, categories=["A", "B"])
+
+# Context
+A = ones(1000, 1000)
+B = ones(1000, 1000)
+
+# Compilation
+work(copy(A), copy(B))
+
+# Reset logger and taskcounter
+DFT.resetlogger!()
+DFT.TASKCOUNTER[] = 0
+
+# Reak Work
+work(A, B)
+
+# Logger Visualization
+DFT.plot(DFT.getlogger(), categories=["A", "B"])
 ```
 """
 function plot(logger::Logger; categories=String[])
