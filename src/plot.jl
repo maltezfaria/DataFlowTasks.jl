@@ -1,3 +1,9 @@
+@info "Loading DataFlowTasks plot utilities"
+
+using GLMakie
+using Cairo
+using FileIO  # to be made conditionnal
+
 
 """
     struct Gantt  
@@ -293,7 +299,7 @@ Plot the dag to the Makie axis ax
 """
 function dagplot(ax, logger)
     # Create GraphViz graph DOT format file
-    g = Graph(loggertodot(logger))
+    g = GraphViz.Graph(loggertodot(logger))
 
     # Node positionning
     GraphViz.layout!(g)

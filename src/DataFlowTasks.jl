@@ -11,8 +11,7 @@ using Logging
 using ThreadPools
 using DataStructures
 using RecipesBase
-using GraphViz: Graph
-using GLMakie, GraphViz, Cairo, FileIO  # to be made conditionnal
+using Requires
 
 """
     @enum AccessMode READ WRITE READWRITE
@@ -38,7 +37,6 @@ include("arrayinterface.jl")
 include("dag.jl")
 include("scheduler.jl")
 include("otherschedulers.jl")
-include("plot.jl")
 
 export
     @dtask,
@@ -46,10 +44,16 @@ export
     @dspawn
 
 function __init__()
+    # GLMakie conditionnal loading
+    @require GLMakie="e9467ef8-e4e7-5192-8a1a-b1aee30e663a" begin 
+        @require GraphViz="f526b714-d49f-11e8-06ff-31ed36ee7ee0" include("plot.jl")
+    end
+
     # default scheduler
     capacity  = 50
     sch       = JuliaScheduler(capacity)
     setscheduler!(sch)
+
     # default logger
     logger    = Logger()
     setlogger!(logger)
