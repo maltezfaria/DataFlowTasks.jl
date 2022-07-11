@@ -31,7 +31,6 @@ function DAG{T}(sz = typemax(Int)) where T
     cond_push  = Condition()
     cond_empty = Condition()
     _buffer    = Set{Int}()
-    sz == Inf || sizehint!(_buffer, sz)
     return DAG{T}(inoutlist,cond_push,cond_empty,Ref(sz),_buffer)
 end
 
