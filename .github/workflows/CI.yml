@@ -49,10 +49,13 @@ jobs:
           julia --project=docs -e '
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
+            Pkg.add(PackageSpec("GLMakie"))
+            Pkg.add(PackageSpec("GraphViz"))
             Pkg.instantiate()'
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
+            using GLMakie, GraphViz
             using DataFlowTasks
             DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true)
             doctest(DataFlowTasks)'
