@@ -14,29 +14,27 @@ function work(A, B)
     DataFlowTasks.sync()
 end
 
-@testset "Logger" begin
-    DataFlowTasks.enable_log()
+DataFlowTasks.enable_log()
 
-    A = ones(20, 20)
-    B = ones(20, 20)
+A = ones(20, 20)
+B = ones(20, 20)
 
-    work(copy(A), copy(B))
+work(copy(A), copy(B))
 
-    DataFlowTasks.resetlogger!()
-    DataFlowTasks.TASKCOUNTER[] = 0
+DataFlowTasks.resetlogger!()
+DataFlowTasks.TASKCOUNTER[] = 0
 
-    GC.gc()
+GC.gc()
 
-    work(A, B)
-    
-    logger = DataFlowTasks.getlogger()
+work(A, B)
 
-    @test length(logger.tasklogs) == Threads.nthreads()
-    nbtasks = DataFlowTasks.nbtasknodes(logger)
-    nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs)
-    @test nbtasks == 6
-    @test nbinsertion == 6
+logger = DataFlowTasks.getlogger()
 
-    path = DataFlowTasks.criticalpath(logger)
-    dotstr = DataFlowTasks.loggertodot(logger)
-end
+@test length(logger.tasklogs) == Threads.nthreads()
+nbtasks = DataFlowTasks.nbtasknodes(logger)
+nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs)
+@test nbtasks == 6
+@test nbinsertion == 6
+
+path = DataFlowTasks.criticalpath(logger)
+dotstr = DataFlowTasks.loggertodot(logger)
