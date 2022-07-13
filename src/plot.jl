@@ -1,6 +1,6 @@
 @info "Loading DataFlowTasks plot utilities"
 
-using GLMakie
+using .GLMakie
 using Cairo
 using FileIO  # to be made conditionnal
 
