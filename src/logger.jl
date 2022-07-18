@@ -80,17 +80,15 @@ end
 """
     resetlogger(logger=getlogger())
 
-Clear the `logger`'s memory and logging states.
+Clear the `logger`'s memory, logging states, and reset environnement for new measures.
 """
 function resetlogger!(logger=getlogger())
     map(empty!, logger.tasklogs)
     map(empty!, logger.insertionlogs)
+    TASKCOUNTER[] = 0
 end
 
-"""
-    nbtasknodes(logger=getlogger())  
-Returns the number of task nodes
-"""
+#= Utility function to get number of task nodes of the logger =#
 function nbtasknodes(logger=getlogger())
     sum(length(threadlog) for threadlog ∈ logger.tasklogs)
 end
@@ -126,7 +124,7 @@ function loggertodot(logger=getlogger())
         # Tasklog.tag node attributes
         str *= """ $(tasklog.tag) """ 
         tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)
-        tasklog.tag+1 ∈ path && (str *= """ [color=red] """)
+        tasklog.tag ∈ path && (str *= """ [color=red] """)
         str *= """[penwidth=2];"""
             
         # Defines edges
@@ -134,7 +132,7 @@ function loggertodot(logger=getlogger())
             red = false
 
             # Is this connection is in critical path
-            (neighbour+1 ∈ path && tasklog.tag+1 ∈ path) && (red=true)
+            (neighbour ∈ path && tasklog.tag ∈ path) && (red=true)
             
             # Edge
             str *= """ $neighbour -> $(tasklog.tag) """

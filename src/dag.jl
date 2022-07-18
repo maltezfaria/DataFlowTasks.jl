@@ -264,11 +264,11 @@ end
 #                           Critical Path
 ############################################################################
 
-"""
+#=
     notvisited_min(dist, visited) --> minnode
 Extract the index minnode of the minimum value of dist
 such that visited[minnode] = false
-"""
+=#
 function notvisited_min(dist, visited)
     minnode = Int64
     mindist = Inf
@@ -283,11 +283,11 @@ function notvisited_min(dist, visited)
 end
 
 
-"""
+#=
     longestpath(adj) -> path
-Finds the critical path of a DAG G by using Dijsktra's shortest path algorithm on -G
+Finds the critical path of a DAG G by using Dijsktra's shortest path algorithm on G
 Returns the nodes constituting the path
-"""
+=#
 function longestpath(adj)
     n = length(adj)                  # number of nodes
     dist     = [-Inf   for _ ∈ 1:n]  # dist[i] gives the shortest path from source to i
@@ -310,13 +310,14 @@ function longestpath(adj)
     # ------------
     # Get node of longest past and push in path
     currnode = argmin(-dist)
-    push!(path, currnode)
+    push!(path, currnode-1)
 
     # Run through previous[] to get the path
     while currnode != 1
         currnode = previous[currnode]
-        push!(path, currnode)
+        push!(path, currnode-1)
     end
+    filter!(x->x!=0, path)
 
     path
 end

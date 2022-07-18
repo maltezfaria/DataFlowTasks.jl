@@ -52,11 +52,13 @@ jobs:
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.add(PackageSpec("GLMakie"))
             Pkg.add(PackageSpec("GraphViz"))
+            Pkg.add(PackageSpec("Cairo"))
+            Pkg.add(PackageSpec("FileIO"))
             Pkg.instantiate()'
       - run: |
           DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24' julia --project=docs -e '
             using Documenter: DocMeta, doctest
-            using GLMakie, GraphViz
+            using GLMakie, GraphViz, Cairo, FileIO
             using DataFlowTasks
             DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true)
             doctest(DataFlowTasks)'

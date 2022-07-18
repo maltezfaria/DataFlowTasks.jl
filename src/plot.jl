@@ -1,16 +1,14 @@
 @info "Loading DataFlowTasks plot utilities"
 
 using .GLMakie
-using Cairo
-using FileIO  # to be made conditionnal
+using .Cairo
+using .FileIO
+using .GraphViz
 
 
-"""
-    struct Gantt  
-Contains data to plot the Gantt Chart (parallel trace).  
+#= Contains data to plot the Gantt Chart (parallel trace).  
 It's a Struct of Array paradigm where all the entries i 
-of all the arrays tells us information about a same task.
-"""
+of all the arrays tells us information about a same task. =#
 struct Gantt
     threads::Vector{Int64}      # Thread on wich the task ran
     jobids::Vector{Int64}       # Task type
@@ -27,10 +25,7 @@ struct Gantt
 end
 
 
-"""
-    mutable struct LoggerInfo  
-Contains additionnal informations on the logger
-"""
+#= Contains additionnal post-processed informations on the logger =#
 mutable struct LoggerInfo
     firsttime::Float64              # First measured time
     lasttime::Float64               # Last measured time
@@ -57,21 +52,15 @@ mutable struct LoggerInfo
 end
 
 
-"""
-    timelimits(logger) -> (firsttime, lasttime)  
-Gives minimum and maximum times the logger has measured.
-"""
+#= Gives minimum and maximum times the logger has measured. =#
 function timelimits(logger::Logger)
     iter = Iterators.flatten(logger.tasklogs)
     minimum(t->t.time_start,iter), maximum(t->t.time_finish,iter)
 end
 
 
-"""
-    jobid(label, categories) -> id  
-Considering a `label` and a the full list of labels `categories`,
-gives the index of the occurence of label in `categories`.
-"""
+#= Considering a `label` and a the full list of labels `categories`,
+gives the index of the occurence of label in `categories`. =#
 function jobid(label::String, categories)
     for i ∈ 1:length(categories)
         occursin(categories[i], label) && return i  # find first
@@ -81,10 +70,7 @@ function jobid(label::String, categories)
 end
 
 
-"""
-    extractloggerinfo!(logger, loginfo, gantt)  
-Initialize `gantt` and `loginfo` structures from `logger`.
-"""
+#= Initialize gantt and loginfo structures from logger. =#
 function extractloggerinfo!(logger::Logger, loginfo::LoggerInfo, gantt::Gantt)
     # Gantt data : Initialization TASKLOGS
     # ------------------------------------
@@ -105,7 +91,7 @@ function extractloggerinfo!(logger::Logger, loginfo::LoggerInfo, gantt::Gantt)
         # ----
         loginfo.timespercat[jobid(tasklog.label, loginfo.categories)] += task_duration
         # ----
-        (tasklog.tag+1) ∈ loginfo.path && (loginfo.t∞ += task_duration)
+        tasklog.tag ∈ loginfo.path && (loginfo.t∞ += task_duration)
         loginfo.t_nowait += task_duration
     end
 
@@ -148,10 +134,7 @@ function extractloggerinfo!(logger::Logger, loginfo::LoggerInfo, gantt::Gantt)
 end
 
 
-"""
-    traceplot(ax, gantt, loginfo)  
-Plot the Gantt Chart (parallel trace) on ax.
-"""
+#= Handles the gantt chart trace part of the global plot =#
 function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     hasdefault = (loginfo.timespercat[end] !=0 ? true : false) 
 
@@ -179,7 +162,7 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
         color = colors[gantt.jobids],
         gap = 0.5,
         strokewidth = 0.5,
-        strokecolor = :white,
+        strokecolor = :grey,
         width = 1.25
     )
 
@@ -212,11 +195,7 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
 end
 
 
-"""
-    activityplot(ax, loginfo)  
-Plot on ax the activity plot : barplot that indicates the repartition 
-between computing, inserting, and other times.
-"""
+#= Handles the plot that indicates the repartition between computing, inserting, and other times =#
 function activityplot(ax, loginfo::LoggerInfo)
     # Axis attributes
     # ---------------
@@ -238,11 +217,7 @@ function activityplot(ax, loginfo::LoggerInfo)
 end
 
 
-"""
-    infprocplot(ax, loginfo)  
-Plot on ax the barplot comparing the computation time 
-if we had an infinite number of procs and the real time.
-"""
+#= Handles the time boundaries part of the global plot =#
 function boundsplot(ax, loginfo::LoggerInfo)
     # Axis attributes
     # ---------------
@@ -259,9 +234,7 @@ function boundsplot(ax, loginfo::LoggerInfo)
     )
 end
 
-"""
-
-"""
+#= Handles the sorting by labeled categories part of the plot =#
 function categoriesplot(ax, loginfo::LoggerInfo)
     categories = loginfo.categories
     hasdefault = (loginfo.timespercat[end] !=0 ? true : false) 
@@ -294,8 +267,8 @@ end
 
 
 """
-    dagplot(ax, logger)  
-Plot the dag to the Makie axis ax
+    dagplot(ax, logger)
+Plot the dag to the Makie axis `ax`
 """
 function dagplot(ax, logger)
     # Create GraphViz graph DOT format file
@@ -322,13 +295,18 @@ function dagplot(ax, logger)
     # Remove the temporary png
     rm("./dag_tmp.png")
 end
+
+"""
+    dagplot(logger=getlogger())
+Plot the dag to a new Makie axis.
+"""
 function dagplot(logger=getlogger())
     fig = Figure()
     dagplot(Axis(fig[1,1], title = "Graph"), logger)
     fig
 end
 
-
+#= Handles the interactivity part of the plot =#
 function react(ax, logger::Logger, gantt::Gantt)
     to = Observable("")
 
@@ -365,39 +343,45 @@ although you can manually call `dagplot(logger)`.
 
 ## Example  
 Use the above exemple with
-```jldoctest
-using GLMakie, GraphViz
+```@example
+using GLMakie, GraphViz, Cairo, FileIO
 using DataFlowTasks
-using DataFlowTasks: RW
-import DataFlowTasks as DFT
+using DataFlowTasks: plot, resetlogger!, sync
 
-computing(A) = exp.(sum(A).^2).^2
+init!(A) = (A .= rand())               # Write
+mutate!(A) = (A = exp.(sum(A).^2).^2)  # Read/Write
+get(A,B) = A+B                         # Read
 function work(A, B)
-    @dspawn computing(@RW(A)) label="A"
-    @dspawn computing(@RW(B)) label="B"
-    @dspawn computing(@RW(A)) label="A"
-    @dspawn computing(@RW(B)) label="B"
+    @dspawn init!(@W(A)) label="init A"
+    @dspawn init!(@W(B)) label="init B"
+    @dspawn mutate!(@RW(A)) label="mutate A"
+    @dspawn mutate!(@RW(B)) label="mutate B"
+    @dspawn get(@R(A), @R(B)) label="read A,B"
+    sync()
 end
 
 # Context
-A = ones(1000, 1000)
-B = ones(1000, 1000)
+A = ones(2000, 2000)
+B = ones(2000, 2000)
 
 # Compilation
+# run your code once to avoid seeing artifacts related to compilation in your logged data
 work(copy(A), copy(B))
 
-# Reset logger and taskcounter
-DFT.resetlogger!()
-DFT.TASKCOUNTER[] = 0
+# Reset environnement
+# avoid a memory overload (due to the previous copies) that would require the garbage collector
+# to run while while doing the "real work". If it happens, the visualization will highlight it's impact.
+resetlogger!()
+GC.gc()
 
 # Reak Work
 work(A, B)
 
 # Logger Visualization
-DFT.plot(DFT.getlogger(), categories=["A", "B"])
+plot(categories=["init", "mutate", "read"])
 ```
 """
-function plot(logger::Logger; categories=String[])
+function plot(logger=getlogger(); categories=String[])
     # Figure
     # ------
     fig = Figure(
