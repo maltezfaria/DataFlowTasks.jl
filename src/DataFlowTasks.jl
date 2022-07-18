@@ -42,8 +42,8 @@ export
     @dspawn
 
 function __init__()
-    # GLMakie conditionnal loading
-    @require GLMakie="e9467ef8-e4e7-5192-8a1a-b1aee30e663a" begin 
+    # Makie conditionnal loading
+    @require Makie="ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" begin 
         @require GraphViz="f526b714-d49f-11e8-06ff-31ed36ee7ee0" begin
             @require Cairo="159f3aea-2a34-519c-b102-8c37f9878175" begin
                 @require FileIO="5789e2e9-d7fb-5bc7-8068-2c6fae9b9549" include("plot.jl")

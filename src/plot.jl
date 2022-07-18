@@ -1,6 +1,6 @@
 @info "Loading DataFlowTasks plot utilities"
 
-using .GLMakie
+using .Makie
 using .Cairo
 using .FileIO
 using .GraphViz
@@ -285,7 +285,7 @@ function dagplot(ax, logger)
     img = load("./dag_tmp.png")
 
     # Render the png on the Makie axis
-    GLMakie.image!(ax, rotr90(img))
+    image!(ax, rotr90(img))
 
     # Axis attributes
     ax.aspect = DataAspect()
