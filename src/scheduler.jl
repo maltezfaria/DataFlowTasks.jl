@@ -233,6 +233,33 @@ infer task dependencies.
 
 ## Examples:
 
+Below are 3 equivalent ways to create the same `DataFlowTask`, which expresses a
+Read-Write dependency on `C` and Read dependencies on `A` and `B`
+
+```
+using LinearAlgebra
+A = rand(10, 10)
+B = rand(10, 10)
+C = rand(10, 10)
+α, β = (100.0, 10.0)
+
+# Option 1: annotate arguments in a function call
+@dspawn mul!(@RW(C), @R(A), @R(B), α, β)
+
+# Option 2: specify data access modes in the code block
+@dspawn begin
+   @RW C
+   @R  A B
+   mul!(C, A, B, α, β)
+end
+
+# Option 3: specify data access modes after the code block
+# (i.e. alongside keyword arguments)
+@dspawn mul!(C, A, B, α, β) @RW(C) @R(A,B)
+```
+
+Here is a more complete example, demonstrating a full computation involving 2 different tasks.
+
 ```jldoctest
 using DataFlowTasks
 

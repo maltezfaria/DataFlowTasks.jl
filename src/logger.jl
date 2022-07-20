@@ -102,7 +102,7 @@ const LOGGER = Ref{Logger}()
 
 
 ############################################################################
-#                           To Plot DAG                                  
+#                           To Plot DAG
 ############################################################################
 
 """
@@ -114,7 +114,7 @@ and to be plotted by GraphViz with Graph(logger_to_dot())
 """
 function loggertodot(logger=getlogger())
     path = criticalpath()
-    
+
     # Write DOT graph
     # ---------------
     str = "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;"
@@ -122,18 +122,18 @@ function loggertodot(logger=getlogger())
 
     for tasklog ∈ Iterators.flatten(logger.tasklogs)
         # Tasklog.tag node attributes
-        str *= """ $(tasklog.tag) """ 
+        str *= """ $(tasklog.tag) """
         tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)
         tasklog.tag ∈ path && (str *= """ [color=red] """)
         str *= """[penwidth=2];"""
-            
+
         # Defines edges
         for neighbour ∈ tasklog.inneighbors
             red = false
 
             # Is this connection is in critical path
             (neighbour ∈ path && tasklog.tag ∈ path) && (red=true)
-            
+
             # Edge
             str *= """ $neighbour -> $(tasklog.tag) """
             red && (str *= """[color=red] """)
@@ -146,7 +146,7 @@ end
 
 
 """
-    criticalpath(logger) --> path  
+    criticalpath(logger) --> path
 Finds the critical path of the logger's DAG
 """
 function criticalpath(logger=getlogger())
@@ -157,7 +157,7 @@ function criticalpath(logger=getlogger())
     for i ∈ 1:nbnodes+1
         push!(adj, i=>Set{Pair{Int64, Float64}}())
     end
-    
+
     # Initialize adjacency list
     # ------------------
     for tasklog ∈ Iterators.flatten(getlogger().tasklogs)
@@ -175,6 +175,6 @@ function criticalpath(logger=getlogger())
             push!(adj[neighbour+1], tasklog.tag+1 => task_duration)
         end
     end
-    
+
     longestpath(adj)
 end

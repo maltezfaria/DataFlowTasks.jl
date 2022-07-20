@@ -13,6 +13,7 @@ struct DAG{T}
     inoutlist::OrderedDict{T,Tuple{Set{T},Set{T}}}
     cond_push::Condition
     cond_empty::Condition
+    lock::ReentrantLock
     sz_max::Ref{Int}
     _buffer::Set{Int} # used to keep track of visited nodes when needed
 end
@@ -30,8 +31,9 @@ function DAG{T}(sz = typemax(Int)) where T
     inoutlist  = OrderedDict{T,Tuple{Set{T},Set{T}}}()
     cond_push  = Condition()
     cond_empty = Condition()
+    lock = ReentrantLock()
     _buffer    = Set{Int}()
-    return DAG{T}(inoutlist,cond_push,cond_empty,Ref(sz),_buffer)
+    return DAG{T}(inoutlist,cond_push,cond_empty,lock,Ref(sz),_buffer)
 end
 
 function Base.resize!(dag::DAG,sz)
@@ -51,6 +53,9 @@ const TaskGraph = DAG{DataFlowTask}
 
 Base.isempty(dag::DAG)     = isempty(dag.inoutlist)
 Base.getindex(dag::DAG,i)  = dag.inoutlist[i]
+
+Base.lock(dag::DAG)   = lock(dag.lock)
+Base.unlock(dag::DAG) = unlock(dag.lock)
 
 """
     num_nodes(dag::DAG)
@@ -124,21 +129,23 @@ function addnode!(dag::DAG,kv::Pair,check=false)
     while num_nodes(dag) == dag.sz_max[]
         wait(dag.cond_push)
     end
+    lock(dag)
+    try
+        t₀ = time_ns()
+        stats = Base.gc_num()
+        # -------
+        push!(dag.inoutlist,kv)
+        k,v = kv
+        check  && update_edges!(dag,k)
 
-    t₀ = time_ns()
-    stats = Base.gc_num()
-    # -------
-
-    push!(dag.inoutlist,kv)
-    k,v = kv
-    check  && update_edges!(dag,k)
-
-    # -------
-    diff = Base.GC_Diff(Base.gc_num(), stats)
-    t₁ = time_ns()
-    tid = Threads.threadid()
-    _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
-
+        # -------
+        diff = Base.GC_Diff(Base.gc_num(), stats)
+        t₁ = time_ns()
+        tid = Threads.threadid()
+        _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
+    finally
+        unlock(dag)
+    end
     return dag
 end
 
@@ -217,18 +224,23 @@ has_edge(dag::DAG,i,j) = j ∈ outneighbors(dag,i)
 Remove node `i` and all of its edges from `dag`.
 """
 function remove_node!(dag::DAG,i)
-    if !isempty(inneighbors(dag,i))
-        @warn "removing a node with incoming neighbors"
+    lock(dag)
+    try
+        if !isempty(inneighbors(dag,i))
+            @warn "removing a node with incoming neighbors"
+        end
+        (inlist,outlist) = pop!(dag.inoutlist,i)
+        # remove i from the inlist of all its outneighbors
+        for j in outlist
+            pop!(inneighbors(dag,j),i)
+        end
+        # notify a task waiting to push into the dag
+        notify(dag.cond_push,nothing;all=false)
+        # if dag is empty, notify
+        isempty(dag) && notify(dag.cond_empty)
+    finally
+        unlock(dag)
     end
-    (inlist,outlist) = pop!(dag.inoutlist,i)
-    # remove i from the inlist of all its outneighbors
-    for j in outlist
-        pop!(inneighbors(dag,j),i)
-    end
-    # notify a task waiting to push into the dag
-    notify(dag.cond_push,nothing;all=false)
-    # if dag is empty, notify
-    isempty(dag) && notify(dag.cond_empty)
     return
 end
 
@@ -321,4 +333,3 @@ function longestpath(adj)
 
     path
 end
-
