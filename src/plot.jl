@@ -25,7 +25,7 @@ struct Gantt
 end
 
 
-#= Contains additionnal post-processed informations on the logger =#
+#= Contains additional post-processed informations on the logger =#
 mutable struct LoggerInfo
     firsttime::Float64              # First measured time
     lasttime::Float64               # Last measured time
@@ -35,17 +35,22 @@ mutable struct LoggerInfo
     t∞::Float64                     # Inf. proc time
     t_nowait::Float64               # Time if we didn't wait at all
     timespercat::Vector{Float64}    # timespercat[i] cumulative time for category i
-    categories::Vector{String}      # labels
+    categories::Vector{Pair{String, Regex}} # (label => regex) pairs for categories
     path::Vector{Int64}             # Critical Path
 
     function LoggerInfo(logger::Logger, categories, path)
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
         othertime     = (lasttime-firsttime) * length(logger.tasklogs)
+
+
+        normalize_category(x) = x
+        normalize_category(x::String) = (x=>Regex(x))
+
         new(
             firsttime, lasttime,
             0, 0, othertime,
             0, 0,
-            zeros(length(categories)+1), categories,
+            zeros(length(categories)+1), normalize_category.(categories),
             path
         )
     end
@@ -62,8 +67,9 @@ end
 #= Considering a `label` and a the full list of labels `categories`,
 gives the index of the occurence of label in `categories`. =#
 function jobid(label::String, categories)
-    for i ∈ 1:length(categories)
-        occursin(categories[i], label) && return i  # find first
+    for i in eachindex(categories)
+        (title, rx) = categories[i]
+        occursin(rx, label) && return i  # find first
     end
 
     return length(categories)+1
@@ -136,7 +142,7 @@ end
 
 #= Handles the gantt chart trace part of the global plot =#
 function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
-    hasdefault = (loginfo.timespercat[end] !=0 ? true : false) 
+    hasdefault = (loginfo.timespercat[end] !=0 ? true : false)
 
     lengthx = length(loginfo.categories)+1
     hasdefault && (lengthx += 1)
@@ -181,7 +187,7 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     didgc && (elements[end-1].polycolor = :red ; elements[end].polycolor = cgrad(:sun)[1])
     hasdefault && push!(elements, PolyElement(polycolor = :black))
 
-    y = [loginfo.categories..., "insertion"]
+    y = [first.(loginfo.categories)..., "insertion"]
     didgc && push!(y, "gc")
     hasdefault && push!(y, "default")
     Legend(
@@ -237,11 +243,11 @@ end
 #= Handles the sorting by labeled categories part of the plot =#
 function categoriesplot(ax, loginfo::LoggerInfo)
     categories = loginfo.categories
-    hasdefault = (loginfo.timespercat[end] !=0 ? true : false) 
+    hasdefault = (loginfo.timespercat[end] !=0 ? true : false)
 
     # Axis attributes
     lengthx = length(categories)
-    ticks = categories
+    ticks = first.(categories)
     hasdefault && (lengthx += 1)
     hasdefault && (ticks = [ticks..., "default"])
     ax.xticks = (1:lengthx, ticks)
@@ -341,8 +347,17 @@ Plot DataFlowTasks `logger` labeled informations with categories.
 Note : if there's too many tasks, the DAG won't be plotted,
 although you can manually call `dagplot(logger)`.
 
-## Example  
-Use the above exemple with
+Entries in `categories` define how to group tasks in categories for
+plotting. Each entry can be:
+- a `String`: in this case, all tasks having labels in which the string occurs
+  are grouped together. The string is also used as a label for the category
+  itself.
+- a `String => Regex` pair: in this case, all tasks having labels matching the
+  regex are grouped together. The string is used as a label for the category
+  itself.
+
+## Example
+
 ```@example
 using GLMakie, GraphViz, Cairo, FileIO
 using DataFlowTasks
@@ -352,10 +367,10 @@ init!(A) = (A .= rand())               # Write
 mutate!(A) = (A = exp.(sum(A).^2).^2)  # Read/Write
 get(A,B) = A+B                         # Read
 function work(A, B)
-    @dspawn init!(@W(A)) label="init A"
-    @dspawn init!(@W(B)) label="init B"
-    @dspawn mutate!(@RW(A)) label="mutate A"
-    @dspawn mutate!(@RW(B)) label="mutate B"
+    @dspawn init!(@W(A))      label="init A"
+    @dspawn init!(@W(B))      label="init B"
+    @dspawn mutate!(@RW(A))   label="mutate A"
+    @dspawn mutate!(@RW(B))   label="mutate B"
     @dspawn get(@R(A), @R(B)) label="read A,B"
     sync()
 end
@@ -376,11 +391,11 @@ work(copy(A), copy(B))
 resetlogger!()
 GC.gc()
 
-# Reak Work
+# Real Work
 work(A, B)
 
 # Logger Visualization
-plot(categories=["init", "mutate", "read"])
+plot(categories=["init", "read", "work on B" => r"B\$"])
 ```
 """
 function plot(logger=getlogger(); categories=String[])
