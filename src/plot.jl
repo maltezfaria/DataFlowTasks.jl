@@ -368,9 +368,11 @@ B = ones(2000, 2000)
 # run your code once to avoid seeing artifacts related to compilation in your logged data
 work(copy(A), copy(B))
 
-# Reset environnement
-# avoid a memory overload (due to the previous copies) that would require the garbage collector
-# to run while while doing the "real work". If it happens, the visualization will highlight it's impact.
+# Start "real" profiling work in a clean environment
+# - reset the internal logger state to discard data collected during previous runs
+# - start from a clean memory state. If garbage collection happens during the
+#   run, we'll know it's triggered by the real workload and the visualization will
+#   highlight its impact.
 resetlogger!()
 GC.gc()
 
