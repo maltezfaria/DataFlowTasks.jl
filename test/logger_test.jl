@@ -2,8 +2,11 @@ using Test
 using DataFlowTasks
 using LinearAlgebra
 
-computing(A) = A*A
-computing(A, B) = A*B
+# NOTE: the functions below call sleep to make sure the computation does not finish
+# before full dag is created. Otherwise the critical path may be "incomplete"
+# and the tests on `criticalpath` will fail
+computing(A) = (sleep(0.01); A*A)
+computing(A, B) = (sleep(0.01); A*B)
 function work(A, B)
     @dspawn computing(@RW(A)) label="A²"
     @dspawn computing(@RW(A)) label="A²"
