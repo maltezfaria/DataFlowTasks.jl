@@ -1,7 +1,7 @@
 using DataFlowTasks
 using Documenter
 
-DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true)
+DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using CairoMakie, Cairo, FileIO, GraphViz, DataFlowTasks); recursive=true)
 
 makedocs(;
     modules=[DataFlowTasks],

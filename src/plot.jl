@@ -359,13 +359,13 @@ plotting. Each entry can be:
 ## Example
 
 ```@example
-using GLMakie, GraphViz, Cairo, FileIO
+using CairoMakie, GraphViz, Cairo, FileIO
 using DataFlowTasks
 using DataFlowTasks: plot, resetlogger!, sync
 
-init!(A) = (A .= rand())               # Write
-mutate!(A) = (A = exp.(sum(A).^2).^2)  # Read/Write
-get(A,B) = A+B                         # Read
+init!(A) = (A .= rand())                # Write
+mutate!(A) = (A .= exp.(sum(A).^2).^2)  # Read/Write
+get(A,B) = A+B                          # Read
 function work(A, B)
     @dspawn init!(@W(A))      label="init A"
     @dspawn init!(@W(B))      label="init B"
