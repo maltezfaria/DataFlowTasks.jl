@@ -44,3 +44,6 @@ dotstr = DataFlowTasks.loggertodot(logger)
 @test occursin("2 -> 3", dotstr)
 @test occursin("3 -> 5", dotstr)
 @test occursin("4 -> 5", dotstr)
+
+# Visualization call
+DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
