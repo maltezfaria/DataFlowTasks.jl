@@ -1,9 +1,6 @@
-@info "Loading DataFlowTasks plot utilities"
+@info "Loading DataFlowTasks general plot utilities"
 
 using .Makie
-using .Cairo
-using .FileIO
-using .GraphViz
 
 
 #= Contains data to plot the Gantt Chart (parallel trace).  
@@ -271,47 +268,6 @@ function categoriesplot(ax, loginfo::LoggerInfo)
 
 end
 
-
-"""
-    dagplot(ax, logger)
-Plot the dag to the Makie axis `ax`
-"""
-function dagplot(ax, logger)
-    # Create GraphViz graph DOT format file
-    g = GraphViz.Graph(loggertodot(logger))
-
-    # Node positionning
-    GraphViz.layout!(g)
-
-    # Render this to a Cairo context to convert in png
-    cs = GraphViz.cairo_render(g)
-    Cairo.write_to_png(cs, "./dag_tmp.png")
-
-    # Load the png we juste created
-    img = load("./dag_tmp.png")
-
-    # Render the png on the Makie axis
-    image!(ax, rotr90(img))
-
-    # Axis attributes
-    ax.aspect = DataAspect()
-    hidedecorations!(ax)
-    hidespines!(ax)
-
-    # Remove the temporary png
-    rm("./dag_tmp.png")
-end
-
-"""
-    dagplot(logger=getlogger())
-Plot the dag to a new Makie axis.
-"""
-function dagplot(logger=getlogger())
-    fig = Figure()
-    dagplot(Axis(fig[1,1], title = "Graph"), logger)
-    fig
-end
-
 #= Handles the interactivity part of the plot =#
 function react(ax, logger::Logger, gantt::Gantt)
     to = Observable("")
@@ -344,8 +300,6 @@ end
 """
     plot(logger; categories)  
 Plot DataFlowTasks `logger` labeled informations with categories.  
-Note : if there's too many tasks, the DAG won't be plotted,
-although you can manually call `dagplot(logger)`.
 
 Entries in `categories` define how to group tasks in categories for
 plotting. Each entry can be:
@@ -359,7 +313,7 @@ plotting. Each entry can be:
 ## Example
 
 ```@example
-using CairoMakie, GraphViz, Cairo, FileIO
+using CairoMakie
 using DataFlowTasks
 using DataFlowTasks: plot, resetlogger!, sync
 
@@ -411,20 +365,13 @@ function plot(logger=getlogger(); categories=String[])
     loginfo = LoggerInfo(logger, categories, criticalpath())
     gantt = Gantt()
     extractloggerinfo!(logger, loginfo, gantt)
-    shouldplotdag = (nbtasknodes(logger) < 75)  # arbitrary limit
 
-    # Layouts (conditionnal depending on DAG size)
+    # Layouts
     # --------------------------------------------
     axtrc = Axis(fig[1,1]     , title="Parallel Trace\n Task Label")
     axact = Axis(fig[2,1][1,1], title="Activity")
     axinf = Axis(fig[2,1][1,2], title="Time Bounds")
     axcat = Axis(fig[2,1][1,3], title="Times per Category")
-    if !shouldplotdag
-        @info "The dag has too many nodes, plot it separately with `dagplot()` so it can be readable"
-    else
-        axdag = Axis(fig[1:2,2]   , title="Graph")
-        colsize!(fig.layout, 1, Relative(3/4))
-    end
     # -------
     rowsize!(fig.layout, 1, Relative(2/3))
 
@@ -434,7 +381,6 @@ function plot(logger=getlogger(); categories=String[])
     activityplot(axact, loginfo)
     boundsplot(axinf, loginfo)
     categoriesplot(axcat, loginfo)
-    shouldplotdag && dagplot(axdag, logger)
 
     # Events management
     react(axtrc, logger, gantt)

@@ -46,5 +46,5 @@ dotstr = DataFlowTasks.loggertodot(logger)
 @test occursin("4 -> 5", dotstr)
 
 # Visualization call
-# using CairoMakie, Cairo, FileIO, GraphViz
+# using CairoMakie, GraphViz
 # DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
