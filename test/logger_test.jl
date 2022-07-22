@@ -1,6 +1,7 @@
 using Test
 using DataFlowTasks
 using LinearAlgebra
+using GraphViz, CairoMakie
 
 # NOTE: the functions below call sleep to make sure the computation does not finish
 # before full dag is created. Otherwise the critical path may be "incomplete"
@@ -46,5 +47,5 @@ dotstr = DataFlowTasks.loggertodot(logger)
 @test occursin("4 -> 5", dotstr)
 
 # Visualization call
-# using CairoMakie, GraphViz
-# DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
+DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
+DataFlowTasks.dagplot()
