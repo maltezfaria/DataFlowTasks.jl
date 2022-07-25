@@ -15,8 +15,6 @@ tasks access the underlying data. The premise is that it is sometimes simpler to
 specify how *tasks depend on data* than to specify how *tasks depend on each
 other*.
 
-!!! important "Similarities and differences with `Dagger.jl`"
-    TODO
 
 The use of a `DataFlowTask` is intended to be as similar to a native `Task` as
 possible. The API revolves around three macros:
@@ -299,6 +297,7 @@ sch
 ## Logging
 
 TODO
+
 
 ## Limitations
 

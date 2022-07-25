@@ -1,7 +1,7 @@
 using DataFlowTasks
 using Documenter
 
-DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true)
+DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using CairoMakie, GraphViz, DataFlowTasks); recursive=true)
 
 makedocs(;
     modules=[DataFlowTasks],
@@ -16,6 +16,7 @@ makedocs(;
     pages=[
         "Getting started" => "index.md",
         "Examples" => "examples.md",
+        "Comparaison with Dagger.jl" => "dagger.md",
         "References" => "references.md"
     ],
 )

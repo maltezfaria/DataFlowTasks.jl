@@ -17,6 +17,9 @@ memory_overlap(di::Array,dj::Array)    = pointer(di)===pointer(dj)
 memory_overlap(di::SubArray,dj::Array) = memory_overlap(di.parent,dj)
 memory_overlap(di::Array,dj::SubArray) = memory_overlap(dj.parent,di)
 
+memory_overlap(di::SubArray,dj::LinearAlgebra.AbstractTriangular) = memory_overlap(parent(dj),di)
+memory_overlap(di::LinearAlgebra.AbstractTriangular,dj::SubArray) = memory_overlap(dj,di)
+
 """
     memory_overlap(di::SubArray,dj::SubArray)
 
