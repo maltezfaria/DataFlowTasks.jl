@@ -7,7 +7,7 @@ Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)]
 [![codecov](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl/branch/main/graph/badge.svg?token=UOWU691WWG)](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl)
 ![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-blue.svg)
 
-DataFlowTasks is a Julia package dedicated to parallel programming on multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE) on program data, DFT automatically infers dependencies between parallel tasks.
+DFT is a Julia package dedicated to parallel programming on multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE) on program data, DFT automatically infers dependencies between parallel tasks.
 
 The usual linear algebra data types (Julia arrays) are particularly easy to use with DFT.
 
@@ -20,24 +20,17 @@ Pkd.add("https://github.com/maltezfaria/DataFlowTasks.jl.git")
 
 ## Basic Usage
 
-The use of a `DataFlowTask` is intended to be as similar to a native `Task` as possible. The API revolves around three macros :
+The use of a `DataFlowTask` is intended to be as similar to a native `Task` as possible. The API implements these three macros :
 * `@dspawn`
 * `@dtask`
 * `@dasync`
 
-which behaves like there `Base` counterparts, with additional annotations needed to specify access modes. A syntax example for the `@dspawn` macro :
+which behaves like there `Base` counterparts, except they need additional annotations to specify access modes. This is done with the three macros :
+* `@R`
+* `@W`
+* `@RW`
 
-```julia
-(A, B, C) = [rand(5,5) for _ in 1:3]
-
-@dspawn mul!(@W(C), @R(A), @R(B))
-
-@dspawn begin
-    @W C
-    @R A B
-    mul!(C, A, B)
-end
-```
+where, in a function argument or at the beginning of a task block, `@R(A)` implies that A will be in read mode in the function/block.
 
 Let's look at how it can parallelize with safety insurance.
 
@@ -48,10 +41,13 @@ readwrite!(X) = (X .+= 2)
 n = 1000
 A = ones(n)
 
-@dspawn write!(@R(A), 1)
-@dspawn write!(@R(A[1:500]), 2)
-@dspawn write!(@R(A[501:n]), 3)
-@dspawn readwrite!(@RW(A))
+@dspawn write!(@R(A), 1)          # 1
+@dspawn write!(@R(A[1:500]), 2)   # 2
+@dspawn write!(@R(A[501:n]), 3)   # 3
+@dspawn begin                     # 4
+  @RW A
+  readwrite!(A)
+end
 
 DataFlowTasks.sync()
 ```
@@ -95,7 +91,7 @@ Let's take for use case the Cholesky tiled factorization algorithm. The serializ
 27  end
 ```
 
-If we were to parallelize this code with DataFlowTasks, we would only have to wrap function calls within a `@dspawn`. We would have to change the lines 8, 13, and 20 (as well as add a synchronization point at the end) as follows :
+If we were to parallelize this code with DFT, we would only have to wrap function calls within a `@dspawn`. We would have to change the lines 8, 13, and 20 (as well as add a synchronization point at the end) as follows :
 
 ```julia
 1   function cholesky!(A::TiledMatrix)
@@ -128,16 +124,16 @@ If we were to parallelize this code with DataFlowTasks, we would only have to wr
 ```
 
 
-## Visualization
+## Profiling
 
-We can illustrate the parallelization implied by those modifications. DataFlowTasks comes with 2 main visualization tools whose outputs for the case presented above, with a matrix of size (2000, 2000) divided in blocks of (500, 500), are as follows :
+We can illustrate the parallelization implied by those modifications. DFT comes with 2 main visualization tools whose outputs for the case presented above, with a matrix of size (2000, 2000) divided in blocks of (500, 500), are as follows :
 
 ![Trace Plot](example.png)
 ![Dag Plot](exampledag.svg)
 
 We'll cover in details the usage and possibilities of the visualization in the documentation.
 
-Note that the visualization tools are not loaded by default, it requires a Makie backend and/or GraphViz loaded in the REPL. It's meant to be used in development, so it won't pollute the environment you want to use DataFlowTasks in.
+Note that the visualization tools are not loaded by default, it requires a Makie backend and/or GraphViz loaded in the REPL. It's meant to be used in development, so it won't pollute the environment you want to use DFT in.
 
 # Performances
 
