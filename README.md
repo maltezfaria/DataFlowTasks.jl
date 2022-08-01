@@ -7,9 +7,9 @@ Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)]
 [![codecov](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl/branch/main/graph/badge.svg?token=UOWU691WWG)](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl)
 ![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-blue.svg)
 
-DFT is a Julia package dedicated to parallel programming on multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE) on program data, DFT automatically infers dependencies between parallel tasks.
+`DataFlowTasks.jl` is a Julia package dedicated to parallel programming on multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE) on program data, `DataFlowTasks.jl` automatically infers dependencies between parallel tasks.
 
-The usual linear algebra data types (Julia arrays) are particularly easy to use with DFT.
+The usual linear algebra data types (Julia arrays) are particularly easy to use with `DataFlowTasks.jl`.
 
 ## Installation
 
@@ -20,7 +20,7 @@ Pkd.add("https://github.com/maltezfaria/DataFlowTasks.jl.git")
 
 ## Basic Usage
 
-The use of a `DataFlowTask` is intended to be as similar to a native `Task` as possible. The API implements these three macros :
+The use of a `DataFlowTask`s is intended to be as similar to a Julia native `Task`s as possible. The API implements these three macros :
 * `@dspawn`
 * `@dtask`
 * `@dasync`
@@ -91,7 +91,7 @@ Let's take for use case the Cholesky tiled factorization algorithm. The serializ
 27  end
 ```
 
-If we were to parallelize this code with DFT, we would only have to wrap function calls within a `@dspawn`. We would have to change the lines 8, 13, and 20 (as well as add a synchronization point at the end) as follows :
+In order to parallelize `DataFlowTasks.jl`, one has to add a `@dspawn` macro before function calls (lines 8, 13 and 20) and add a synchronization point `DataFlowTasks.sync()` before returning the solution (line 24) :
 
 ```julia
 1   function cholesky!(A::TiledMatrix)
@@ -126,14 +126,14 @@ If we were to parallelize this code with DFT, we would only have to wrap functio
 
 ## Profiling
 
-We can illustrate the parallelization implied by those modifications. DFT comes with 2 main visualization tools whose outputs for the case presented above, with a matrix of size (2000, 2000) divided in blocks of (500, 500), are as follows :
+We can illustrate the parallelization implied by those modifications. `DataFlowTasks.jl` comes with 2 main visualization tools whose outputs for the case presented above, with a matrix of size (2000, 2000) divided in blocks of (500, 500), are as follows :
 
 ![Trace Plot](example.png)
 ![Dag Plot](exampledag.svg)
 
 We'll cover in details the usage and possibilities of the visualization in the documentation.
 
-Note that the visualization tools are not loaded by default, it requires a Makie backend and/or GraphViz loaded in the REPL. It's meant to be used in development, so it won't pollute the environment you want to use DFT in.
+Note that the visualization tools are not loaded by default, it requires a `Makie` backend and/or `GraphViz` loaded in the REPL. It's meant to be used in development, so it won't pollute the environment you want to use DFT in.
 
 # Performances
 
