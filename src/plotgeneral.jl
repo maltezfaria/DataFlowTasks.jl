@@ -151,7 +151,8 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     ax.yticks = 1:max(gantt.threads...)
     xlims!(ax, 0, loginfo.lasttime-loginfo.firsttime)
 
-    grad = cgrad(:tab10)[1:length(loginfo.categories)]
+    grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+    length(loginfo.categories) ≥ 4 && deleteat!(grad, 4)
     colors = [grad..., :black, :red, cgrad(:sun)[1]]
 
     # Barplot
@@ -179,7 +180,9 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     # ------
     l = length(loginfo.categories)+1
     didgc && (l += 1)
-    elements = [PolyElement(polycolor = cgrad(:tab10)[i]) for i in 1:l]
+    grad = cgrad(:tab10)[1:length(loginfo.categories)+2]
+    length(loginfo.categories) ≥ 4 && deleteat!(grad, 4)
+    elements = [PolyElement(polycolor = grad[i]) for i in 1:l]
     elements[end].polycolor = :red
     didgc && (elements[end-1].polycolor = :red ; elements[end].polycolor = cgrad(:sun)[1])
     hasdefault && push!(elements, PolyElement(polycolor = :black))
@@ -252,7 +255,8 @@ function categoriesplot(ax, loginfo::LoggerInfo)
 
 
     # Colors
-    grad = cgrad(:tab10)[1:length(categories)]
+    grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+    length(loginfo.categories) ≥ 4 && deleteat!(grad, 4)
     hasdefault && (grad = [grad..., :black])
 
     # Barplot

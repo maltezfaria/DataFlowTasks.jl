@@ -294,10 +294,6 @@ sch
     after. This can be done using the [`with_scheduler`](@ref) method. 
 
 
-## Logging
-
-TODO
-
 
 ## Limitations
 
