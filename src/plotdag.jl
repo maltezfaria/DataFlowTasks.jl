@@ -16,6 +16,7 @@ end
 Save svg dag image in filepath
 """
 function savedag(filepath::String, graph::GraphViz.Graph)
+    !graph.didlayout && GraphViz.layout!(graph)
     open(filepath, "w") do io
         GraphViz.render(io, graph)
     end

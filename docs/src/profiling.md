@@ -1,4 +1,4 @@
-# [Visualization](@id visualization-section)
+# [Profiling](@id visualization-section)
 
 The visualization uses 2 main tools : one for plotting the parallel trace and other general information, and another for plotting the DAG :
 

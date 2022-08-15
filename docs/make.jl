@@ -18,7 +18,7 @@ makedocs(;
         "Examples" => "examples.md",
         # "Comparaison with Dagger.jl" => "dagger.md",
         "References" => "references.md",
-        "Visualization" => "visualization.md"
+        "Profiling" => "profiling.md"
     ],
 )
 
