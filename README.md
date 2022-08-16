@@ -76,7 +76,7 @@ The Cholesky factorization algorithm takes a symmetric positive definite matrix 
 So we have 3 types of tasks : the Cholesky factorization (I), the triangular solve (II), and the schur complement (III).  
 If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have `n` steps. It implies that the step `i ∈ [1:n]` do `1` time (I), `(i-1)` times (II), and `(i-1)²` times (III). So respectively `O(n)` (I), `O(n²)` (II), and `O(n³)` (III). We will compare this result with the "Times Per Category" part of the visualization. We illustrate the 2nd step of the algorithm in the following image.
 
-![Cholesky_Image](Cholesky_2ndStep.png)
+![Cholesky_Image](docs/src/Cholesky_2ndStep.png)
 
 The code of the sequential yet tiled factorization algorithm will be :
 
