@@ -39,7 +39,6 @@ mutable struct LoggerInfo
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
         othertime     = (lasttime-firsttime) * length(logger.tasklogs)
 
-
         normalize_category(x) = x
         normalize_category(x::String) = (x=>Regex(x))
 
@@ -187,10 +186,13 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     didgc && (c = [c..., cgrad(:sun)[1]])
     elements = [PolyElement(polycolor = i) for i in c]
 
-    y = [first.(loginfo.categories)...]
+    y = String[]
+    push!(y, first.(loginfo.categories)...)
+    # y = [first.(loginfo.categories)...]
     hasdefault && push!(y, "default")
     push!(y, "insertion")
     didgc && push!(y, "gc")
+
     Legend(
         ax.parent[1,1],
         elements,
