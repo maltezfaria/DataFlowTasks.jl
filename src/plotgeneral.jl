@@ -181,15 +181,11 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     end
 
     # Labels
-    # ------
     c = [grad...]
     hasdefault && (c = [c..., :black])
     c = [c..., :red]
     didgc && (c = [c..., cgrad(:sun)[1]])
     elements = [PolyElement(polycolor = i) for i in c]
-    # elements[end].polycolor = :red
-    # didgc && (elements[end-1].polycolor = :red ; elements[end].polycolor = cgrad(:sun)[1])
-    # hasdefault && push!(elements, PolyElement(polycolor = :black))
 
     y = [first.(loginfo.categories)...]
     hasdefault && push!(y, "default")

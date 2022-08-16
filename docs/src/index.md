@@ -15,17 +15,17 @@ tasks access the underlying data. The premise is that it is sometimes simpler to
 specify how *tasks depend on data* than to specify how *tasks depend on each
 other*.
 
-
-The use of a `DataFlowTask` is intended to be as similar to a native `Task` as
-possible. The API revolves around three macros:
-
+The use of a `DataFlowTask`s is intended to be as similar to a Julia native `Task`s as possible. The API implements these three macros :
 - [`@dtask`](@ref)
 - [`@dspawn`](@ref)
 - [`@dasync`](@ref)
 
-They behave like their `Base` counterparts (`@task`, `Threads.@spawn`
-and `@async`), but additional annotations specifying explicit *data
-dependencies* are required. The example below shows the most basic usage:
+which behaves like there `Base` counterparts, except they need additional annotations to specify data access modes. This is done with the three macros :
+- `@R`
+- `@W`
+- `@RW`
+
+where, in a function argument or at the beginning of a task block, `@R(A)` implies that A will be in read mode in the function/block.
 
 ```@example simple-example
 using DataFlowTasks # hide
@@ -299,8 +299,6 @@ sch
 
 Some current limitations are listed below:
 
-- At present, errors are rather poorly handled. The only way to know if a task
-  has failed is to manually inspect the `dag`
 - There is no way to specify priorities for a task.
 - The main thread executes tasks, and is responsible for adding/removing nodes
   from the `dag`. This may hinder parallelism if the main thread is given a long

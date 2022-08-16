@@ -35,15 +35,15 @@ get(A,B) = A+B                          # Read
 # Main work function
 function work(A, B)
     # Initialization
-    @dspawn init!(@W(A))
-    @dspawn init!(@W(B))
+    @dspawn init!(@W(A)) label="init A"
+    @dspawn init!(@W(B)) label="init B"
 
     # Mutation
-    @dspawn mutate!(@RW(A))
-    @dspawn mutate!(@RW(B)) 
+    @dspawn mutate!(@RW(A)) label="mutate A"
+    @dspawn mutate!(@RW(B)) label="mutate B"
 
     # Final read
-    @dspawn get(@R(A), @R(B))
+    @dspawn get(@R(A), @R(B)) label="read A,B"
 
     DataFlowTasks.sync()
 end
@@ -74,64 +74,27 @@ work(A, B)
 
 The logger will get informations on the final call to work, the visualization is a post-processing of these data. We have finally :
 
-```@setup
-using CairoMakie, GraphViz
-using DataFlowTasks
-using DataFlowTasks: plot, dagplot, resetlogger!
-
-DataFlowTasks.enable_log()
-
-
-# Utility functions
-init!(A) = (A .= rand())                # Write
-mutate!(A) = (A .= exp.(sum(A).^2).^2)  # Read/Write
-get(A,B) = A+B                          # Read
-
-# Main work function
-function work(A, B)
-    # Initialization
-    @dspawn init!(@W(A))        label = "init A"
-    @dspawn init!(@W(B))        label = "init B"
-
-    # Mutation
-    @dspawn mutate!(@RW(A))     label = "mutate A"
-    @dspawn mutate!(@RW(B))     label = "mutate B"
-
-    # Final read
-    @dspawn get(@R(A), @R(B))   label = "read A,B"
-
-    DataFlowTasks.sync()
-end
-
-# Context
-A = ones(2000, 2000)
-B = ones(2000, 2000)
-
-# Compilation
-# run your code once to avoid seeing artifacts related to compilation in your logged data
-work(copy(A), copy(B))
-
-# Start "real" profiling work in a clean environment
-# - reset the internal logger state to discard data collected during previous runs
-# - start from a clean memory state. If garbage collection happens during the
-#   run, we'll know it's triggered by the real workload and the visualization will
-#   highlight its impact.
-resetlogger!()
-GC.gc()
-
-# Real Work
-work(A, B)
-```
-
-```@example
-using DataFlowTasks: plot # hide
+```julia
+using DataFlowTasks: plot, dagplot
 plot(categories=["init", "mutate", "read"])
 ```
 
+![ProfilingExampleTrace](profiling_example.png)
+
 and the DAG's plot :
-```@example
-using DataFlowTasks: dagplot # hide
+```julia
 dagplot()
+```
+
+![ProfilingExampleDag](profiling_example_dag.svg)
+
+
+If you want to save the dag, the next utility function could be useful :
+
+```julia
+using DataFlowTasks: dagplot, savedag
+g = dagplot()
+savedag("filename.svg", g)
 ```
 
 ### Parallel Trace

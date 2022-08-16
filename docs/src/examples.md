@@ -1,12 +1,6 @@
 # [Examples](@id examples-section)
 
-TODO: 
-- add a description of the examples and more hardware info
-- mention the effects of `tilesize` ahd `capacity` on the results of tiled factorization
-- compare 'fork-join' approach to `HLU` to dataflow approach
-
 ## Tiled Matrix
-!!!!!!!! PseudoTiledMatrix in DataFlowTasks ? !!!!!!!!!!!
 
 A lot of DataFlowTasks' usage concerns tiled matrix. We will use in some of the below examples the `PseudoTiledMatrix` data structure. It acts like a tiled view of the matrix, where `A[ti,tj]` gives a view of the tile `(ti,tj)`.  
 
@@ -144,8 +138,6 @@ But first, let's look closely at the details that will make this code do a prope
 - `First call` : the call on a copy of A will compile the function, otherwise the first time you'll run it, you will have false results
 - `Reset environnement` : because of this call, you need to reset the environnement : all DataFlowTasks' stored informations must be cleaned. This is done with `resetlogger!()`
 - `GC.gc()` : the garbage collector call is not a necessary step, but if you have a full REPL, the garbage collection might happen during your benchmark. The profiling visualization will then highlight it.
-- 
-!!!!!! See common problems to look at the consequences of those steps being forgotten. !!!!!!!!
 
 ### Task colors : get an idea of the progress
 
@@ -182,20 +174,11 @@ The DAG can also be used with smaller versions of the algorithm, while in develo
 
 We can see that as the algorithm progresses, the DAG becomes thinner, and so the parallelization is less optimal. Indeed, we do notice more waiting times at the end of the trace plot than at the beginning.
 
-### Computer 1
-![Cholesky 8
-cores](https://github.com/maltezfaria/DataFlowTasks.jl/blob/9958341ed6f2a1b94b6e4323a64bf12533bcf2ab/benchmarks/mac_choleskyperf_capacity_50_tilesize_256_cores_8.png)
-
-
-
-### Computer 2
-![Cholesky 20
-cores](https://github.com/maltezfaria/DataFlowTasks.jl/blob/9958341ed6f2a1b94b6e4323a64bf12533bcf2ab/benchmarks/workstation_choleskyperf_capacity_50_tilesize_256_cores_20.png)
-
-
 ## Gauss-Seidel
-The Gauss-Seidel algorithm uses the following five-points stencil :  
+The Gauss-Seidel algorithm uses the following five-points stencil :
+
 $$v_{i,j}^{n+1} = \frac{1}{4}(v_{i,j-1}^{n+1} + v_{i,j-1}^{n+1} + v_{i,j}^n + v_{i+1,j}^n + v_{i,j+1}^n)$$ 
+
 where the element $(i,j)$ of the matrix $v$ at time $n+1$ depend on values of the same iteration $n+1$. Those dependencies might tricky to track, but, at each update, we know which elements it needs. So we know the access modes of the data.
 
 We'll work on a matrix of size $N*N$, with extra lines and columns on it's borders, to simplify boundary conditions : at the border, for example the north-west corner, we'll say that the values outside of the matrix, like $v_{0,1}^{n+1}$, are zeros. This way we just have to add an outline of zeros to the matrix, so that we don't have to take into account special boundary conditions.
@@ -259,8 +242,6 @@ We specified all the access modes using the utility functions :
 ```
 
 The final peaces of the code :
-
-!!!!!! Attention : la méthode de création de PseudoTiledMatrix n'est implémenté que chez moi !!!!!!!!!!
 
 ```julia
 using GLMakie, GraphViz
