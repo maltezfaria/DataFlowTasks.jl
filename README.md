@@ -81,9 +81,6 @@ If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have 
 The code of the sequential yet tiled factorization algorithm will be :
 
 ```julia
-using TriangularSolve:ldiv
-using Octavian:matmul_serial!
-using LinearAlgebra
 function cholesky!(A::PseudoTiledMatrix)
     m,n = size(A)
     for i in 1:m
@@ -113,23 +110,26 @@ end
 When it will come to actually parallelize the code, we would only have with DataFlowTasks to wrap function calls within a `@dspawn`, and add a synchronization point at the end. The parallelized code will be :
 
 ```julia
-function cholesky!(A::TiledMatrix)
+using DataFlowTasks
+using LinearAlgebra
+import DataFlowTasks as DFT
+function cholesky_dft!(A::PseudoTiledMatrix)
     m,n = size(A)
     for i in 1:m
         # Diagonal cholesky serial factorization (I)
-        @dspawn serial_cholesky!(@RW(A[i,i]))
+        @dspawn cholesky!(@RW(A[i,i])) label="chol ($i,$i)"
 
         # Left blocks update (II)
         L = adjoint(UpperTriangular(A[i,i]))
         for j in i+1:n
-            @dspawn ldiv!(@R(L), @RW(A[i,j]), Val(false)) 
+            @dspawn ldiv!(@R(L), @RW(A[i,j])) label="ldiv ($i,$j)"
         end
 
         # Submatrix update (III)
         for j in i+1:m
             for k in j:n
                 Aji = adjoint(A[i,j])
-                @dspawn matmul_seria!(@RW(A[j,k]), @R(Aji), @R(A[i,k]), -1, 1)
+                @dspawn mul!(@RW(A[j,k]), @R(Aji), @R(A[i,k])) label="mul ($j,$k)"
             end
         end
     end
@@ -137,6 +137,7 @@ function cholesky!(A::TiledMatrix)
     # Construct the factorized object
     return Cholesky(A.data,'U',zero(LinearAlgebra.BlasInt))
 end
+cholesky_dft!(A::Matrix, ts) = cholesky_dft!(PseudoTiledMatrix(A,ts))
 ```
 
 The presented cholesky tiled factorization using DataFlowTasks is implemented in the package `TiledFactorization`, which can be used with :
@@ -149,37 +150,29 @@ Pkg.add("https://github.com/maltezfaria/TiledFactorization.git")
 The code below shows how to use the `cholesky!` function from this package, how to profile the program and get the most information from the visualization. 
 
 ```julia
-using DataFlowTasks
-using DataFlowTasks: resetlogger!, plot, dagplot
-using TiledFactorization
-using TiledFactorization: cholesky!
-using CairoMakie
-using LinearAlgebra
-
 # DataFlowTasks environnement setup
-DataFlowTasks.enable_log()
-DataFlowTasks.setscheduler!(JuliaScheduler(50))
+DFT.enable_log()
+DFT.setscheduler!(DFT.JuliaScheduler(50))
 
 # Context
-tilesizes = 256
-TiledFactorization.TILESIZE[] = tilesizes
-n = 2048
+n  = 4096
+ts = 512
 A = rand(n, n)
 A = (A + adjoint(A))/2
 A = A + n*I
 
 # Compilation
-cholesky!(copy(A))
+cholesky_dft!(copy(A), ts)
 
 # Reset environnement
-resetlogger!()
+DFT.resetlogger!()
 GC.gc()
 
 # Real work to be analysed
-cholesky!(A)
+cholesky_dft!(A ,ts)
 
 # Plot
-plot(categories=["chol", "ldiv", "schur"])
+DFT.plot(categories=["chol", "ldiv", "mul"])
 ```
 
 ## Profiling
