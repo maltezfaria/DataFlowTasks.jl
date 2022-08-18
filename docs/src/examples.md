@@ -1,19 +1,5 @@
 # [Examples](@id examples-section)
 
-## Tiled Matrix
-
-A lot of DataFlowTasks' usage concerns tiled matrix. We will use in some of the below examples the `PseudoTiledMatrix` data structure. It acts like a tiled view of the matrix, where `A[ti,tj]` gives a view of the tile `(ti,tj)`.  
-
-It will be useful when we want to manipulate part of the matrix as objects. We will often encounter the case where we want to specify that "a tile" depends on "another tile". If we don't have those semantically independant objects (tiles), we only have the whole matrix to specify those dependencies. 
-A simple usage example :
-
-!!! To be made runnable !!!  
-```julia
-using DataFlowTasks: PseudoTiledMatrix
-A  = rand(10,10)
-At = PseudoTiledMatrix(A, 5)
-At[1,1]
-```
  
 ## [Tiled Cholesky factorization](@id tiledcholesky-section)
 
@@ -22,110 +8,110 @@ The Cholesky factorization algorithm takes a symmetric positive definite matrix 
 So we have 3 types of tasks : the Cholesky factorization (I), the triangular solve (II), and the schur complement (III).  
 If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have `n` steps. It implies that the step `i ∈ [1:n]` do `1` time (I), `(i-1)` times (II), and `(i-1)²` times (III). So respectively `O(n)` (I), `O(n²)` (II), and `O(n³)` (III). We will compare this result with the "Times Per Category" part of the visualization. We illustrate the 2nd step of the algorithm in the following image.
 
-![Cholesky_Image](Cholesky_2ndStep.png)
+![Cholesky_Image](docs/src/Cholesky_2ndStep.png)
 
 The code of the sequential yet tiled factorization algorithm will be :
 
 ```julia
-using TriangularSolve:ldiv
-using Octavian:matmul_serial!
-using LinearAlgebra
-function cholesky!(A::PseudoTiledMatrix)
+tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
+function cholesky_dft!(A, ts)
     m,n = size(A)
-    for i in 1:m
+    n%ts != 0 && error("Tilesize doesn't fit the matrix")
+    tn = round(Int, n/ts)
+
+    for ti in 1:tn
+        ri = tilerange(ti, ts)
+
         # Diagonal cholesky serial factorization (I)
-        serial_cholesky!(A[i,i])
+        cholesky!(view(A,ri,ri))
 
         # Left blocks update (II)
-        L = adjoint(UpperTriangular(A[i,i]))
-        for j in i+1:n
-            ldiv!(L,A[i,j], Val(false))
+        L = adjoint(UpperTriangular(view(A,ri,ri)))
+        for tj in ti+1:tn
+            rj = tilerange(tj, ts)
+            ldiv!(L, view(A,ri,rj))
         end
 
         # Submatrix update (III)
-        for j in i+1:m
-            for k in j:n
-                Aji = adjoint(A[i,j])
-                matmul_serial!(A[j,k], Aji, A[i,k], -1, 1)
+        for tj in ti+1:tn
+            for tk in tj:tn
+                rj = tilerange(tj, ts)  ;  rk = tilerange(tk, ts)
+                mul!(view(A,rj,rk), adjoint(view(A,ri,rj)), view(A,ri,rk))
             end
         end
     end
 
     # Construct the factorized object
-    return Cholesky(A.data,'U',zero(LinearAlgebra.BlasInt))
+    return Cholesky(A,'U',zero(LinearAlgebra.BlasInt))
 end
 ```
 
 When it will come to actually parallelize the code, we would only have with DataFlowTasks to wrap function calls within a `@dspawn`, and add a synchronization point at the end. The parallelized code will be :
 
 ```julia
-function cholesky!(A::TiledMatrix)
+using DataFlowTasks
+using LinearAlgebra
+function cholesky_dft!(A, ts)
     m,n = size(A)
-    for i in 1:m
+    n%ts != 0 && error("Tilesize doesn't fit the matrix")
+    tn = round(Int, n/ts)
+
+    for ti in 1:tn
+        ri = tilerange(ti)
+
         # Diagonal cholesky serial factorization (I)
-        @dspawn serial_cholesky!(@RW(A[i,i]))
+        @dspawn cholesky!(@RW(view(A,ri,ri))) label="chol ($ti,$ti)"
 
         # Left blocks update (II)
-        L = adjoint(UpperTriangular(A[i,i]))
-        for j in i+1:n
-            @dspawn ldiv!(@R(L), @RW(A[i,j]), Val(false)) 
+        L = adjoint(UpperTriangular(view(A,ri,ri)))
+        for tj in ti+1:tn
+            rj = tilerange(tj)
+            @dspawn ldiv!(@R(L), @RW(view(A,ri,rj))) label="ldiv ($ti,$tj)"
         end
 
         # Submatrix update (III)
-        for j in i+1:m
-            for k in j:n
-                Aji = adjoint(A[i,j])
-                @dspawn matmul_seria!(@RW(A[j,k]), @R(Aji), @R(A[i,k]), -1, 1)
+        for tj in ti+1:tn
+            for tk in tj:tn
+                rj = tilerange(tj)  ;  rk = tilerange(tk)
+                @dspawn mul!(@RW(view(A,rj,rk)), @R(adjoint(view(A,ri,rj))), @R(view(A,ri,rk))) label="mul ($tj,$tk)"
             end
         end
     end
     DataFlowTasks.sync()
     # Construct the factorized object
-    return Cholesky(A.data,'U',zero(LinearAlgebra.BlasInt))
+    return Cholesky(A,'U',zero(LinearAlgebra.BlasInt))
 end
 ```
 
-The presented cholesky tiled factorization using DataFlowTasks is implemented in the package `TiledFactorization`, which can be used with :
+The code below shows how to use this `cholesky_dft!` function, how to profile the program and get the most information from the visualization. 
 
 ```julia
-import Pkg
-Pkg.add("https://github.com/maltezfaria/TiledFactorization.git")
-```
-
-The code below shows how to use the `cholesky!` function from this package, how to profile the program and get the most information from the visualization. 
-
-```julia
-using DataFlowTasks
-using DataFlowTasks: resetlogger!, plot, dagplot
-using TiledFactorization
-using TiledFactorization: cholesky!
-using CairoMakie
-using LinearAlgebra
+import DataFlowTask as DFT
 
 # DataFlowTasks environnement setup
-DataFlowTasks.enable_log()
-DataFlowTasks.setscheduler!(JuliaScheduler(50))
+DFT.reset!()
+DFT.enable_log()
+DFT.setscheduler!(DFT.JuliaScheduler(50))
 
 # Context
-tilesizes = 256
-TiledFactorization.TILESIZE[] = tilesizes
-n = 2048
+n  = 2048
+ts = 256
 A = rand(n, n)
 A = (A + adjoint(A))/2
 A = A + n*I
 
 # Compilation
-cholesky!(copy(A))
+cholesky_dft!(copy(A), ts)
 
 # Reset environnement
-resetlogger!()
+DFT.resetlogger!()
 GC.gc()
 
 # Real work to be analysed
-cholesky!(A)
+cholesky_dft!(A ,ts)
 
 # Plot
-plot(categories=["chol", "ldiv", "schur"])
+DFT.plot(categories=["chol", "ldiv", "mul"])
 ```
 
 ![Cholesky](cholesky_2048_256.png)
