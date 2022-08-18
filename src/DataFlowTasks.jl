@@ -10,6 +10,7 @@ const PROJECT_ROOT =  pkgdir(DataFlowTasks)
 using ThreadPools
 using DataStructures
 using Requires
+import Pkg
 
 """
     @enum AccessMode READ WRITE READWRITE
@@ -54,6 +55,30 @@ function __init__()
     # default logger
     logger    = Logger()
     setlogger!(logger)
+end
+
+macro using_opt(pkgnames)
+    if pkgnames isa Symbol
+        pkgnames = [pkgnames]
+    else
+        @assert pkgnames.head == :tuple
+        pkgnames = pkgnames.args
+    end
+
+    using_expr = Expr(:using)
+    using_expr.args = [Expr(:., pkg) for pkg in pkgnames]
+
+    dft_path = joinpath(@__DIR__, "..", "optional-deps")
+    quote
+        const cpp = $Pkg.project().path
+        $Pkg.activate($dft_path, io=devnull)
+        try
+            $Pkg.instantiate()
+            $using_expr
+        finally
+            $Pkg.activate(cpp, io=devnull)
+        end
+    end
 end
 
 end # module
