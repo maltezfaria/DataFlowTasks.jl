@@ -53,19 +53,6 @@ DataFlowTasks.dagplot()
 
 This will generate the DAG (Directed Acyclic Graph) above that represents the dependencies between tasks. This means that the task 2 and 3 can be run in parallel. We see how it's the memory that matters here.
 
-Another primary tool is the `PseudoTiledMatrix` data structure. A lot of DataFlowTasks' usage concerns tiled matrix. It acts like a tiled view of the matrix, where `A[ti,tj]` gives a view of the tile `(ti,tj)`.  
-
-It will be useful when we want to manipulate part of the matrix as individual objects. We will often encounter the case where we want to specify that "a tile" depends on "another tile". If we don't have those semantically independant objects (tiles), we only have the whole matrix to specify those dependencies. 
-A simple usage example :
-
-!!! To be made runnable !!!  
-```julia
-using DataFlowTasks: PseudoTiledMatrix
-A  = rand(10,10)
-At = PseudoTiledMatrix(A, 5)
-At[2,1]
-```
-
 ## Example : Parallel Cholesky Factorization
 
 The Cholesky factorization algorithm takes a symmetric positive definite matrix A and finds a lower triangular matrix L such that `A = LLᵀ`. The tiled version of this algorithm decomposes the matrix A into tiles of even sizes. At each step of the algorithm, we do a Cholesky factorization on the diagonal tile, use a triangular solve to update all of the tiles at the right of the diagonal tile, and finally update all the tiles of the submatrix with a schur complement.
@@ -78,29 +65,36 @@ If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have 
 The code of the sequential yet tiled factorization algorithm will be :
 
 ```julia
-function cholesky!(A::PseudoTiledMatrix)
+tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
+function cholesky_dft!(A, ts)
     m,n = size(A)
-    for i in 1:m
+    n%ts != 0 && error("Tilesize doesn't fit the matrix")
+    tn = round(Int, n/ts)
+
+    for ti in 1:tn
+        ri = tilerange(ti, ts)
+
         # Diagonal cholesky serial factorization (I)
-        serial_cholesky!(A[i,i])
+        cholesky!(view(A,ri,ri))
 
         # Left blocks update (II)
-        L = adjoint(UpperTriangular(A[i,i]))
-        for j in i+1:n
-            ldiv!(L,A[i,j], Val(false))
+        L = adjoint(UpperTriangular(view(A,ri,ri)))
+        for tj in ti+1:tn
+            rj = tilerange(tj, ts)
+            ldiv!(L, view(A,ri,rj))
         end
 
         # Submatrix update (III)
-        for j in i+1:m
-            for k in j:n
-                Aji = adjoint(A[i,j])
-                matmul_serial!(A[j,k], Aji, A[i,k], -1, 1)
+        for tj in ti+1:tn
+            for tk in tj:tn
+                rj = tilerange(tj, ts)  ;  rk = tilerange(tk, ts)
+                mul!(view(A,rj,rk), adjoint(view(A,ri,rj)), view(A,ri,rk))
             end
         end
     end
 
     # Construct the factorized object
-    return Cholesky(A.data,'U',zero(LinearAlgebra.BlasInt))
+    return Cholesky(A,'U',zero(LinearAlgebra.BlasInt))
 end
 ```
 
@@ -109,45 +103,45 @@ When it will come to actually parallelize the code, we would only have with Data
 ```julia
 using DataFlowTasks
 using LinearAlgebra
-import DataFlowTasks as DFT
-function cholesky_dft!(A::PseudoTiledMatrix)
+function cholesky_dft!(A, ts)
     m,n = size(A)
-    for i in 1:m
+    n%ts != 0 && error("Tilesize doesn't fit the matrix")
+    tn = round(Int, n/ts)
+
+    for ti in 1:tn
+        ri = tilerange(ti)
+
         # Diagonal cholesky serial factorization (I)
-        @dspawn cholesky!(@RW(A[i,i])) label="chol ($i,$i)"
+        @dspawn cholesky!(@RW(view(A,ri,ri))) label="chol ($ti,$ti)"
 
         # Left blocks update (II)
-        L = adjoint(UpperTriangular(A[i,i]))
-        for j in i+1:n
-            @dspawn ldiv!(@R(L), @RW(A[i,j])) label="ldiv ($i,$j)"
+        L = adjoint(UpperTriangular(view(A,ri,ri)))
+        for tj in ti+1:tn
+            rj = tilerange(tj)
+            @dspawn ldiv!(@R(L), @RW(view(A,ri,rj))) label="ldiv ($ti,$tj)"
         end
 
         # Submatrix update (III)
-        for j in i+1:m
-            for k in j:n
-                Aji = adjoint(A[i,j])
-                @dspawn mul!(@RW(A[j,k]), @R(Aji), @R(A[i,k])) label="mul ($j,$k)"
+        for tj in ti+1:tn
+            for tk in tj:tn
+                rj = tilerange(tj)  ;  rk = tilerange(tk)
+                @dspawn mul!(@RW(view(A,rj,rk)), @R(adjoint(view(A,ri,rj))), @R(view(A,ri,rk))) label="mul ($tj,$tk)"
             end
         end
     end
     DataFlowTasks.sync()
     # Construct the factorized object
-    return Cholesky(A.data,'U',zero(LinearAlgebra.BlasInt))
+    return Cholesky(A,'U',zero(LinearAlgebra.BlasInt))
 end
-cholesky_dft!(A::Matrix, ts) = cholesky_dft!(PseudoTiledMatrix(A,ts))
 ```
 
-The presented cholesky tiled factorization using DataFlowTasks is implemented in the package `TiledFactorization`, which can be used with :
+The code below shows how to use this `cholesky_dft!` function, how to profile the program and get the most information from the visualization. 
 
 ```julia
-import Pkg
-Pkg.add("https://github.com/maltezfaria/TiledFactorization.git")
-```
+import DataFlowTask as DFT
 
-The code below shows how to use the `cholesky!` function from this package, how to profile the program and get the most information from the visualization. 
-
-```julia
 # DataFlowTasks environnement setup
+DFT.reset!()
 DFT.enable_log()
 DFT.setscheduler!(DFT.JuliaScheduler(50))
 
