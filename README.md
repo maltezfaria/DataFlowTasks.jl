@@ -34,27 +34,24 @@ where, in a function argument or at the beginning of a task block, `@R(A)` impli
 
 Let's look at how it can parallelize with safety insurance.
 
-```julia
+```@example
+using DataFlowTasks
+using GraphViz
+
+DataFlowTasks.reset!()
 write!(X, alpha) = (X .= alpha)
 readwrite!(X) = (X .+= 2)
-
 n = 1000
 A = ones(n)
-
-@dspawn write!(@R(A), 1)          # 1
-@dspawn write!(@R(A[1:500]), 2)   # 2
-@dspawn write!(@R(A[501:n]), 3)   # 3
-@dspawn begin                     # 4
-  @RW A
-  readwrite!(A)
-end
-
+@dspawn readwrite!(@RW(A))              # 1
+@dspawn write!(@R(@view A[1:500]), 2)   # 2
+@dspawn write!(@R(@view A[501:n]), 3)   # 3
+@dspawn readwrite!(@RW(A))              # 4
 DataFlowTasks.sync()
+DataFlowTasks.dagplot()
 ```
 
-This will generate the DAG (Directed Acyclic Graph) below that represents the dependencies between tasks. This means that the task 2 and 3 can be run in parallel. We see how it's the memory that matters here.
-
-![Basic](graph.png)
+This will generate the DAG (Directed Acyclic Graph) above that represents the dependencies between tasks. This means that the task 2 and 3 can be run in parallel. We see how it's the memory that matters here.
 
 Another primary tool is the `PseudoTiledMatrix` data structure. A lot of DataFlowTasks' usage concerns tiled matrix. It acts like a tiled view of the matrix, where `A[ti,tj]` gives a view of the tile `(ti,tj)`.  
 
