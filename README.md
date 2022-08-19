@@ -9,7 +9,8 @@ Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)]
 
 `DataFlowTasks.jl` is a Julia package dedicated to parallel programming on multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE) on program data, `DataFlowTasks.jl` automatically infers dependencies between parallel tasks.
 
-The usual linear algebra data types (Julia arrays) are particularly easy to use with `DataFlowTasks.jl`.
+`DataFlowTasks.jl` is particularly easy to use with programs manipulating Julia
+arrays, but can be extended to work with any custom data structure.
 
 ## Installation
 
@@ -20,19 +21,19 @@ Pkd.add("https://github.com/maltezfaria/DataFlowTasks.jl.git")
 
 ## Basic Usage
 
-The use of a `DataFlowTask`s is intended to be as similar to a Julia native `Task`s as possible. The API implements these three macros :
+The use of `DataFlowTask`s is intended to be as similar to Julia native `Task`s as possible. The API implements three macros :
 * `@dspawn`
 * `@dtask`
 * `@dasync`
 
-which behaves like there `Base` counterparts, except they need additional annotations to specify access modes. This is done with the three macros :
+which behave like their `Base` counterparts, except they need additional annotations to specify access modes. This is done with the three macros :
 * `@R`
 * `@W`
 * `@RW`
 
 where, in a function argument or at the beginning of a task block, `@R(A)` implies that A will be in read mode in the function/block.
 
-Let's look at how it can parallelize with safety insurance.
+Let's look at a simple example:
 
 ```@example
 using DataFlowTasks
@@ -59,14 +60,20 @@ This will generate the DAG (Directed Acyclic Graph) above that represents the de
 
 ## Example : Parallel Cholesky Factorization
 
-The Cholesky factorization algorithm takes a symmetric positive definite matrix A and finds a lower triangular matrix L such that `A = LLᵀ`. The tiled version of this algorithm decomposes the matrix A into tiles of even sizes. At each step of the algorithm, we do a Cholesky factorization on the diagonal tile, use a triangular solve to update all of the tiles at the right of the diagonal tile, and finally update all the tiles of the submatrix with a schur complement.
+As a less contrived example, we illustrate below the use of `DataFlowTasks` to parallelize a tiled Cholesky factorization. The implementation shown here is delibarately made as simple as possible; a more complex and more efficient implementation can be found in the [TiledFactorization](https://github.com/maltezfaria/TiledFactorization) package.
 
-So we have 3 types of tasks : the Cholesky factorization (I), the triangular solve (II), and the schur complement (III).  
-If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have `n` steps. It implies that the step `i ∈ [1:n]` do `1` time (I), `(i-1)` times (II), and `(i-1)²` times (III). We illustrate the 2nd step of the algorithm in the following image.
+The Cholesky factorization algorithm takes a symmetric positive definite matrix A and finds a lower triangular matrix L such that `A = LLᵀ`. The tiled version of this algorithm decomposes the matrix A into tiles (of even sizes, in this simplified version). At each step of the algorithm, we do a Cholesky factorization on the diagonal tile, use a triangular solve to update all of the tiles at the right of the diagonal tile, and finally update all the tiles of the submatrix with a schur complement.
+
+If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have `n` steps. The `i`-th step (with `i ∈ [1:n]`) will perform 
+- `1` cholesky factorization of the (i,i) block (I),
+- `(i-1)` triangular solves (one for each block in the `i`-th row) (II),
+- `i*(i-1)/2` matrix multiplications to update the submatrix (III).
+
+We illustrate the 2nd step of the algorithm in the following image.
 
 ![Cholesky_Image](docs/src/Cholesky_2ndStep.png)
 
-The code of the sequential yet tiled factorization algorithm will be :
+A sequential tiled factorization algorithm can be implemented as:
 
 ```julia
 tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
@@ -102,7 +109,7 @@ function cholesky_tiled!(A, ts)
 end
 ```
 
-When it will come to actually parallelize the code, we would only have with DataFlowTasks to wrap function calls within a `@dspawn`, and add a synchronization point at the end. The parallelized code will be :
+In order to parallelize the code with DataFlowTasks, it will only be necessary to wrap function calls within a `@dspawn`, and add a synchronization point at the end. The parallelized code will be :
 
 ```julia
 using DataFlowTasks
