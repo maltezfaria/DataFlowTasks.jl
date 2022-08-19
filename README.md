@@ -43,13 +43,17 @@ write!(X, alpha) = (X .= alpha)
 readwrite!(X) = (X .+= 2)
 n = 1000
 A = ones(n)
-@dspawn readwrite!(@RW(A))              # 1
-@dspawn write!(@R(@view A[1:500]), 2)   # 2
-@dspawn write!(@R(@view A[501:n]), 3)   # 3
-@dspawn readwrite!(@RW(A))              # 4
+function ex()
+    @dspawn readwrite!(@RW(A))              # 1
+    @dspawn write!(@W(@view A[1:500]), 2)   # 2
+    @dspawn write!(@W(@view A[501:n]), 3)   # 3
+    @dspawn readwrite!(@RW(A))              # 4
+end
 DataFlowTasks.sync()
 DataFlowTasks.dagplot()
 ```
+
+![SimpleDag](docs/src/simple_dag_example.svg)
 
 This will generate the DAG (Directed Acyclic Graph) above that represents the dependencies between tasks. This means that the task 2 and 3 can be run in parallel. We see how it's the memory that matters here.
 
@@ -66,10 +70,10 @@ The code of the sequential yet tiled factorization algorithm will be :
 
 ```julia
 tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
-function cholesky_dft!(A, ts)
+function cholesky_tiled!(A, ts)
     m,n = size(A)
     n%ts != 0 && error("Tilesize doesn't fit the matrix")
-    tn = round(Int, n/ts)
+    tn = n÷ts
 
     for ti in 1:tn
         ri = tilerange(ti, ts)
@@ -103,39 +107,49 @@ When it will come to actually parallelize the code, we would only have with Data
 ```julia
 using DataFlowTasks
 using LinearAlgebra
-function cholesky_dft!(A, ts)
+function cholesky_tiled!(A, ts)
     m,n = size(A)
     n%ts != 0 && error("Tilesize doesn't fit the matrix")
-    tn = round(Int, n/ts)
+    tn = n÷ts
+
+    Atile = [view(A, tilerange(ti, ts), tilerange(tj, ts)) for ti in 1:tn, tj in 1:tn]
 
     for ti in 1:tn
-        ri = tilerange(ti)
-
         # Diagonal cholesky serial factorization (I)
-        @dspawn cholesky!(@RW(view(A,ri,ri))) label="chol ($ti,$ti)"
+        @dspawn cholesky!(@RW(Atile[ti,ti])) label="chol ($ti,$ti)"
+
 
         # Left blocks update (II)
-        L = adjoint(UpperTriangular(view(A,ri,ri)))
+        L = adjoint(UpperTriangular(Atile[ti,ti]))
         for tj in ti+1:tn
-            rj = tilerange(tj)
-            @dspawn ldiv!(@R(L), @RW(view(A,ri,rj))) label="ldiv ($ti,$tj)"
+            @dspawn ldiv!(@R(L), @RW(Atile[ti,tj])) label="ldiv ($ti,$tj)"
         end
 
         # Submatrix update (III)
         for tj in ti+1:tn
             for tk in tj:tn
-                rj = tilerange(tj)  ;  rk = tilerange(tk)
-                @dspawn mul!(@RW(view(A,rj,rk)), @R(adjoint(view(A,ri,rj))), @R(view(A,ri,rk))) label="mul ($tj,$tk)"
+                Ajk = Atile[tj,tk]
+                Aik = Atile[ti,tk]
+                Aji = adjoint(Atile[ti,tj])
+                @dspawn mul!(@RW(Ajk), @R(Aji), @R(Aik), -1, 1) label="schur ($tj,$tk)"
             end
         end
     end
-    DataFlowTasks.sync()
     # Construct the factorized object
-    return Cholesky(A,'U',zero(LinearAlgebra.BlasInt))
+    r = @dspawn Cholesky(A,'U',zero(LinearAlgebra.BlasInt))
+    return fetch(r)
 end
 ```
 
-The code below shows how to use this `cholesky_dft!` function, how to profile the program and get the most information from the visualization. 
+If you run this code, you'll see `memory_overlap` warning on the fact that there's no method to evaluate the memory overlaping between an `Adjoint` and a `SubArray`. So we have to implement this method :
+
+```julia
+using DataFlowTasks: memory_overlap
+memory_overlap(U::Adjoint,A) = memory_overlap(U.parent,A)
+memory_overlap(U,L::Adjoint) = memory_overlap(L,U)
+```
+
+The code below shows how to use this `cholesky_tiled!` function, how to profile the program and get the most information from the visualization. 
 
 ```julia
 import DataFlowTask as DFT
@@ -153,24 +167,41 @@ A = (A + adjoint(A))/2
 A = A + n*I
 
 # Compilation
-cholesky_dft!(copy(A), ts)
+cholesky_tiled!(copy(A), ts)
 
 # Reset environnement
 DFT.resetlogger!()
 GC.gc()
 
 # Real work to be analysed
-cholesky_dft!(A ,ts)
+F = cholesky_tiled!(A ,ts)
+@info err  = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 
-# Plot
-DFT.plot(categories=["chol", "ldiv", "mul"])
+# Parallel Trace Plot
+DFT.plot(categories=["chol", "ldiv", "schur"])
+
+# Dag Plot
+DFT.dagplot()
 ```
 
 ## Profiling
 
-We can illustrate the parallelization implied by those modifications. `DataFlowTasks.jl` comes with 2 main profiling tools whose outputs for the case presented above, with a matrix of size (2000, 2000) divided in blocks of (500, 500), are as follows :
+The next results are obtained with a slightly modified version of the function presented above. We used the `LoopVectorization` for the serial cholesky (I), `TriangularSolve`'s `ldiv!` and `Octavian`'s `matmul_serial!`.
 
+The package `TiledFactorization` contains this implementation, you can use it with the following lines :
+
+```julia
+import Pkg
+Pkg.add("https://github.com/maltezfaria/TiledFactorization.git")
+using TiledFactorization: cholesky!
+```
+
+DataFlowTasks comes with 2 main profiling tools whose outputs for the case presented above, with a matrix of size (2000, 2000) divided in blocks of (500, 500), are as follows :
+
+The parallel trace plot, that carries other general information :
 ![Trace Plot](example.png)
+
+and the DAG (graph), that represent dependencies between tasks :
 ![Dag Plot](exampledag.svg)
 
 We'll cover in details the usage and possibilities of the visualization in the documentation.
