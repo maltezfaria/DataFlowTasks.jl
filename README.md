@@ -35,7 +35,7 @@ where, in a function argument or at the beginning of a task block, `@R(A)` impli
 
 Let's look at a simple example:
 
-```@example
+```julia
 using DataFlowTasks
 using GraphViz
 
@@ -44,7 +44,7 @@ write!(X, alpha) = (X .= alpha)
 readwrite!(X) = (X .+= 2)
 n = 1000
 A = ones(n)
-function ex()
+let
     @dspawn readwrite!(@RW(A))              # 1
     @dspawn write!(@W(@view A[1:500]), 2)   # 2
     @dspawn write!(@W(@view A[501:n]), 3)   # 3
@@ -82,24 +82,22 @@ function cholesky_tiled!(A, ts)
     n%ts != 0 && error("Tilesize doesn't fit the matrix")
     tn = n÷ts
 
-    for ti in 1:tn
-        ri = tilerange(ti, ts)
+    Atile = [view(A, tilerange(ti, ts), tilerange(tj, ts)) for ti in 1:tn, tj in 1:tn]
 
+    for ti in 1:tn
         # Diagonal cholesky serial factorization (I)
-        cholesky!(view(A,ri,ri))
+        cholesky!(Atile[ti,ti])
 
         # Left blocks update (II)
-        L = adjoint(UpperTriangular(view(A,ri,ri)))
+        L = adjoint(UpperTriangular(Atile[ti,ti]))
         for tj in ti+1:tn
-            rj = tilerange(tj, ts)
-            ldiv!(L, view(A,ri,rj))
+            ldiv!(L, Atile[ti,tj])
         end
 
         # Submatrix update (III)
         for tj in ti+1:tn
             for tk in tj:tn
-                rj = tilerange(tj, ts)  ;  rk = tilerange(tk, ts)
-                mul!(view(A,rj,rk), adjoint(view(A,ri,rj)), view(A,ri,rk))
+                mul!(Atile[tj,tk], adjoint(Atile[ti,tj]), Atile[ti,tk])
             end
         end
     end
@@ -114,7 +112,7 @@ In order to parallelize the code with DataFlowTasks, it will only be necessary t
 ```julia
 using DataFlowTasks
 using LinearAlgebra
-function cholesky_tiled!(A, ts)
+function cholesky_dft!(A, ts)
     m,n = size(A)
     n%ts != 0 && error("Tilesize doesn't fit the matrix")
     tn = n÷ts
@@ -125,11 +123,10 @@ function cholesky_tiled!(A, ts)
         # Diagonal cholesky serial factorization (I)
         @dspawn cholesky!(@RW(Atile[ti,ti])) label="chol ($ti,$ti)"
 
-
         # Left blocks update (II)
-        L = adjoint(UpperTriangular(Atile[ti,ti]))
+        U = UpperTriangular(Atile[ti,ti])
         for tj in ti+1:tn
-            @dspawn ldiv!(@R(L), @RW(Atile[ti,tj])) label="ldiv ($ti,$tj)"
+            @dspawn ldiv!(adjoint(@R(U)), @RW(Atile[ti,tj])) label="ldiv ($ti,$tj)"
         end
 
         # Submatrix update (III)
@@ -137,8 +134,7 @@ function cholesky_tiled!(A, ts)
             for tk in tj:tn
                 Ajk = Atile[tj,tk]
                 Aik = Atile[ti,tk]
-                Aji = adjoint(Atile[ti,tj])
-                @dspawn mul!(@RW(Ajk), @R(Aji), @R(Aik), -1, 1) label="schur ($tj,$tk)"
+                @dspawn mul!(@RW(Ajk), adjoint(@R(Atile[ti,tj])), @R(Aik), -1, 1) label="schur ($tj,$tk)"
             end
         end
     end
@@ -148,15 +144,7 @@ function cholesky_tiled!(A, ts)
 end
 ```
 
-If you run this code, you'll see `memory_overlap` warning on the fact that there's no method to evaluate the memory overlaping between an `Adjoint` and a `SubArray`. So we have to implement this method :
-
-```julia
-using DataFlowTasks: memory_overlap
-memory_overlap(U::Adjoint,A) = memory_overlap(U.parent,A)
-memory_overlap(U,L::Adjoint) = memory_overlap(L,U)
-```
-
-The code below shows how to use this `cholesky_tiled!` function, how to profile the program and get the most information from the visualization. 
+The code below shows how to use this `cholesky_dft!` function, how to profile the program and get the most information from the visualization. 
 
 ```julia
 import DataFlowTask as DFT
@@ -193,6 +181,22 @@ DFT.dagplot()
 
 ## Profiling
 
+DataFlowTasks comes with 2 main profiling : a parallel trace and a DAG visualization.
+
+Here is the parallel trace for a matrix of size (4096, 4096) divided in tiles of size (512, 512) :
+
+![Trace Plot](docs/src/cholesky_simplified.png)
+
+Next is the DAG (graph) that represent the dependencies between tasks for the same algorithm but with only $4*4$ tiles.
+
+![Dag Plot](exampledag.svg)
+
+We'll cover in details the usage and possibilities of the visualization in the documentation.
+
+Note that the visualization tools are not loaded by default, it requires a `Makie` backend and/or `GraphViz` loaded in the REPL. It's meant to be used in development, so it won't pollute the environment you want to use DFT in.
+
+# Performances
+
 The next results are obtained with a slightly modified version of the function presented above. We used the `LoopVectorization` for the serial cholesky (I), `TriangularSolve`'s `ldiv!` and `Octavian`'s `matmul_serial!`.
 
 The package `TiledFactorization` contains this implementation, you can use it with the following lines :
@@ -202,20 +206,6 @@ import Pkg
 Pkg.add("https://github.com/maltezfaria/TiledFactorization.git")
 using TiledFactorization: cholesky!
 ```
-
-DataFlowTasks comes with 2 main profiling tools whose outputs for the case presented above, with a matrix of size (2000, 2000) divided in blocks of (500, 500), are as follows :
-
-The parallel trace plot, that carries other general information :
-![Trace Plot](example.png)
-
-and the DAG (graph), that represent dependencies between tasks :
-![Dag Plot](exampledag.svg)
-
-We'll cover in details the usage and possibilities of the visualization in the documentation.
-
-Note that the visualization tools are not loaded by default, it requires a `Makie` backend and/or `GraphViz` loaded in the REPL. It's meant to be used in development, so it won't pollute the environment you want to use DFT in.
-
-# Performances
 
 We compare the performances achieved with this version of the Cholesky factorization with the MKL one, and we obtain the next figure. Here the blocks are of size (256, 256).
 
