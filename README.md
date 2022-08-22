@@ -2,15 +2,11 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://maltezfaria.github.io/DataFlowTasks.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://maltezfaria.github.io/DataFlowTasks.jl/dev)
-[![Build
-Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)](https://github.com/maltezfaria/DataFlowTasks.jl/actions)
+[![Build Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)](https://github.com/maltezfaria/DataFlowTasks.jl/actions)
 [![codecov](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl/branch/main/graph/badge.svg?token=UOWU691WWG)](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl)
 ![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-blue.svg)
 
 `DataFlowTasks.jl` is a Julia package dedicated to parallel programming on multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE) on program data, `DataFlowTasks.jl` automatically infers dependencies between parallel tasks.
-
-`DataFlowTasks.jl` is particularly easy to use with programs manipulating Julia
-arrays, but can be extended to work with any custom data structure.
 
 This `README` is also available in notebook form:
 [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](docs/readme/README.ipynb)
@@ -25,19 +21,19 @@ Pkd.add("https://github.com/maltezfaria/DataFlowTasks.jl.git")
 
 ## Basic Usage
 
-The use of `DataFlowTask`s is intended to be as similar to Julia native `Task`s as possible. The API implements three macros :
+`DataFlowTasks.jl` allows decomposing a program into tasks, that are meant to be used in a very similar way to Julia native `Task`s. The API implements three macros :
 
 - `@dspawn`
 - `@dtask`
 - `@dasync`
 
-which behave like their `Base` counterparts, except they need additional annotations to specify access modes. This is done with the three macros :
+which behave like their `Base` counterparts, except they take additional annotations that declare how each task affects the data it accesses:
 
-* `@R`
-* `@W`
-* `@RW`
+- read-only: `@R` or `@READ`
+- write-only: `@W` or `@WRITE`
+- read-write: `@RW` or `@READWRITE`
 
-where, in a function argument or at the beginning of a task block, `@R(A)` implies that A will be in read mode in the function/block.
+Anywhere in the task body, a `@R(A)` annotation for example implies that `A` will be accessed in read-only mode by the task.
 
 Let's look at a simple example:
 
@@ -53,6 +49,8 @@ end
 fetch(result)
 ````
 
+From annotations describing task-data dependencies, `DataFlowTasks.jl` infers dependencies between tasks. Internally, this set of dependencies is represented as a Directed Acyclic Graph (DAG):
+
 ````julia
 using GraphViz
 DataFlowTasks.dagplot()
@@ -60,7 +58,7 @@ DataFlowTasks.dagplot()
 
 ![](docs/readme/example_dag.svg)
 
-This will generate the DAG (Directed Acyclic Graph) above that represents the dependencies between tasks. This means that the task 2 and 3 can be run in parallel. We see how it's the memory that matters here.
+In the example above, tasks 2 & 3 access different parts of array `A` and are therefore independant, as shown in the DAG.
 
 ## Example : Parallel Cholesky Factorization
 
@@ -69,11 +67,12 @@ As a less contrived example, we illustrate below the use of `DataFlowTasks` to p
 The Cholesky factorization algorithm takes a symmetric positive definite matrix A and finds a lower triangular matrix L such that `A = LLᵀ`. The tiled version of this algorithm decomposes the matrix A into tiles (of even sizes, in this simplified version). At each step of the algorithm, we do a Cholesky factorization on the diagonal tile, use a triangular solve to update all of the tiles at the right of the diagonal tile, and finally update all the tiles of the submatrix with a schur complement.
 
 If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have `n` steps. The `i`-th step (with `i ∈ [1:n]`) will perform
-- `1` cholesky factorization of the (i,i) block (I),
-- `(i-1)` triangular solves (one for each block in the `i`-th row) (II),
-- `i*(i-1)/2` matrix multiplications to update the submatrix (III).
 
-We illustrate the 2nd step of the algorithm in the following image.
+- `1` cholesky factorization of the (i,i) block,
+- `(i-1)` triangular solves (one for each block in the `i`-th row),
+- `i*(i-1)/2` matrix multiplications to update the submatrix.
+
+The following image illustrates the 2nd step of the algorithm:
 
 ![](docs/readme/Cholesky_2ndStep.png)
 
@@ -81,7 +80,9 @@ A sequential tiled factorization algorithm can be implemented as:
 
 ````julia
 using LinearAlgebra
+
 tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
+
 function cholesky_tiled!(A, ts)
     m = size(A, 1); @assert m==size(A, 2)
     m%ts != 0 && error("Tilesize doesn't fit the matrix")
@@ -90,16 +91,16 @@ function cholesky_tiled!(A, ts)
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
-        # Diagonal cholesky serial factorization (I)
+        # Diagonal cholesky serial factorization
         cholesky!(T[i,i])
 
-        # Left blocks update (II)
+        # Left blocks update
         U = UpperTriangular(T[i,i])
         for j in i+1:n
             ldiv!(U', T[i,j])
         end
 
-        # Submatrix update (III)
+        # Submatrix update
         for j in i+1:n
             for k in j:n
                 mul!(T[j,k], T[i,j]', T[i,k], -1, 1)
@@ -112,7 +113,7 @@ function cholesky_tiled!(A, ts)
 end
 ````
 
-In order to parallelize the code with DataFlowTasks, it will only be necessary to wrap function calls within a `@dspawn`, and add a synchronization point at the end. The parallelized code will be :
+Parallelizing the code with `DataFlowTasks.jl` is as easy as wrapping function calls within `@dspawn`, and adding annotations describing data access modes:
 
 ````julia
 using DataFlowTasks
@@ -125,16 +126,16 @@ function cholesky_dft!(A, ts)
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
-        # Diagonal cholesky serial factorization (I)
+        # Diagonal cholesky serial factorization
         @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
 
-        # Left blocks update (II)
+        # Left blocks update
         U = UpperTriangular(T[i,i])
         for j in i+1:n
             @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
         end
 
-        # Submatrix update (III)
+        # Submatrix update
         for j in i+1:n
             for k in j:n
                 @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
@@ -148,14 +149,14 @@ function cholesky_dft!(A, ts)
 end
 ````
 
-The code below shows how to use this `cholesky_tiled!` function, how to profile the program and get the most information from the visualization.
+(Also note how extra annotations were added in the code, in order to attach meaningful labels to the tasks. These will later be useful to interpret the output of debugging & profiling tools.)
+
+The code below shows how to use this `cholesky_tiled!` function, as well as how to profile the program and get information about how tasks were scheduled:
 
 ````julia
-import DataFlowTasks as DFT
-
 # DataFlowTasks environnement setup
-DFT.reset!()
-DFT.enable_log()
+DataFlowTasks.reset!()
+DataFlowTasks.enable_log()
 
 # Context
 n  = 2048
@@ -175,33 +176,37 @@ F = cholesky_dft!(copy(A), ts)
 err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 ````
 
-## Profiling
+## Debugging and Profiling
 
-DataFlowTasks comes with 2 main profiling tools whose outputs for the case presented above are as follows :
+DataFlowTasks comes with debugging and profiling tools which help understanding how task dependencies were inferred, and how tasks were scheduled during execution.
+
+As usual when profiling code, it is recommended to start from a state where all code has already been compiled, and all previous profiling information has been discarded:
 
 ````julia
 # Reset profiling environnement
-DFT.resetlogger!()
+DataFlowTasks.resetlogger!()
 GC.gc()
 
 # Real workload to be analysed
 cholesky_dft!(A ,ts);
 ````
 
-The DAG represents dependencies between tasks, as inferred by `DataFlowTasks` from the task-data dependencies. The critical path (i.e. the longest sequential path in the graph) is plotted in red; il can be a limiting factor of the overall performance of the algorithm.
+Visualizing the DAG can be helpful. When debugging, this representation of dependencies between tasks as inferred by `DataFlowTasks` can help identify missing or erroneous data dependency annotations. When profiling, identifying the critical path (plotted in red in the DAG) can help understand the performances of the implementation.
+
+In the real-world example of the tiled Cholesky factorization, we can see how quickly the DAG complexity increases (even though the test case only has 4x4 blocks here):
 
 ````julia
 using GraphViz
-dag = DFT.dagplot()
+dag = DataFlowTasks.dagplot()
 ````
 
 ![](docs/readme/cholesky_dag.svg)
 
-The parallel trace plots a timeline of the tasks execution on the available threads. It also carries other general information allowing to better understand the performance limiting factors:
+The parallel trace plot shows a timeline of the tasks execution on available threads. It helps understanding how tasks were scheduled. The same window also carries other general information allowing to better understand the performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DFT.plot(categories=["chol", "ldiv", "schur"])
+trace = DataFlowTasks.plot(categories=["chol", "ldiv", "schur"])
 ````
 
 ![](docs/readme/cholesky_trace.svg)
@@ -210,21 +215,17 @@ We see here that the execution time is bounded by the length of the critical pat
 
 We'll cover in details the usage and possibilities of the visualization in the documentation.
 
-Note that the visualization tools are not loaded by default, as they require additional dependencies (a `Makie` backend and/or `GraphViz`) to be loaded in the REPL. These features are meant to only be used in development, so they aren't declared as hard dependencies in order to avoid polluting the environment you want to use `DataFlowTasks` in.
+Note that the debugging & profiling tools need additional dependencies such as `Makie` and `GraphViz`, which are only meant to be used interactively during the development process. These packages are therefore only considered as optional depdendencies, and it is up the the user to set the environment in such a way that they are available.
 
 # Performances
 
-The following results are obtained with a slightly modified version of the function presented above. We used the `LoopVectorization` for the serial cholesky (I), `TriangularSolve`'s `ldiv!` and `Octavian`'s `matmul_serial!`.
+The performance of this example can be improved by using better implementations for the sequential building blocks operating on tiles:
 
-The package `TiledFactorization` contains this implementation, you can use it with the following lines :
+- `LoopVectorization.jl` can improve the performance of the sequential cholesky factorization of diagonal blocks
+- `TriangularSolve.jl` provides a high-performance `ldiv!` implementation
+- `Octavian.jl` provides fast, pure-Julia matmuls for the Schur complements.
 
-```julia
-import Pkg
-Pkg.add("https://github.com/maltezfaria/TiledFactorization.git")
-using TiledFactorization: cholesky!
-```
-
-We compare the performances achieved with this version of the Cholesky factorization with the MKL one, and we obtain the next figure. Here the blocks are of size (256, 256).
+This approach is taken in [`TiledFactorization.jl`](https://github.com/maltezfaria/TiledFactorization), where all the above mentioned building blocks are combined with the parallelization strategy presented here. The performances of this implementation is assessed in the following plot, by comparison to MKL on a the case of a 5000x5000 matrix decomposed in tiles of size 256x256.
 
 ![](docs/readme/scalability_lfaria.png)
 
