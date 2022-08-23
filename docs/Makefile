@@ -6,6 +6,15 @@ setup:
             Pkg.develop(PackageSpec(path="..")); \
             Pkg.instantiate()'
 
+readme-preview:
+	julia readme/make.jl preview
+
+readme-check:
+	julia readme/make.jl check
+
+readme-update:
+	julia -t 4 readme/make.jl update
+
 doctest:
 	julia --project -e '                    \
             using Documenter: DocMeta, doctest; \

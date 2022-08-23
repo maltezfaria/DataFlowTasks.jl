@@ -15,12 +15,18 @@ makedocs(;
     ),
     pages=[
         "Getting started" => "index.md",
-        "Examples" => "examples.md",
+        "Debugging & Profiling" => "profiling.md",
+        "Examples" => [
+            "examples/cholesky/cholesky.md",
+            "examples/stencil/stencil.md",
+            "examples/lu/lu.md",
+            "examples/hmat/hmat.md",
+        ],
         # "Comparaison with Dagger.jl" => "dagger.md",
-        "Profiling" => "profiling.md",
         "Common Issues" => "issues.md",
         "References" => "references.md"
     ],
+    strict=true
 )
 
 deploydocs(;

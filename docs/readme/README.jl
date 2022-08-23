@@ -25,19 +25,29 @@
 
 # ## Basic Usage
 #
-# `DataFlowTasks.jl` allows decomposing a program into tasks, that are meant to be used in a very similar way to Julia native `Task`s. The API implements three macros :
+# This package defines a `DataFlowTask` type which behaves very much like a
+# Julia native `Task`, except that it allows the user to specify explicit *data
+# dependencies*. This information is then be used to automatically infer *task
+# dependencies* by constructing and analyzing a directed acyclic graph based on
+# how tasks access the underlying data. The premise is that it is sometimes
+# simpler to specify how *tasks depend on data* than to specify how *tasks
+# depend on each other*.
+#
+# The use of a `DataFlowTask` object is intended to be as similar as possible to
+# a Julia native `Task`. The API implements three macros :
 #
 # - `@dspawn`
 # - `@dtask`
 # - `@dasync`
 #
-# which behave like their `Base` counterparts, except they take additional annotations that declare how each task affects the data it accesses:
+# which behave like their `Base` counterparts, except they take additional
+# annotations that declare how each *task* affects the *data* it accesses:
 #
 # - read-only: `@R` or `@READ`
 # - write-only: `@W` or `@WRITE`
 # - read-write: `@RW` or `@READWRITE`
 #
-# Anywhere in the task body, a `@R(A)` annotation for example implies that `A` will be accessed in read-only mode by the task.
+# Anywhere in the task body, a `@R(A)` annotation for example implies that *data* `A` will be accessed in read-only mode by the *task*.
 
 #-
 

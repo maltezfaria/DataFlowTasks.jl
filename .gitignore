@@ -9,3 +9,5 @@ Manifest.toml
 /references/**
 JuliaSysimage.dll
 .vscode/
+*~
+TiledFactorization

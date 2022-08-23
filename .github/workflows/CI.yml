@@ -55,9 +55,9 @@ jobs:
           version: '1'
       - run: sudo apt-get update && sudo apt-get install -y xorg-dev mesa-utils xvfb libgl1 freeglut3-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev
       - run: make -C docs setup
-      - run: julia docs/readme/make.jl check
+      - run: DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24' make -C docs readme-check
       - run: DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24' make -C docs doctest
-      - run: make -C docs generate
+      - run: DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24' make -C docs generate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
