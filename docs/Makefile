@@ -6,14 +6,9 @@ setup:
             Pkg.develop(PackageSpec(path="..")); \
             Pkg.instantiate()'
 
-readme-preview:
-	julia readme/make.jl preview
+update: readme-update examples-update
 
-readme-check:
-	julia readme/make.jl check
-
-readme-update:
-	julia -t 4 readme/make.jl update
+check: readme-check examples-check
 
 doctest:
 	julia --project -e '                    \
@@ -28,3 +23,26 @@ generate:
 
 serve:
 	julia -e 'using LiveServer; LiveServer.serve(dir="build", port=8998, launch_browser=true)'
+
+
+
+
+# README generation
+
+readme-check:
+	make -C readme check
+
+readme-preview:
+	make -C readme preview
+
+readme-update:
+	make -C readme update
+
+
+# Examples included in Documenter
+
+examples-check:
+	make -C src/examples check
+
+examples-update:
+	make -C src/examples update

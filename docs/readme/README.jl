@@ -1,3 +1,7 @@
+cd(@__DIR__)             #src
+import Pkg               #src
+Pkg.activate("..")       #src
+
 # # DataFlowTasks.jl
 #
 #md # [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://maltezfaria.github.io/DataFlowTasks.jl/stable)
@@ -218,7 +222,7 @@ cholesky_dft!(A ,ts);
 
 # Visualizing the DAG can be helpful. When debugging, this representation of dependencies between tasks as inferred by `DataFlowTasks` can help identify missing or erroneous data dependency annotations. When profiling, identifying the critical path (plotted in red in the DAG) can help understand the performances of the implementation.
 #
-# In the real-world example of the tiled Cholesky factorization, we can see how quickly the DAG complexity increases (even though the test case only has 4x4 blocks here):
+# In this more complex example, we can see how quickly the DAG complexity increases (even though the test case only has 4x4 blocks here):
 
 using GraphViz
 dag = DataFlowTasks.dagplot()
