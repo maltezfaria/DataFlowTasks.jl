@@ -167,13 +167,16 @@ By default, sequential mode is disabled when the program starts.
 function force_sequential(seq::Bool = true; static::Bool = false)
     dyn = static ? :sta : :dyn
     par = seq    ? :seq : :par
+    _sequential_mode() == (dyn, par) && return (dyn, par)
+
     if static
         @warn "Statically setting sequential/parallel mode is not recommended"
     end
     @eval _sequential_mode() = $(tuple(dyn, par))
-    nothing
+    return (dyn, par)
 end
-force_sequential(false)
+
+_sequential_mode() = (:dyn, :par)
 
 
 function _dtask(continuation, expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
