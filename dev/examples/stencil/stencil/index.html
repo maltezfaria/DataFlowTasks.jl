@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Iterative Stencil Loop · DataFlowTasks.jl</title><script data-outdated-warner src="../../../assets/warner.js"></script><link rel="canonical" href="https://maltezfaria.github.io/DataFlowTasks.jl/examples/stencil/stencil/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">DataFlowTasks.jl</a></span></div><form class="docs-search" action="../../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../../">Getting started</a></li><li><a class="tocitem" href="../../../profiling/">Debugging &amp; Profiling</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../cholesky/cholesky/">Tiled Cholesky Factorization</a></li><li class="is-active"><a class="tocitem" href>Iterative Stencil Loop</a></li><li><a class="tocitem" href="../../lu/lu/">Tiled LU factorization</a></li><li><a class="tocitem" href="../../hmat/hmat/">Hierarchical <code>LU</code> factorization</a></li></ul></li><li><a class="tocitem" href="../../../issues/">Common Issues</a></li><li><a class="tocitem" href="../../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Iterative Stencil Loop</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Iterative Stencil Loop</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/maltezfaria/DataFlowTasks.jl/blob/main/docs/src/examples/stencil/stencil.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Iterative-Stencil-Loop"><a class="docs-heading-anchor" href="#Iterative-Stencil-Loop">Iterative Stencil Loop</a><a id="Iterative-Stencil-Loop-1"></a><a class="docs-heading-anchor-permalink" href="#Iterative-Stencil-Loop" title="Permalink"></a></h1><p>The Gauss-Seidel algorithm uses the following five-points stencil :</p><p class="math-container">\[v_{i,j}^{n+1} = \frac{1}{5}(v_{i,j-1}^{n+1} + v_{i,j-1}^{n+1} + v_{i,j}^n + v_{i+1,j}^n + v_{i,j+1}^n)\]</p><p>where the element <span>$(i,j)$</span> of the matrix <span>$v$</span> at time <span>$n+1$</span> depend on values of the same iteration <span>$n+1$</span>. Those dependencies might be tricky to track, but, at each update, we know which elements it needs. So we know the access modes of the data.</p><p>We&#39;ll work on a matrix of size <span>$(N+2)*(N+2)$</span>, with <span>$N*N$</span> real elements and a halo of zero surrounding them to simplify boundary conditions.</p><p>The update of a tile of the matrix is given by the next function :</p><pre><code class="language-julia hljs"># Update a tile of v composed by elements at index in range (ri,rj)
+function step!(v, ri, rj)
+    for i ∈ ri, j ∈ rj
+        v[i,j] = 1/5 * (v[i-1,j] + v[i,j-1] + v[i,j] + v[i+1,j] + v[i,j+1])
+    end
+end</code></pre><p>The sequential core of the algorithm by block will then be :</p><pre><code class="language-julia hljs">tilerange(ti, ts) = (ti-1)*ts+2:ti*ts+1
+function gauss_seidel(v)
+    m,n = size(v).-2
+    tn = round(Int, n/ts)
+    for ti ∈ 1:tn, tj ∈ 1:tn
+        (ri,rj) = tilerange.([ti tj], ts)
+        step!(v, ri, rj)
+    end
+end</code></pre><p>And the parallelization with DataFlowTasks :</p><pre><code class="language-julia hljs">using DataFlowTasks
+import DataFlowTasks as DFT
+
+function core!(v, ts)
+    m,n = size(v).-2
+    tn = round(Int, n/ts)
+
+    for ti ∈ 1:tn, tj ∈ 1:tn
+        (ri,rj) = tilerange.([ti tj], ts)
+        @dspawn begin
+            @R view(v, ri[1]-1, rj)
+            @R view(v, ri[end]+1, rj) 
+            @R view(v, ri, rj[1]-1)
+            @R view(v, ri, rj[end]+1)
+            @RW view(v, ri, rj)
+            step!(v, ri, rj)
+        end label=&quot;tile ($ti,$tj)&quot;
+    end
+    DFT.sync()
+end</code></pre><p>The final peaces of the code :</p><pre><code class="language-julia hljs">using GLMakie, GraphViz
+
+function main()
+    # Declaration
+    N = 4096            # Nb of elements
+    ts = 512            # Tilesize
+    v = zeros(N+2,N+2)  # Matrix
+    initialization!(v)  # Init a choc at the center
+    DFT.enable_log()
+
+    # Compilation
+    gauss_seidel(copy(v), ts)
+
+    # Reset DFT Environnement
+    DFT.reset!()
+
+    # Call
+    gauss_seidel(v, ts)
+
+    # Profile
+    DFT.plot(categories=[&quot;tile&quot;])
+end</code></pre><p>The profiling gives us the next results.</p><p><img src="../gausstrace.png" alt="GaussTrace"/> <img src="../gaussdag.svg" alt="GaussDag"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../cholesky/cholesky/">« Tiled Cholesky Factorization</a><a class="docs-footer-nextpage" href="../../lu/lu/">Tiled LU factorization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 6 September 2022 09:06">Tuesday 6 September 2022</span>. Using Julia version 1.8.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
