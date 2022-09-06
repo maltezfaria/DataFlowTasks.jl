@@ -3,7 +3,7 @@ using Documenter
 using Literate
 
 for example in ["cholesky"]
-    dir = joinpath("src", "examples", example)
+    dir = joinpath(DataFlowTasks.PROJECT_ROOT,"docs","src", "examples", example)
     src = joinpath(dir, "$(example).jl")
     Literate.markdown(src, dir)
     Literate.notebook(src, dir)
