@@ -170,7 +170,7 @@ function start_dag_worker(sch::JuliaScheduler=getscheduler())
         # remove task `t` from the dag
         remove_node!(sch,t)
     end
-    sch.dag_worker = errormonitor(task)
+    sch.dag_worker = maybe_errormonitor(task)
     return sch.dag_worker
 end
 
