@@ -93,8 +93,21 @@ List of successors of `j` in `dag`.
 """
 outneighbors(dag::DAG,i) = dag.inoutlist[i][2]
 
+"""
+    capacity(dag)
+
+The maximum number of nodes that `dag` can contain.
+"""
+capacity(dag::DAG) = dag.sz_max[]
+
 function Base.empty!(dag::DAG)
-    empty!(dag.inoutlist)
+    lock(dag)
+    try
+        empty!(dag.inoutlist)
+    finally
+        unlock(dag)
+    end
+    return dag
 end
 
 Iterators.reverse(dag::DAG) = Iterators.reverse(dag.inoutlist)

@@ -44,6 +44,16 @@ function Base.put!(c::FinishedChannel{T},t::T) where {T}
     return t
 end
 
+function Base.empty!(c::FinishedChannel)
+    lock(c)
+    try
+        empty!(c.data)
+    finally
+        unlock(c)
+    end
+    return c
+end
+
 # https://discourse.julialang.org/t/how-to-kill-thread/34236/8
 """
     struct Stop
@@ -78,14 +88,14 @@ The active scheduler being used.
 const SCHEDULER = Ref{TaskGraphScheduler}()
 
 """
-    setscheduler!(r)
+    setscheduler!(sch)
 
-Set the active scheduler to `r`.
+Set the active scheduler to `sch`.
 """
-setscheduler!(ex) = (SCHEDULER[] = ex)
+setscheduler!(sch) = (SCHEDULER[] = sch)
 
 """
-    getscheduler(sch)
+    getscheduler()
 
 Return the active scheduler.
 """
@@ -110,6 +120,8 @@ Base.schedule(tj::DataFlowTask) = schedule(tj,getscheduler())
 
 addnode!(sch::TaskGraphScheduler,tj,check=true)     = addnode!(sch.dag,tj,check)
 remove_node!(sch::TaskGraphScheduler,tj) = remove_node!(sch.dag,tj)
+
+dag(sch::TaskGraphScheduler) = sch.dag
 
 """
     sync([sch::TaskGraphScheduler])
@@ -155,6 +167,31 @@ mutable struct JuliaScheduler{T} <: TaskGraphScheduler
 end
 JuliaScheduler(args...) = JuliaScheduler{DataFlowTask}(args...)
 
+capcity(sch) = sch |> dag |> capacity
+
+"""
+    restart_scheduler!([sch])
+
+Interrupt all tasks in `sch` and remove them from the underlying `DAG`.
+
+This function is useful to avoid having to restart the REPL when a task in `sch`
+errors.
+"""
+restart_scheduler!() = restart_scheduler!(getscheduler())
+
+function restart_scheduler!(sch::JuliaScheduler)
+    @warn "restarting the scheduler: pending tasks will be interrupted and lost."
+    stop_dag_worker(sch)
+    empty!(sch.finished)
+    # go over all task in the dag and interrupt them
+    for (t,_) in sch.dag.inoutlist
+        istaskstarted(t.task) || schedule(t.task, :stop, error=true)
+    end
+    empty!(sch.dag)
+    start_dag_worker(sch)
+    return sch
+end
+
 """
     start_dag_worker(sch)
 
@@ -185,6 +222,8 @@ function stop_dag_worker(sch::JuliaScheduler=getscheduler())
     else # expected result, task is running
         isempty(sch.dag) || @warn "Stopping DAG worker of a non-empty graph"
         put!(sch.finished, Stop())
+        # wait for t to stop before continuining
+        wait(t)
     end
     return sch.dag_worker
 end

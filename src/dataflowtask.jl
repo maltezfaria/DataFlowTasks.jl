@@ -90,14 +90,18 @@ How `t` accesses its data.
 access_mode(t::DataFlowTask)   = t.access_mode
 access_mode(t::DataFlowTask,i) = t.access_mode[i]
 
-tag(t::DataFlowTask) = t.tag
-tag(t) = t
-
+Base.istaskdone(t::DataFlowTask)  = istaskdone(t.task)
+Base.istaskfailed(t::DataFlowTask) = istaskfailed(t.task)
+Base.istaskstarted(t::DataFlowTask) = istaskstarted(t.task)
 Base.wait(t::DataFlowTask)  = wait(t.task)
 Base.fetch(t::DataFlowTask) = fetch(t.task)
+Base.errormonitor(t::DataFlowTask) = errormonitor(t.task)
 
 # the tag gives a total order of the tasks, with smaller tasks being assumed to
 # have come before in a sequential execution of the program
+tag(t::DataFlowTask) = t.tag
+tag(t) = t
+
 Base.hash(t::DataFlowTask,h::UInt64)        = hash(t.tag,h)
 Base.:(==)(a::DataFlowTask,b::DataFlowTask) = (a.tag == b.tag)
 Base.:(<)(a::DataFlowTask,b::DataFlowTask)  = (a.tag < b.tag)
@@ -110,7 +114,6 @@ function Base.show(io::IO,t::DataFlowTask)
     end
 end
 
-Base.errormonitor(t::DataFlowTask) = errormonitor(t.task)
 
 """
     data_dependency(t1::DataFlowTask,t1::DataFlowTask)

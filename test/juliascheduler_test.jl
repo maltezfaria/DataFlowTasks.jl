@@ -38,4 +38,20 @@ DataFlowTasks.setscheduler!(sch)
         @test abs(t1-t2) < 1e-2
     end
 
+    @testset "Restart dag worker" begin
+        n = 10
+        A = ones(n)
+        # a first task that errors
+        t1 = @dspawn error() (@RW A)
+        # a second task that hangs
+        t2 = @dspawn identity(@RW A)
+        # check that scheduler is in limbo
+        sch = DataFlowTasks.getscheduler()
+        @test DataFlowTasks.num_nodes(sch.dag) == 2
+        # restart scheduler and make sure it runs again
+        DataFlowTasks.restart_scheduler!()
+        @test DataFlowTasks.num_nodes(sch.dag) == 0
+        t = @dspawn sum(@R A)
+        @test fetch(t) == n
+    end
 end
