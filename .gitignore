@@ -6,6 +6,8 @@ Manifest.toml
 /test/Manifest.toml
 /deps/deps.jl
 /docs/build/
+/docs/src/examples/*/*.md
+/docs/src/examples/*/*.ipynb
 /references/**
 JuliaSysimage.dll
 .vscode/
