@@ -5,7 +5,9 @@ Manifest.toml
 /docs/Manifest.toml
 /test/Manifest.toml
 /deps/deps.jl
-/docs/build
+/docs/build/
 /references/**
 JuliaSysimage.dll
 .vscode/
+*~
+TiledFactorization

@@ -1,5 +1,13 @@
 using DataFlowTasks
 using Documenter
+using Literate
+
+for example in ["cholesky"]
+    dir = joinpath("src", "examples", example)
+    src = joinpath(dir, "$(example).jl")
+    Literate.markdown(src, dir)
+    Literate.notebook(src, dir)
+end
 
 DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using CairoMakie, GraphViz, DataFlowTasks); recursive=true)
 
@@ -15,10 +23,18 @@ makedocs(;
     ),
     pages=[
         "Getting started" => "index.md",
-        "Examples" => "examples.md",
-        "Comparaison with Dagger.jl" => "dagger.md",
+        "Debugging & Profiling" => "profiling.md",
+        "Examples" => [
+            "examples/cholesky/cholesky.md",
+            "examples/stencil/stencil.md",
+            "examples/lu/lu.md",
+            "examples/hmat/hmat.md",
+        ],
+        # "Comparaison with Dagger.jl" => "dagger.md",
+        "Common Issues" => "issues.md",
         "References" => "references.md"
     ],
+    strict=true
 )
 
 deploydocs(;

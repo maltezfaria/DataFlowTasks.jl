@@ -39,7 +39,6 @@ mutable struct LoggerInfo
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
         othertime     = (lasttime-firsttime) * length(logger.tasklogs)
 
-
         normalize_category(x) = x
         normalize_category(x::String) = (x=>Regex(x))
 
@@ -151,7 +150,12 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     ax.yticks = 1:max(gantt.threads...)
     xlims!(ax, 0, loginfo.lasttime-loginfo.firsttime)
 
-    grad = cgrad(:tab10)[1:length(loginfo.categories)]
+    if length(loginfo.categories) ≥ 4
+        grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+        deleteat!(grad, 4)
+    else
+        grad = cgrad(:tab10)[1:length(loginfo.categories)]
+    end
     colors = [grad..., :black, :red, cgrad(:sun)[1]]
 
     # Barplot
@@ -176,17 +180,19 @@ function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
     end
 
     # Labels
-    # ------
-    l = length(loginfo.categories)+1
-    didgc && (l += 1)
-    elements = [PolyElement(polycolor = cgrad(:tab10)[i]) for i in 1:l]
-    elements[end].polycolor = :red
-    didgc && (elements[end-1].polycolor = :red ; elements[end].polycolor = cgrad(:sun)[1])
-    hasdefault && push!(elements, PolyElement(polycolor = :black))
+    c = [grad...]
+    hasdefault && (c = [c..., :black])
+    c = [c..., :red]
+    didgc && (c = [c..., cgrad(:sun)[1]])
+    elements = [PolyElement(polycolor = i) for i in c]
 
-    y = [first.(loginfo.categories)..., "insertion"]
-    didgc && push!(y, "gc")
+    y = String[]
+    push!(y, first.(loginfo.categories)...)
+    # y = [first.(loginfo.categories)...]
     hasdefault && push!(y, "default")
+    push!(y, "insertion")
+    didgc && push!(y, "gc")
+
     Legend(
         ax.parent[1,1],
         elements,
@@ -252,7 +258,12 @@ function categoriesplot(ax, loginfo::LoggerInfo)
 
 
     # Colors
-    grad = cgrad(:tab10)[1:length(categories)]
+    if length(loginfo.categories) ≥ 4
+        grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+        deleteat!(grad, 4)
+    else
+        grad = cgrad(:tab10)[1:length(loginfo.categories)]
+    end
     hasdefault && (grad = [grad..., :black])
 
     # Barplot

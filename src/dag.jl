@@ -244,6 +244,23 @@ function remove_node!(dag::DAG,i)
     return
 end
 
+function reset!()
+    dag = getscheduler().dag
+
+    for pair ∈ dag.inoutlist
+        node = pair.first
+        try
+            wait(node)
+        catch
+            remove_node!(dag, node)
+        end
+    end
+
+    sync()
+    resetlogger!()
+    resetcounter!()
+end
+
 """
     adjacency_matrix(dag)
 

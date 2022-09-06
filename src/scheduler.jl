@@ -236,7 +236,7 @@ infer task dependencies.
 Below are 3 equivalent ways to create the same `DataFlowTask`, which expresses a
 Read-Write dependency on `C` and Read dependencies on `A` and `B`
 
-```
+```julia
 using LinearAlgebra
 A = rand(10, 10)
 B = rand(10, 10)
@@ -265,7 +265,8 @@ using DataFlowTasks
 
 A = rand(5)
 
-# create a task which writes to A
+# create a task with WRITE access mode to A
+# and label "writer"
 t1 = @dspawn begin
     @W A
     sleep(1)
@@ -273,7 +274,7 @@ t1 = @dspawn begin
     println("finished writing")
 end  label="writer"
 
-# create a task which reads from A
+# create a task with READ access mode to A
 t2 = @dspawn begin
     @R A
     println("I automatically wait for `t1` to finish")
