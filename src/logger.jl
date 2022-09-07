@@ -85,6 +85,7 @@ Clear the `logger`'s memory, logging states, and reset environnement for new mea
 function resetlogger!(logger=getlogger())
     map(empty!, logger.tasklogs)
     map(empty!, logger.insertionlogs)
+    TASKCOUNTER[] = 0
 end
 
 #= Utility function to get number of task nodes of the logger =#
