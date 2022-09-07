@@ -95,7 +95,6 @@ Base.istaskfailed(t::DataFlowTask) = istaskfailed(t.task)
 Base.istaskstarted(t::DataFlowTask) = istaskstarted(t.task)
 Base.wait(t::DataFlowTask)  = wait(t.task)
 Base.fetch(t::DataFlowTask) = fetch(t.task)
-Base.errormonitor(t::DataFlowTask) = errormonitor(t.task)
 
 # the tag gives a total order of the tasks, with smaller tasks being assumed to
 # have come before in a sequential execution of the program
