@@ -100,7 +100,7 @@ end
     @test_throws TaskFailedException wait(t)
     @test isempty(ERRORS)
 
-    # Errors are handled when debug mode is on
+    # Errors are handled when debug mode is on.
     DataFlowTasks.enable_debug(true)
     empty!(ERRORS)
     t = @dspawn error("Expected error")
