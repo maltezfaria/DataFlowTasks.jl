@@ -110,9 +110,6 @@ function Base.show(io::IO,t::DataFlowTask)
     end
 end
 
-# errormonitor was introduced in v1.7
-maybe_errormonitor(t) = VERSION >= v"1.7" ? Base.errormonitor(t) : t
-maybe_errormonitor(t::DataFlowTask) = maybe_errormonitor(t.task)
 
 """
     data_dependency(t1::DataFlowTask,t1::DataFlowTask)

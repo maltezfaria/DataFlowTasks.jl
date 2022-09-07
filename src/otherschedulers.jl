@@ -152,7 +152,7 @@ function finished_to_runnable(dag,finished,runnable)
             end
         end
     end
-    maybe_errormonitor(task)
+    task
 end
 
 """
@@ -183,7 +183,7 @@ function consume_runnable(runnable,nt,background=false)
             end
         end
         t.sticky = VERSION >= v"1.7"
-        push!(tasks,maybe_errormonitor(t))
+        push!(tasks, t)
     end
     return tasks
 end
