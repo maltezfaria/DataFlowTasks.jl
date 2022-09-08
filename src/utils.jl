@@ -54,7 +54,7 @@ backend and/or `GraphViz`, so if these are not yet available on your system call
 
 Available backends are: `CairoMakie` and `GLMakie`.
 """
-function enable_graphics(;backend=:GLMakie)
+function enable_graphics(;backend=:CairoMakie)
     supported = (:GLMakie, :CairoMakie)
     backend in supported || error("supported backends: $supported")
     @eval Main (DataFlowTasks.@using_opt GraphViz, $backend)
