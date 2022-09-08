@@ -105,6 +105,33 @@ Global `Logger` being used to record the events. Can be changed using [`setlogge
 """
 const LOGGER = Ref{Logger}()
 
+"""
+    @profile expr --> logger
+    @profile logger expr --> logger
+
+Execute `expr` and return a `logger::[`Logger`](@ref)` with the recorded events.
+
+If called with a `Logger` as first argument, append the events to the it instead
+of creating a new new.
+"""
+macro profile(logger,ex)
+    quote
+        _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
+        old_logger = getlogger()
+        setlogger!($logger)
+        $(esc(ex))
+        setlogger!(old_logger)
+        $logger
+    end
+end
+
+macro profile(ex)
+    quote
+        logger = Logger()
+        @profile logger $(esc(ex))
+    end
+end
+
 ############################################################################
 #                           To Plot DAG
 ############################################################################
