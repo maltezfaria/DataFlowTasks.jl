@@ -1,7 +1,8 @@
 using Test
 using DataFlowTasks
 using LinearAlgebra
-using GraphViz, CairoMakie
+
+DataFlowTasks.enable_graphics()
 
 # NOTE: the functions below call sleep to make sure the computation does not finish
 # before full dag is created. Otherwise the critical path may be "incomplete"
@@ -23,6 +24,7 @@ A = ones(20, 20)
 B = ones(20, 20)
 
 DataFlowTasks.resetlogger!()
+DataFlowTasks.resetcounter!()
 
 work(A, B)
 
@@ -49,3 +51,16 @@ dotstr = DataFlowTasks.loggertodot(logger)
 # Visualization call
 DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
 DataFlowTasks.dagplot()
+
+# reset the logger but not the counter and make sure things still work
+DataFlowTasks.resetlogger!()
+work(A, B)
+@test length(logger.tasklogs) == Threads.nthreads()
+nbtasks = DataFlowTasks.nbtasknodes(logger)
+nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs)
+@test nbtasks == 5
+@test nbinsertion == 5
+
+# Critical Path
+path = DataFlowTasks.criticalpath(logger)
+@test path == [5, 3, 2, 1] .+ nbtasks
