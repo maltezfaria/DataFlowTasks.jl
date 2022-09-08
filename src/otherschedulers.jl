@@ -1,7 +1,8 @@
 #=
 WARNING: the other schedulers are mostly experimental and likely to disappear in
-the future.
+the future. Requires ThreadPools package.
 =#
+using ThreadPools
 
 """
     struct RunnableChannel <: AbstractChannel{DataFlowTask}

@@ -58,13 +58,18 @@ Base.lock(dag::DAG)   = lock(dag.lock)
 Base.unlock(dag::DAG) = unlock(dag.lock)
 
 """
+    nodes(dag::DAG)
+
+Return an iterator over the nodes of `dag`.
+"""
+nodes(dag::DAG) = keys(dag.inoutlist)
+
+"""
     num_nodes(dag::DAG)
 
 Number of nodes in the `DAG`.
 """
-function num_nodes(dag::DAG)
-    length(dag.inoutlist)
-end
+num_nodes(dag::DAG) = dag |> nodes |> length
 
 """
     num_edges(dag::DAG)
@@ -73,7 +78,7 @@ Number of edges in the `DAG`.
 """
 function num_edges(dag::DAG)
     acc = 0
-    for (k,(inlist,outlist)) in dag.inoutlist
+    for (_,(inlist,_)) in dag.inoutlist
         acc += length(inlist)
     end
     return acc
@@ -257,42 +262,6 @@ function remove_node!(dag::DAG,i)
     return
 end
 
-function reset!()
-    dag = getscheduler().dag
-
-    for pair ∈ dag.inoutlist
-        node = pair.first
-        try
-            wait(node)
-        catch
-            remove_node!(dag, node)
-        end
-    end
-
-    sync()
-    resetlogger!()
-    resetcounter!()
-end
-
-"""
-    adjacency_matrix(dag)
-
-Construct the adjacency matrix of `dag`.
-"""
-function adjacency_matrix(dag::DAG{T}) where {T}
-    n = num_nodes(dag)
-    S = zeros(Bool,n,n)
-    # map the nodes in the `dag` to integer indices from 1 to n
-    dict = Dict{T,Int}(c=>i for (i,c) in enumerate(keys(dag.inoutlist)))
-    for i in keys(dag.inoutlist)
-        J = outneighbors(dag,i)
-        for j in J
-            S[dict[i],dict[j]] = 1
-        end
-    end
-    return S
-end
-
 function Base.show(io::IO, dag::DAG{T}) where {T}
     n = num_nodes(dag)
     e = num_edges(dag)
@@ -305,25 +274,6 @@ end
 ############################################################################
 #                           Critical Path
 ############################################################################
-
-#=
-    notvisited_min(dist, visited) --> minnode
-Extract the index minnode of the minimum value of dist
-such that visited[minnode] = false
-=#
-function notvisited_min(dist, visited)
-    minnode = Int64
-    mindist = Inf
-    for node ∈ 1:length(dist)
-        visited[node] && continue
-        if dist[node] < mindist
-            minnode = node
-            mindist = dist[node]
-        end
-    end
-    minnode
-end
-
 
 #=
     longestpath(adj) -> path

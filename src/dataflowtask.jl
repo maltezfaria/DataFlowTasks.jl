@@ -103,7 +103,7 @@ tag(t) = t
 
 Base.hash(t::DataFlowTask,h::UInt64)        = hash(t.tag,h)
 Base.:(==)(a::DataFlowTask,b::DataFlowTask) = (a.tag == b.tag)
-Base.:(<)(a::DataFlowTask,b::DataFlowTask)  = (a.tag < b.tag)
+Base.isless(a::DataFlowTask,b::DataFlowTask)  = isless(a.tag,b.tag)
 
 function Base.show(io::IO,t::DataFlowTask)
     if isdefined(t,:task)
@@ -112,7 +112,6 @@ function Base.show(io::IO,t::DataFlowTask)
         print(io, "DataFlowTask (no Task created) $(t.tag)")
     end
 end
-
 
 """
     data_dependency(t1::DataFlowTask,t1::DataFlowTask)

@@ -1,13 +1,12 @@
 """
     module DataFlowTask
 
-Create `Task`s wich keep track of how data flows through it.
+Create `Task`s which can keep track of how data flows through it.
 """
 module DataFlowTasks
 
 const PROJECT_ROOT =  pkgdir(DataFlowTasks)
 
-using ThreadPools
 using DataStructures
 using Requires
 using Compat
