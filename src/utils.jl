@@ -42,6 +42,24 @@ end
 
 _debug_mode() = true
 
+
+"""
+    enable_graphics([backend])
+
+Load scripts required to visualize the results of the [`Logger`](@ref).
+
+Calling this function will possibly download and pre-compile a `Makie`
+backend and/or `GraphViz`, so if these are not yet available on your system calling
+`enable_graphics` for the first time may take a while.
+
+Available backends are: `CairoMakie` and `GLMakie`.
+"""
+function enable_graphics(;backend=:GLMakie)
+    supported = (:GLMakie, :CairoMakie)
+    backend in supported || error("supported backends: $supported")
+    @eval Main (DataFlowTasks.@using_opt GraphViz, $backend)
+end
+
 function _handle_error(exceptions)
     Base.emphasize(stderr, "Failed Task\n")
     Base.display_error(stderr, exceptions)
