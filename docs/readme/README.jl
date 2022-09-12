@@ -61,7 +61,6 @@ Pkg.activate("..")       #src
 # Let's look at a simple example:
 
 using DataFlowTasks
-DataFlowTasks.resetlogger!() #hide
 A = Vector{Float64}(undef, 4)
 result = let
     @dspawn fill!(@W(A), 0)           # task 1: accesses everything
@@ -73,15 +72,24 @@ fetch(result)
 
 # From annotations describing task-data dependencies, `DataFlowTasks.jl` infers
 # dependencies between tasks. Internally, this set of dependencies is
-# represented as a Directed Acyclic Graph (DAG):
+# represented as a Directed Acyclic Graph. Reconstructing the `DAG` (as well as
+# the parallalel traces) can be done using the `@log` macro:
 
 using GraphViz # triggers additional code loading, powered by Requires.jl
-DataFlowTasks.dagplot()
-DataFlowTasks.savedag("example_dag.svg", DataFlowTasks.dagplot()) #src
+logger = DataFlowTasks.@log let
+    @dspawn fill!(@W(A), 0)             label="write whole"
+    @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
+    @dspawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
+    res = @dspawn @R(A)                 label="read whole"
+    fetch(res)
+end
+dag = DataFlowTasks.dagplot(logger)
+DataFlowTasks.savedag("example_dag.svg", dag) #src
 
 #md # ![](example_dag.svg)
 
-# In the example above, tasks 2 & 3 access different parts of array `A` and are
+# In the example above, the tasks *write 1:2* and *write 3:4* access
+# different parts of the array `A` and are
 # therefore independant, as shown in the DAG.
 
 #-
@@ -240,7 +248,7 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 GC.gc()
 
 ## Profile the code and return a `Logger` object:
-logger = DataFlowTasks.@profile cholesky_dft!(A ,ts);
+logger = DataFlowTasks.@log cholesky_dft!(A ,ts);
 
 # Visualizing the DAG can be helpful. When debugging, this representation of
 # dependencies between tasks as inferred by `DataFlowTasks` can help identify

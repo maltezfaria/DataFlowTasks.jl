@@ -13,7 +13,6 @@ DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using CairoMakie, GraphViz, 
 
 makedocs(;
     modules=[DataFlowTasks],
-    authors="Luiz M. Faria <maltezfaria@gmail.com> and contributors",
     repo="https://github.com/maltezfaria/DataFlowTasks.jl/blob/{commit}{path}#{line}",
     sitename="DataFlowTasks.jl",
     format=Documenter.HTML(;
@@ -27,8 +26,8 @@ makedocs(;
         "Examples" => [
             "examples/cholesky/cholesky.md",
             "examples/stencil/stencil.md",
-            "examples/lu/lu.md",
-            "examples/hmat/hmat.md",
+            # "examples/lu/lu.md",
+            # "examples/hmat/hmat.md",
         ],
         # "Comparaison with Dagger.jl" => "dagger.md",
         "Common Issues" => "issues.md",
