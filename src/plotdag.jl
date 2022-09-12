@@ -3,10 +3,11 @@
 using .GraphViz
 
 """
-    dagplot(logger=getlogger())
+    dagplot(logger)
+
 Plot the dag in DOT format
 """
-function dagplot(logger=getlogger())
+function dagplot(logger)
     # Create GraphViz graph DOT format file
     g = GraphViz.Graph(loggertodot(logger))
 end
@@ -29,7 +30,7 @@ Return a string in the
 representing the underlying graph in `logger`
 and to be plotted by GraphViz with Graph(logger_to_dot())
 """
-function loggertodot(logger=getlogger())
+function loggertodot(logger)
     path = criticalpath(logger)
 
     # Write DOT graph

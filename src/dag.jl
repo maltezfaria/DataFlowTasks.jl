@@ -160,7 +160,7 @@ function addnode!(dag::DAG,kv::Pair,check=false)
         diff = Base.GC_Diff(Base.gc_num(), stats)
         t₁ = time_ns()
         tid = Threads.threadid()
-        _log_mode() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
+        _log_mode() && haslogger() && push!(getlogger().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
     finally
         unlock(dag)
     end

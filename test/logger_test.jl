@@ -18,17 +18,12 @@ function work(A, B)
     DataFlowTasks.sync()
 end
 
-DataFlowTasks.enable_log()
-
 A = ones(20, 20)
 B = ones(20, 20)
 
-DataFlowTasks.resetlogger!()
 DataFlowTasks.resetcounter!()
 
-work(A, B)
-
-logger = DataFlowTasks.getlogger()
+logger = DataFlowTasks.@log work(A, B)
 
 @test length(logger.tasklogs) == Threads.nthreads()
 nbtasks = DataFlowTasks.nbtasknodes(logger)
@@ -50,11 +45,10 @@ dotstr = DataFlowTasks.loggertodot(logger)
 
 # Visualization call
 DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
-DataFlowTasks.dagplot()
+DataFlowTasks.dagplot(logger)
 
-# reset the logger but not the counter and make sure things still work
-DataFlowTasks.resetlogger!()
-work(A, B)
+# do not the counter and make sure things still work
+logger = DataFlowTasks.@log work(A, B)
 @test length(logger.tasklogs) == Threads.nthreads()
 nbtasks = DataFlowTasks.nbtasknodes(logger)
 nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs)

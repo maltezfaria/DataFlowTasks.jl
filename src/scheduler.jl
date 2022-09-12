@@ -76,7 +76,7 @@ tasks. The interface requires the following methods:
 -`spawn(t,sch)`
 -`schedule(t,sch)`
 
-## See also: [`JuliaScheduler`](@ref), [`PriorityScheduler`](@ref), [`StaticScheduler`](@ref)
+## See also: [`JuliaScheduler`](@ref)
 """
 abstract type TaskGraphScheduler end
 

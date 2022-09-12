@@ -364,7 +364,7 @@ work(A, B)
 plot(categories=["init", "read", "work on B" => r"B\$"])
 ```
 """
-function plot(logger=getlogger(); categories=String[])
+function plot(logger; categories=String[])
     # Figure
     # ------
     fig = Figure(

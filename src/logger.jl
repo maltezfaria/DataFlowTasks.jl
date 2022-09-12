@@ -63,11 +63,18 @@ struct Logger
 end
 
 """
+    const LOGGER::Ref{Logger}
+
+Global `Logger` being used to record the events. Can be changed using [`setlogger!`](@ref).
+"""
+const LOGGER = Ref{Maybe{Logger}}()
+
+"""
     setlogger!(l::Logger)
 
 Set the global (default) logger to `l`.
 """
-function setlogger!(l::Logger)
+function setlogger!(l::Maybe{Logger})
     LOGGER[] = l
 end
 
@@ -80,12 +87,17 @@ function getlogger()
     LOGGER[]
 end
 
-"""
-    resetlogger(logger=getlogger())
+function haslogger()
+    !isnothing(getlogger())
+end
 
-Clear the `logger`'s memory, logging states, and reset environnement for new measures.
 """
-function resetlogger!(logger=getlogger())
+    resetlogger(logger)
+
+Clear the `logger`'s memory, logging states, and reset environnement for new
+measures.
+"""
+function resetlogger!(logger)
     map(empty!, logger.tasklogs)
     map(empty!, logger.insertionlogs)
     # FIXME: this should not be called here, but for the moment some graph
@@ -94,27 +106,20 @@ function resetlogger!(logger=getlogger())
 end
 
 #= Utility function to get number of task nodes of the logger =#
-function nbtasknodes(logger=getlogger())
+function nbtasknodes(logger)
     sum(length(threadlog) for threadlog ∈ logger.tasklogs)
 end
 
 """
-    const LOGGER::Ref{Logger}
-
-Global `Logger` being used to record the events. Can be changed using [`setlogger!`](@ref).
-"""
-const LOGGER = Ref{Logger}()
-
-"""
-    @profile expr --> logger
-    @profile logger expr --> logger
+    DataFlowTasks.@log expr --> logger
+    DataFlowTasks.@log logger expr --> logger
 
 Execute `expr` and return a `logger::[`Logger`](@ref)` with the recorded events.
 
-If called with a `Logger` as first argument, append the events to the it instead
-of creating a new new.
+If called with a `Logger` as a first argument, append the events to the it
+instead of creating a new one.
 """
-macro profile(logger,ex)
+macro log(logger,ex)
     quote
         _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
         old_logger = getlogger()
@@ -125,10 +130,10 @@ macro profile(logger,ex)
     end
 end
 
-macro profile(ex)
+macro log(ex)
     quote
         logger = Logger()
-        @profile logger $(esc(ex))
+        @log logger $(esc(ex))
     end
 end
 
@@ -147,7 +152,7 @@ end
 
 Finds the critical path of the logger's DAG
 """
-function criticalpath(logger=getlogger())
+function criticalpath(logger)
     # check that logger contains tasks with contiguous tags (not necessarily
     # starting at 1)
     tasklogs = topological_sort(logger)
