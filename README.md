@@ -6,7 +6,10 @@
 [![codecov](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl/branch/main/graph/badge.svg?token=UOWU691WWG)](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl)
 ![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-blue.svg)
 
-`DataFlowTasks.jl` is a Julia package dedicated to parallel programming on multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE) on program data, `DataFlowTasks.jl` automatically infers dependencies between parallel tasks.
+`DataFlowTasks.jl` is a Julia package dedicated to parallel programming on
+multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE)
+on program data, `DataFlowTasks.jl` automatically infers dependencies between
+parallel tasks.
 
 This `README` is also available in notebook form:
 [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](docs/readme/README.ipynb)
@@ -59,24 +62,39 @@ end
 fetch(result)
 ````
 
-From annotations describing task-data dependencies, `DataFlowTasks.jl` infers dependencies between tasks. Internally, this set of dependencies is represented as a Directed Acyclic Graph (DAG):
+From annotations describing task-data dependencies, `DataFlowTasks.jl` infers
+dependencies between tasks. Internally, this set of dependencies is
+represented as a Directed Acyclic Graph (DAG):
 
 ````julia
-using GraphViz
+using GraphViz # triggers additional code loading, powered by Requires.jl
 DataFlowTasks.dagplot()
 ````
 
 ![](docs/readme/example_dag.svg)
 
-In the example above, tasks 2 & 3 access different parts of array `A` and are therefore independant, as shown in the DAG.
+In the example above, tasks 2 & 3 access different parts of array `A` and are
+therefore independant, as shown in the DAG.
 
 ## Example : Parallel Cholesky Factorization
 
-As a less contrived example, we illustrate below the use of `DataFlowTasks` to parallelize a tiled Cholesky factorization. The implementation shown here is delibarately made as simple as possible; a more complex and more efficient implementation can be found in the [TiledFactorization](https://github.com/maltezfaria/TiledFactorization) package.
+As a less contrived example, we illustrate below the use of `DataFlowTasks` to
+parallelize a tiled Cholesky factorization. The implementation shown here is
+delibarately made as simple as possible; a more complex and more efficient
+implementation can be found in the
+[TiledFactorization](https://github.com/maltezfaria/TiledFactorization)
+package.
 
-The Cholesky factorization algorithm takes a symmetric positive definite matrix A and finds a lower triangular matrix L such that `A = LLᵀ`. The tiled version of this algorithm decomposes the matrix A into tiles (of even sizes, in this simplified version). At each step of the algorithm, we do a Cholesky factorization on the diagonal tile, use a triangular solve to update all of the tiles at the right of the diagonal tile, and finally update all the tiles of the submatrix with a schur complement.
+The Cholesky factorization algorithm takes a symmetric positive definite
+matrix A and finds a lower triangular matrix L such that `A = LLᵀ`. The tiled
+version of this algorithm decomposes the matrix A into tiles (of even sizes,
+in this simplified version). At each step of the algorithm, we do a Cholesky
+factorization on the diagonal tile, use a triangular solve to update all of
+the tiles at the right of the diagonal tile, and finally update all the tiles
+of the submatrix with a schur complement.
 
-If we have a matrix A decomposed in `n x n` tiles, then the algorithm will have `n` steps. The `i`-th step (with `i ∈ [1:n]`) will perform
+If we have a matrix A decomposed in `n x n` tiles, then the algorithm will
+have `n` steps. The `i`-th step (with `i ∈ [1:n]`) will perform
 
 - `1` cholesky factorization of the (i,i) block,
 - `(i-1)` triangular solves (one for each block in the `i`-th row),
@@ -142,13 +160,13 @@ function cholesky_dft!(A, ts)
         # Left blocks update
         U = UpperTriangular(T[i,i])
         for j in i+1:n
-            @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
+            @dspawn ldiv!(@R(U'), @RW(T[i,j])) label="ldiv ($i,$j)"
         end
 
         # Submatrix update
         for j in i+1:n
             for k in j:n
-                @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+                @dspawn mul!(@RW(T[j,k]), @R(T[i,j]'), @R(T[i,k]), -1, 1) label="schur ($j,$k)"
             end
         end
     end
@@ -159,14 +177,15 @@ function cholesky_dft!(A, ts)
 end
 ````
 
-(Also note how extra annotations were added in the code, in order to attach meaningful labels to the tasks. These will later be useful to interpret the output of debugging & profiling tools.)
+(Also note how extra annotations were added in the code, in order to attach
+meaningful labels to the tasks. These will later be useful to interpret the
+output of debugging & profiling tools.)
 
-The code below shows how to use this `cholesky_tiled!` function, as well as how to profile the program and get information about how tasks were scheduled:
+The code below shows how to use this `cholesky_tiled!` function, as well as
+how to profile the program and get information about how tasks were scheduled:
 
 ````julia
 # DataFlowTasks environnement setup
-DataFlowTasks.reset!()
-DataFlowTasks.enable_log()
 
 # Context
 n  = 2048
@@ -188,56 +207,88 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 
 ## Debugging and Profiling
 
-DataFlowTasks comes with debugging and profiling tools which help understanding how task dependencies were inferred, and how tasks were scheduled during execution.
+DataFlowTasks comes with debugging and profiling tools which help
+understanding how task dependencies were inferred, and how tasks were
+scheduled during execution.
 
-As usual when profiling code, it is recommended to start from a state where all code has already been compiled, and all previous profiling information has been discarded:
+As usual when profiling code, it is recommended to start from a state where
+all code has already been compiled, and all previous profiling information has
+been discarded:
 
 ````julia
-# Reset profiling environnement
-DataFlowTasks.resetlogger!()
+# Manually call GC to avoid noise from previous runs
 GC.gc()
 
-# Real workload to be analysed
-cholesky_dft!(A ,ts);
+# Profile the code and return a `Logger` object:
+logger = DataFlowTasks.@profile cholesky_dft!(A ,ts);
 ````
 
-Visualizing the DAG can be helpful. When debugging, this representation of dependencies between tasks as inferred by `DataFlowTasks` can help identify missing or erroneous data dependency annotations. When profiling, identifying the critical path (plotted in red in the DAG) can help understand the performances of the implementation.
+Visualizing the DAG can be helpful. When debugging, this representation of
+dependencies between tasks as inferred by `DataFlowTasks` can help identify
+missing or erroneous data dependency annotations. When profiling, identifying
+the critical path (plotted in red in the DAG) can help understand the
+performances of the implementation.
 
-In this more complex example, we can see how quickly the DAG complexity increases (even though the test case only has 4x4 blocks here):
+In this more complex example, we can see how quickly the DAG complexity
+increases (even though the test case only has 4x4 blocks here):
 
 ````julia
-using GraphViz
-dag = DataFlowTasks.dagplot()
+dag = DataFlowTasks.dagplot(logger)
 ````
 
 ![](docs/readme/cholesky_dag.svg)
 
-The parallel trace plot shows a timeline of the tasks execution on available threads. It helps understanding how tasks were scheduled. The same window also carries other general information allowing to better understand the performance limiting factors:
+The parallel trace plot shows a timeline of the tasks execution on available
+threads. It helps understanding how tasks were scheduled. The same window also
+carries other general information allowing to better understand the
+performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DataFlowTasks.plot(categories=["chol", "ldiv", "schur"])
+trace = DataFlowTasks.plot(logger;categories=["chol", "ldiv", "schur"])
 ````
 
 ![](docs/readme/cholesky_trace.svg)
 
-We see here that the execution time is bounded by the length of the critical path: with this block size and matrix size, the algorithm does not expose enough parallelism to occupy all threads without waiting periods.
+We see here that the execution time is bounded by the length of the critical
+path: with this block size and matrix size, the algorithm does not expose
+enough parallelism to occupy all threads without waiting periods.
 
-We'll cover in details the usage and possibilities of the visualization in the documentation.
+We'll cover in details the usage and possibilities of the visualization in the
+documentation.
 
-Note that the debugging & profiling tools need additional dependencies such as `Makie` and `GraphViz`, which are only meant to be used interactively during the development process. These packages are therefore only considered as optional depdendencies, and it is up the the user to set the environment in such a way that they are available.
+Note that the debugging & profiling tools need additional dependencies such as
+`Makie` and `GraphViz`, which are only meant to be used interactively during
+the development process. These packages are therefore only considered as
+optional depdendencies; assuming they are available in your work environment,
+calling e.g. `using GraphViz` will load some additional code from
+`DataFlowTasks` (see also the documentation of `DataFlowTasks.@using_opt` if
+you prefer an alternative way of handling these extra dependencies).
 
 # Performances
 
-The performance of this example can be improved by using better implementations for the sequential building blocks operating on tiles:
+The performance of this example can be improved by using better
+implementations for the sequential building blocks operating on tiles:
 
-- `LoopVectorization.jl` can improve the performance of the sequential cholesky factorization of diagonal blocks
+- `LoopVectorization.jl` can improve the performance of the sequential
+  cholesky factorization of diagonal blocks as well as the `schur_complement`
 - `TriangularSolve.jl` provides a high-performance `ldiv!` implementation
-- `Octavian.jl` provides fast, pure-Julia matmuls for the Schur complements.
 
-This approach is taken in [`TiledFactorization.jl`](https://github.com/maltezfaria/TiledFactorization), where all the above mentioned building blocks are combined with the parallelization strategy presented here. The performances of this implementation is assessed in the following plot, by comparison to MKL on a the case of a 5000x5000 matrix decomposed in tiles of size 256x256.
+This approach is pursued in
+[`TiledFactorization.jl`](https://github.com/maltezfaria/TiledFactorization),
+where all the above mentioned building blocks are combined with the
+parallelization strategy presented here to create a *pure Julia*
+implementation of the matrix factorizations. The performances of this
+implementation is assessed in the following plot, by comparison to MKL on a
+the case of a 5000x5000 matrix decomposed in tiles of size 256x256.
 
-![](docs/readme/scalability_lfaria.png)
+![](docs/readme/cholesky_scaling.png)
+
+The figure above was generated by running [this
+script](https://github.com/maltezfaria/TiledFactorization/blob/69055a312c03af519b7a35165e401e69fd282e43/benchmarks/cholesky_plot.jl)
+on a machine with the following topology:
+
+![](docs/readme/lfaria-precision-7920-tower-lstopo.png)
 
 ---
 

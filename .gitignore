@@ -13,3 +13,4 @@ JuliaSysimage.dll
 .vscode/
 *~
 TiledFactorization
+docs/.DS_Store

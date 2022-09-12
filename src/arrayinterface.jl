@@ -52,3 +52,11 @@ end
 
 idxintersect(a,b) = !isempty(intersect(a,b))
 idxintersect(a::Number,b::Number) = a == b
+
+# Triangular types simply delegate to underlying data
+memory_overlap(T::LinearAlgebra.AbstractTriangular,A) = memory_overlap(T.data,A)
+memory_overlap(A,T::LinearAlgebra.AbstractTriangular) = memory_overlap(T,A)
+
+# Adjoint delegates to parent
+memory_overlap(T::Adjoint,A) = memory_overlap(T.parent,A)
+memory_overlap(A,T::Adjoint) = memory_overlap(T,A)

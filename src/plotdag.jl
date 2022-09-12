@@ -3,7 +3,7 @@
 using .GraphViz
 
 """
-    dagplot(logger=getlogger())  
+    dagplot(logger=getlogger())
 Plot the dag in DOT format
 """
 function dagplot(logger=getlogger())
@@ -12,7 +12,7 @@ function dagplot(logger=getlogger())
 end
 
 """
-    savedag(filepath, graph)  
+    savedag(filepath, graph)
 Save svg dag image in filepath
 """
 function savedag(filepath::String, graph::GraphViz.Graph)
@@ -30,7 +30,7 @@ representing the underlying graph in `logger`
 and to be plotted by GraphViz with Graph(logger_to_dot())
 """
 function loggertodot(logger=getlogger())
-    path = criticalpath()
+    path = criticalpath(logger)
 
     # Write DOT graph
     # ---------------

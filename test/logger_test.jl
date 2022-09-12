@@ -2,7 +2,7 @@ using Test
 using DataFlowTasks
 using LinearAlgebra
 
-DataFlowTasks.enable_graphics()
+DataFlowTasks.@using_opt GraphViz, CairoMakie
 
 # NOTE: the functions below call sleep to make sure the computation does not finish
 # before full dag is created. Otherwise the critical path may be "incomplete"
