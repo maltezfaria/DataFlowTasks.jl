@@ -3,10 +3,10 @@ import Pkg               #src
 Pkg.activate("../../..") #src
 using BenchmarkTools     #src
 
-# # Blur-Roberts
+# # Blur & Roberts image filters
 #
-#md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](cholesky.ipynb)
-#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/cholesky/cholesky.ipynb)
+#md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](blur-roberts.ipynb)
+#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/blur-roberts/blur-roberts.ipynb)
 #
 # This example illustrate the use of `DataFlowTasks.jl` to parallelize the tiled
 # application of two kernels used in image processing. The application first
