@@ -3,8 +3,8 @@
 using .Makie
 
 
-#= Contains data to plot the Gantt Chart (parallel trace).  
-It's a Struct of Array paradigm where all the entries i 
+#= Contains data to plot the Gantt Chart (parallel trace).
+It's a Struct of Array paradigm where all the entries i
 of all the arrays tells us information about a same task. =#
 struct Gantt
     threads::Vector{Int64}      # Thread on wich the task ran
@@ -122,7 +122,7 @@ function extractloggerinfo!(logger::Logger, loginfo::LoggerInfo, gantt::Gantt)
         push!(gantt.jobids , length(loginfo.categories)+2)
         push!(gantt.starts , insertion_start)
         push!(gantt.stops  , insertion_finish)
-    
+
         # General Informations
         # --------------------
         task_duration  = (insertionlog.time_finish - insertionlog.time_start) * 10^(-9)
@@ -309,8 +309,9 @@ end
 
 
 """
-    plot(logger; categories)  
-Plot DataFlowTasks `logger` labeled informations with categories.  
+    plot(logger; categories)
+
+Plot DataFlowTasks `logger` labeled informations with categories.
 
 Entries in `categories` define how to group tasks in categories for
 plotting. Each entry can be:
@@ -363,7 +364,7 @@ work(A, B)
 plot(categories=["init", "read", "work on B" => r"B\$"])
 ```
 """
-function plot(logger=getlogger(); categories=String[])
+function plot(logger; categories=String[])
     # Figure
     # ------
     fig = Figure(
@@ -373,7 +374,7 @@ function plot(logger=getlogger(); categories=String[])
 
     # Extract logger informations
     # ---------------------------
-    loginfo = LoggerInfo(logger, categories, criticalpath())
+    loginfo = LoggerInfo(logger, categories, criticalpath(logger))
     gantt = Gantt()
     extractloggerinfo!(logger, loginfo, gantt)
 

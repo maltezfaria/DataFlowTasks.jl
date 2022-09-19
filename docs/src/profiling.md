@@ -13,9 +13,9 @@ profiling parallel programs:
     Visualization tools require additional dependencies (such as `Makie` or
     `GraphViz`) which are only needed during the development stage. We are
     therefore only declaring those as *optional dependencies* (using
-    `Requires.jl`) and it is currently up to the user to set up a stacked
-    environment in which these dependencies are available.
-
+    `Requires.jl`). The user can either set up a stacked
+    environment in which these dependencies are available, or use the 
+    [`DataFlowTasks.@using_opt`](@ref) macro which to handle the environment automatically.
 
 Let's first introduce a small example that will help illustrate the features
 introduced here:
@@ -44,28 +44,31 @@ function work(A, B)
 end
 ```
 
-## Cleaning the internal state
+## Creating a [`Logger`](@ref DataFlowTasks.Logger)
 
-When debugging and profiling, it is usually preferable to always start
-experiments in a clean state. This helps avoiding interferences caused by
-previous (possibly bugged) runs.
-
-Before running our example, we'll call [`resetlogger!`](@ref DataFlowTasks.resetlogger!) in order to clean up the
-logging information that could linger in `DataFlowTasks` from previous experiments:
+In order to inspect code which makes use of `DataFlowTask`s, you
+can use the [`DataFlowTasks.@log`](@ref) macro to keep a trace of
+the various parallel events and the underlying `DAG`. Note that to avoid
+profiling the compilation time, it is often advisable to perform a "dry run" of
+the code first, as done in the example below:
 
 ```@example profiling
-DataFlowTasks.resetlogger!()
-nothing # hide
-```
 
-We can now run the example:
-```@example profiling
 # Context
 A = ones(2000, 2000)
 B = ones(3000, 3000)
 
-work(copy(A), copy(B))
+# precompilation run
+work(copy(A),copy(B)) 
+
+# activate logging of events
+logger = DataFlowTasks.@log work(A, B)
 ```
+
+The `logger` object above, of [`Logger`](@ref DataFlowTasks.Logger) type, stores
+various information that can be used to reconstruct both the inferred
+dependencies and the parallel execution traces of the `DataFlowTask`s, as
+illustrated next.
 
 ## DAG visualization
 
@@ -76,8 +79,8 @@ Acyclic Graph (DAG) representing *task dependencies* as they were inferred by
 DataFlowTasks.dagplot) function:
 
 ```@example profiling
-using GraphViz
-DataFlowTasks.dagplot()
+DataFlowTasks.@using_opt GraphViz # or `using GraphViz` if your environment has it
+DataFlowTasks.dagplot(logger)
 ```
 
 When the working environment supports rich media, the DAG will be displayed
@@ -85,7 +88,7 @@ automatically. In other cases, it is possible to export it to an image using
 [`savedag`](@ref DataFlowTasks.savedag):
 
 ```@example profiling
-g = DataFlowTasks.dagplot()
+g = DataFlowTasks.dagplot(logger)
 DataFlowTasks.savedag("profiling-example.svg", g)
 nothing # hide
 ```
@@ -104,29 +107,14 @@ path that took the longest run time during the computation.
 
 ## Scheduling and profiling information
 
-As said before, profiling should be performed in a state that is as clean as
-possible. Moreover, unless one is interested in compilation times, profiling
-information should also be collected from a computation in which everything was
-already available in compiled form.
-
-Let us then consider the previous computation as a "dry run" used to force all
-code to get compiled, and re-run the computation to collect clean profiling data:
-
-```@example profiling
-DataFlowTasks.resetlogger!()
-GC.gc()
-
-work(A, B)
-```
-
 The collected scheduling & profiling information can be visualized in a graph
 produced by the [`DataFlowTasks.plot`](@ref) function (note that it requires a
 `Makie` backend; using `GLMakie` brings a bit more interactivity than
-`CairoMakie`):
+`CairoMakie`) on the `logger` object:
 
 ```@example profiling
-using CairoMakie # or GLMakie to benefit from more interactivity
-DataFlowTasks.plot(categories=["init", "mutate", "read"])
+DataFlowTasks.@using_opt CairoMakie # or GLMakie to benefit from more interactivity
+DataFlowTasks.plot(logger; categories=["init", "mutate", "read"])
 nothing # hide
 ```
 
@@ -140,8 +128,6 @@ Note : be careful with giving similar labels. If tasks have "R" and "RW" labels,
 and the substrings given to the plot's argument are also "R", and "RW", then all
 tasks will be in the category "R" (because "R" can be found in "RW"). Regular
 expressions can be given instead of substrings in order to avoid such issues.
-
-
 
 Let us explore the various parts of this graph.
 

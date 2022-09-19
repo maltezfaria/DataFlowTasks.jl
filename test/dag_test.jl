@@ -3,7 +3,7 @@ using LinearAlgebra
 using DataFlowTasks
 using DataFlowTasks: DAG, num_nodes, num_edges, addnode!, addedge!,
                     has_edge, outneighbors, inneighbors, isconnected,
-                    adjacency_matrix, addedge_transitive!, remove_node!, R,W,RW, TaskGraph
+                    addedge_transitive!, remove_node!, R,W,RW, TaskGraph
 
 @testset "DAG{Int}" begin
     dag = DAG{Int}()
@@ -27,10 +27,6 @@ using DataFlowTasks: DAG, num_nodes, num_edges, addnode!, addedge!,
     @test isconnected(dag, 1, 3) == false
     @test isconnected(dag, 2, 4) == true
     @test isconnected(dag, 1, 4) == true # 1 --> 2 --> 4
-    @test adjacency_matrix(dag) == [0 1 0 0;
-                                    0 0 0 1;
-                                    0 0 0 0;
-                                    0 0 0 0]
     @test num_edges(addedge_transitive!(dag, 1, 4)) == 2 # vtx 1 is already connected to vtx through vtx2
 end
 
@@ -61,10 +57,6 @@ end
     @test isconnected(dag, cl1, cl3) == false
     @test isconnected(dag, cl2, cl4) == true
     @test isconnected(dag, cl1, cl4) == true # 1 --> 2 --> 4
-    @test adjacency_matrix(dag) == [0 1 0 0;
-                                    0 0 0 1;
-                                    0 0 0 0;
-                                    0 0 0 0]
     @test num_edges(addedge_transitive!(dag, cl1, cl4)) == 2 # vtx 1 is already connected to vtx through vtx2
 end
 

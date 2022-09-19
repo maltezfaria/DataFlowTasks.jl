@@ -298,8 +298,8 @@ sch
 ```
 
 !!! tip
-    There are situations where you may want to change the default scheduler
-    temporarily to execute a block of code, and revert to the default scheduler
+    There are situations where you may want to change the scheduler
+    temporarily to execute a block of code, and restore the default scheduler
     after. This can be done using the [`with_scheduler`](@ref) method. 
 
 

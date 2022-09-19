@@ -76,7 +76,7 @@ tasks. The interface requires the following methods:
 -`spawn(t,sch)`
 -`schedule(t,sch)`
 
-## See also: [`JuliaScheduler`](@ref), [`PriorityScheduler`](@ref), [`StaticScheduler`](@ref)
+## See also: [`JuliaScheduler`](@ref)
 """
 abstract type TaskGraphScheduler end
 
@@ -220,7 +220,7 @@ function stop_dag_worker(sch::JuliaScheduler=getscheduler())
         @warn "DAG worker failed"
         return sch.dag_worker
     else # expected result, task is running
-        isempty(sch.dag) || @warn "Stopping DAG worker of a non-empty graph"
+        isempty(sch.dag)
         put!(sch.finished, Stop())
         # wait for t to stop before continuining
         wait(t)

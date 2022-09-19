@@ -28,7 +28,7 @@ mutable struct DataFlowTask
         addnode!(sch,tj,true)
 
         # Store inneighbors if logging activated
-        _log_mode() && (inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)])
+        _log_mode() && haslogger() && (inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)])
 
         deps  = inneighbors(sch.dag,tj) |> copy
         tj.task = @task handle_errors() do
@@ -43,8 +43,8 @@ mutable struct DataFlowTask
             t₀  = time_ns()
             res = code()
             t₁  = time_ns()
-            # Push new TaskLog if logging activated
-            if _log_mode()
+            # Push new TaskLog if logging activated AND there is an available logger
+            if _log_mode() && haslogger()
                 tid = Threads.threadid()
                 task_log = TaskLog(tj.tag, t₀, t₁, tid, inneighbors_, tj.label)
                 push!(getlogger().tasklogs[tid], task_log)
@@ -103,7 +103,7 @@ tag(t) = t
 
 Base.hash(t::DataFlowTask,h::UInt64)        = hash(t.tag,h)
 Base.:(==)(a::DataFlowTask,b::DataFlowTask) = (a.tag == b.tag)
-Base.:(<)(a::DataFlowTask,b::DataFlowTask)  = (a.tag < b.tag)
+Base.isless(a::DataFlowTask,b::DataFlowTask)  = isless(a.tag,b.tag)
 
 function Base.show(io::IO,t::DataFlowTask)
     if isdefined(t,:task)
@@ -112,7 +112,6 @@ function Base.show(io::IO,t::DataFlowTask)
         print(io, "DataFlowTask (no Task created) $(t.tag)")
     end
 end
-
 
 """
     data_dependency(t1::DataFlowTask,t1::DataFlowTask)

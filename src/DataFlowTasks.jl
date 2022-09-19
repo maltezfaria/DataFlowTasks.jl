@@ -1,13 +1,12 @@
 """
     module DataFlowTask
 
-Create `Task`s wich keep track of how data flows through it.
+Create `Task`s which can keep track of how data flows through it.
 """
 module DataFlowTasks
 
 const PROJECT_ROOT =  pkgdir(DataFlowTasks)
 
-using ThreadPools
 using DataStructures
 using Requires
 using Compat
@@ -53,11 +52,21 @@ function __init__()
     sch       = JuliaScheduler(capacity)
     setscheduler!(sch)
 
-    # default logger
-    logger    = Logger()
-    setlogger!(logger)
+    # no logger by default
+    setlogger!(nothing)
 end
 
+"""
+    DataFlowTasks.@using_opt pkgnames
+
+Load `pkgnames` from optional dependencies.
+
+## Examples:
+```example
+using DataFlowTasks
+DataFlowTasks.@using_opt GraphViz
+```
+"""
 macro using_opt(pkgnames)
     if pkgnames isa Symbol
         pkgnames = [pkgnames]
