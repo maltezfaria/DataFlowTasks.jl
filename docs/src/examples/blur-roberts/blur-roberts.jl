@@ -59,7 +59,7 @@ pixels less than `width` pixels away in manhattan distance. In order to simplify
 the implementation, the filter is applied only to pixels that are sufficiently
 far from the boundary to have all their neighbors correctly defined.
 
-Results are written in-place a pre-allocated `dest` array. Unless otherwise
+Results are written in-place in a pre-allocated `dest` array. Unless otherwise
 specified, the filter is applied to the whole image, but can be reduced to a
 tile if a smaller `range` argument is provided.
 
