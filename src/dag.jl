@@ -276,40 +276,50 @@ end
 ############################################################################
 
 #=
-    longestpath(adj) -> path
-Finds the critical path of a DAG G by using Dijsktra's shortest path algorithm on G
-Returns the nodes constituting the path
-=#
-function longestpath(adj)
-    n = length(adj)                  # number of nodes
-    dist     = [-Inf   for _ ∈ 1:n]  # dist[i] gives the shortest path from source to i
-    previous = [0     for _ ∈ 1:n]   # previous[i] gives the antecedent of i in longest path
-    path     = Vector{Int64}()       # explicit storage for the longest path
-    dist[1] = 0
+    longest_path(graph) -> path
 
-    for currnode ∈ 1:n
-        if dist[currnode] != -Inf
-            for (neighbour, weight) ∈ adj[currnode]
-                if dist[neighbour] < dist[currnode] + weight
-                    dist[neighbour] = dist[currnode] + weight
-                    previous[neighbour] = currnode
-                end
+Finds the critical path of a graph G, and return the nodes constituting it in
+reverse order.
+
+Required interface for the graph:
+- topological_sort(graph) -> collection of nodes, sorted in topological order
+- inneighbors(node)       -> collection of predecessors of node
+- weight(node)            -> weight of the node
+- tag(node)               -> id of the node
+=#
+function longest_path(graph)
+    # lp[n] = (length, n′)   where:
+    # - length is the length of the longest path leading to n
+    # - n′ is the predecessor of n in this path (or 0 if n is the first node in the path)
+    lp = Dict{Int64, Tuple{Float64, Int}}()
+
+    for node in topological_sort(graph)
+
+        # Find the predecessor with the longest path leading to it
+        path_length = 0.0
+        predecessor = 0
+        for n in inneighbors(node)
+            pl, _ = lp[n]
+            if pl > path_length
+                path_length = pl
+                predecessor = n
             end
         end
+
+        # Augment the longest path with the weight of the current node
+        path_length += weight(node)
+        lp[tag(node)] = (path_length, predecessor)
     end
 
-    # Extract path
-    # ------------
-    # Get node of longest past and push in path
-    currnode = argmin(-dist)
-    push!(path, currnode-1)
+    # Find the node with the longest path
+    node = argmax(lp)
+    path = [node]
 
-    # Run through previous[] to get the path
-    while currnode != 1
-        currnode = previous[currnode]
-        push!(path, currnode-1)
+    # Backtrack to the beginning of the path
+    while true
+        _, node = lp[node]
+        node == 0 && break
+        push!(path, node)
     end
-    filter!(x->x!=0, path)
-
     path
 end

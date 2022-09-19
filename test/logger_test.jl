@@ -6,7 +6,7 @@ DataFlowTasks.@using_opt GraphViz, CairoMakie
 
 # NOTE: the functions below call sleep to make sure the computation does not finish
 # before full dag is created. Otherwise the critical path may be "incomplete"
-# and the tests on `criticalpath` will fail
+# and the tests on `longest_path` will fail
 computing(A) = (sleep(0.01); A*A)
 computing(A, B) = (sleep(0.01); A*B)
 function work(A, B)
@@ -32,7 +32,7 @@ nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs
 @test nbinsertion == 5
 
 # Critical Path
-path = DataFlowTasks.criticalpath(logger)
+path = DataFlowTasks.longest_path(logger)
 @test path == [5, 3, 2, 1]
 
 # DOT Format File
@@ -56,5 +56,5 @@ nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs
 @test nbinsertion == 5
 
 # Critical Path
-path = DataFlowTasks.criticalpath(logger)
+path = DataFlowTasks.longest_path(logger)
 @test path == [5, 3, 2, 1] .+ nbtasks

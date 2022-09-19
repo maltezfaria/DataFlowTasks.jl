@@ -374,7 +374,7 @@ function plot(logger; categories=String[])
 
     # Extract logger informations
     # ---------------------------
-    loginfo = LoggerInfo(logger, categories, criticalpath(logger))
+    loginfo = LoggerInfo(logger, categories, longest_path(logger))
     gantt = Gantt()
     extractloggerinfo!(logger, loginfo, gantt)
 
