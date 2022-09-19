@@ -74,3 +74,33 @@ end
     sleep(0.1)
     @test num_nodes(dag) == sz
 end
+
+@testset "Longest path" begin
+    FakeGraph = NamedTuple{(:nodes,)}
+    FakeNode  = NamedTuple{(:tag, :weight, :predecessors)}
+
+    DataFlowTasks.topological_sort(g::FakeGraph) = g.nodes
+    DataFlowTasks.inneighbors(n::FakeNode) = n.predecessors
+    DataFlowTasks.weight(n::FakeNode) = n.weight
+    DataFlowTasks.tag(n::FakeNode) = n.tag
+
+
+    graph = (nodes=[
+        (tag=42, weight=0.1, predecessors=Int[]),
+        (tag=18, weight=0.1, predecessors=Int[42]),
+        (tag=36, weight=1.0, predecessors=Int[]),
+        (tag=39, weight=1.0, predecessors=Int[36]),
+        (tag=10, weight=0.2, predecessors=Int[]),
+        (tag=11, weight=0.2, predecessors=Int[10]),
+        (tag=12, weight=0.2, predecessors=Int[11]),
+    ],)
+    @test DataFlowTasks.longest_path(graph) == [39, 36]
+
+
+    graph = (nodes=[
+        (tag=42, weight=0.1, predecessors=Int[]),
+        (tag=18, weight=0.3, predecessors=Int[]),
+        (tag=36, weight=0.2, predecessors=Int[]),
+    ],)
+    @test DataFlowTasks.longest_path(graph) == [18]
+end

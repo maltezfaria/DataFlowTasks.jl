@@ -278,14 +278,14 @@ end
 #=
     longest_path(graph) -> path
 
-Finds the critical path of a graph G, and return the nodes constituting it in
-reverse order.
+Finds the critical path of a DAG `graph`, and returns the nodes constituting it
+in reverse order.
 
 Required interface for the graph:
-- topological_sort(graph) -> collection of nodes, sorted in topological order
-- inneighbors(node)       -> collection of predecessors of node
-- weight(node)            -> weight of the node
-- tag(node)               -> id of the node
+- topological_sort(graph) -> collection of nodes in `graph`, sorted in topological order
+- inneighbors(node)       -> collection of predecessors of `node` (identified by their tags)
+- weight(node)            -> cost of `node` (a positive Float64)
+- tag(node)               -> id of `node` (a strictly positive Int)
 =#
 function longest_path(graph)
     # lp[n] = (length, n′)   where:
@@ -294,7 +294,6 @@ function longest_path(graph)
     lp = Dict{Int64, Tuple{Float64, Int}}()
 
     for node in topological_sort(graph)
-
         # Find the predecessor with the longest path leading to it
         path_length = 0.0
         predecessor = 0
