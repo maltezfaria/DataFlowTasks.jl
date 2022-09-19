@@ -2,4 +2,6 @@
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+TiledIteration = "06e1c1a7-607b-532d-9fad-de7d9aa2abac"

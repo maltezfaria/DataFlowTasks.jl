@@ -4,7 +4,7 @@ include(joinpath(@__DIR__, "..", "..", "utils.jl"))
 option = get(ARGS, 1, "")
 option ∉ ("", "--check-only") && @warn "Unknown option: `$option`"
 
-for example in ["cholesky"]
+for example in ["cholesky", "blur-roberts"]
     hash_path = joinpath(example, "hashes.txt")
     hash_new, hash_old = hashes(hash_path, example)
 

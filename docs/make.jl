@@ -2,7 +2,7 @@ using DataFlowTasks
 using Documenter
 using Literate
 
-for example in ["cholesky"]
+for example in ["cholesky", "blur-roberts"]
     dir = joinpath(DataFlowTasks.PROJECT_ROOT,"docs","src", "examples", example)
     src = joinpath(dir, "$(example).jl")
     Literate.markdown(src, dir)
@@ -25,12 +25,13 @@ makedocs(;
         "Debugging & Profiling" => "profiling.md",
         "Examples" => [
             "examples/cholesky/cholesky.md",
-            "examples/stencil/stencil.md",
+            "examples/blur-roberts/blur-roberts.md",
+            # "examples/stencil/stencil.md",
             # "examples/lu/lu.md",
             # "examples/hmat/hmat.md",
         ],
         # "Comparaison with Dagger.jl" => "dagger.md",
-        "Common Issues" => "issues.md",
+        # "Common Issues" => "issues.md",
         "References" => "references.md"
     ],
     strict=true
