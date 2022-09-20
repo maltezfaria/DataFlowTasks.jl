@@ -168,7 +168,7 @@ events.
 
 !!! warning
     The returned `LogInfo` instance may be incomplete if `block` returns before all
-    `DataFlowTasks` spawened inside of it are completed. Typically `block`
+    `DataFlowTasks` spawened inside of it are completed. Typically `expr`
     should `fetch` the outcome before returning to properly benchmark the code
     that it runs (and not merely the tasks that it spawns).
 
