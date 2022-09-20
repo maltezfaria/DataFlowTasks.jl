@@ -75,12 +75,12 @@ illustrated next.
 In order to better understand what this example does, and check that *data
 dependencies* were suitably annotated, it can be useful to look at the Directed
 Acyclic Graph (DAG) representing *task dependencies* as they were inferred by
-`DataFlowTasks`. The DAG can be visualized with the [`dagplot`](@ref
-DataFlowTasks.dagplot) function:
+`DataFlowTasks`. The DAG can be visualized with the [`plot_dag`](@ref
+DataFlowTasks.plot_dag) function:
 
 ```@example profiling
 DataFlowTasks.@using_opt GraphViz # or `using GraphViz` if your environment has it
-DataFlowTasks.dagplot(logger)
+DataFlowTasks.plot_dag(logger)
 ```
 
 When the working environment supports rich media, the DAG will be displayed
@@ -88,7 +88,7 @@ automatically. In other cases, it is possible to export it to an image using
 [`savedag`](@ref DataFlowTasks.savedag):
 
 ```@example profiling
-g = DataFlowTasks.dagplot(logger)
+g = DataFlowTasks.plot_dag(logger)
 DataFlowTasks.savedag("profiling-example.svg", g)
 nothing # hide
 ```
@@ -114,7 +114,7 @@ produced by the [`DataFlowTasks.plot`](@ref) function (note that it requires a
 
 ```@example profiling
 DataFlowTasks.@using_opt CairoMakie # or GLMakie to benefit from more interactivity
-DataFlowTasks.plot(logger; categories=["init", "mutate", "read"])
+DataFlowTasks.plot_traces(logger; categories=["init", "mutate", "read"])
 nothing # hide
 ```
 

@@ -12,7 +12,7 @@ function assignement!(clusters, centroids, points, tn, ts)
     for ti ∈ 1:tn
         # First/Last element indices
         fi = (ti-1)*ts + 1  ;  li = ti*ts
-        
+
         # To segment work in different tasks
         tiled_clusters = @view(clusters[fi:li])
         tiled_points   = @view(points[fi:li])
@@ -50,7 +50,7 @@ function closestcluster(i, centroids, tile)
 end
 
 function barycenter(cluster_pts, cluster_idx)
-    cx = 0  ;  cy = 0 
+    cx = 0  ;  cy = 0
     for cluster_pt ∈ cluster_pts
         cluster_pt == false && continue
         cx += cluster_pt[1]
@@ -97,6 +97,6 @@ function main()
     end
     DFT.sync()
 
-    DFT.plot(categories=["tile assignement", "barycenter"])
+    DFT.plot_traces(categories=["tile assignement", "barycenter"])
 end
 main()

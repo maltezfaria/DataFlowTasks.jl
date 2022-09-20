@@ -44,8 +44,8 @@ dotstr = DataFlowTasks.loggertodot(logger)
 @test occursin("4 -> 5", dotstr)
 
 # Visualization call
-DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
-DataFlowTasks.dagplot(logger)
+DataFlowTasks.plot_traces(logger, categories=["A²", "B²", "A*B"])
+DataFlowTasks.plot_dag(logger)
 
 # do not the counter and make sure things still work
 logger = DataFlowTasks.@log work(A, B)

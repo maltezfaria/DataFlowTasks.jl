@@ -76,7 +76,7 @@ logger = DataFlowTasks.@log let
     res = @dspawn @R(A)                 label="read whole"
     fetch(res)
 end
-dag = DataFlowTasks.dagplot(logger)
+dag = DataFlowTasks.plot_dag(logger)
 ````
 
 ![](docs/readme/example_dag.svg)
@@ -242,7 +242,7 @@ In this more complex example, we can see how quickly the DAG complexity
 increases (even though the test case only has 4x4 blocks here):
 
 ````julia
-dag = DataFlowTasks.dagplot(logger)
+dag = DataFlowTasks.plot_dag(logger)
 ````
 
 ![](docs/readme/cholesky_dag.svg)
@@ -254,7 +254,7 @@ performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DataFlowTasks.plot(logger;categories=["chol", "ldiv", "schur"])
+trace = DataFlowTasks.plot_traces(logger;categories=["chol", "ldiv", "schur"])
 ````
 
 ![](docs/readme/cholesky_trace.svg)

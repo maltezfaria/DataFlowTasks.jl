@@ -309,7 +309,7 @@ end
 
 
 """
-    plot(loginfo; categories)
+    plot_traces(loginfo; categories)
 
 Plot DataFlowTasks `loginfo` labeled informations with categories.
 
@@ -326,7 +326,7 @@ See the
 [documentation](https://maltezfaria.github.io/DataFlowTasks.jl/dev/profiling/)
 for more information on how to profile and visualize `DataFlowTasks`.
 """
-function plot(logger; categories=String[])
+function plot_traces(logger; categories=String[])
     # Figure
     # ------
     fig = Figure(

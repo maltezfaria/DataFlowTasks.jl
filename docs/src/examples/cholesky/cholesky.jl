@@ -176,7 +176,7 @@ logger = DataFlowTasks.@log cholesky_dft!(Ac, ts);
 # complexity increases (even though the test case only has 8×8 tiles here):
 
 using GraphViz
-dag = DataFlowTasks.dagplot(logger)
+dag = DataFlowTasks.plot_dag(logger)
 DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
 nothing #hide
 
@@ -191,7 +191,7 @@ nothing #hide
 # performance limiting factors:
 
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DataFlowTasks.plot(logger;categories=["chol", "ldiv", "schur"])
+trace = DataFlowTasks.plot_traces(logger;categories=["chol", "ldiv", "schur"])
 save("cholesky_trace.svg", trace) #src
 nothing #hide
 
