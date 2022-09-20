@@ -111,10 +111,16 @@ function nbtasknodes(logger)
 end
 
 """
-    DataFlowTasks.@log expr --> logger
-    DataFlowTasks.@log logger expr --> logger
+    DataFlowTasks.@log block --> loginfo
 
-Execute `expr` and return a `logger::[`LogInfo`](@ref)` with the recorded events.
+Execute `expr` and return a `loginfo::[`LogInfo`](@ref)` with the recorded
+events.
+
+!!! warning
+    The `loginfo` object may be incomplete if `block` returns before all
+    `DataFlowTasks` spawened inside of it are completed. Typically `block`
+    should `fetch` the outcome before returning to properly benchmark the code
+    that it runs (and not merely the tasks that it spawns).
 
 If called with a `LogInfo` as a first argument, append the events to the it
 instead of creating a new one.

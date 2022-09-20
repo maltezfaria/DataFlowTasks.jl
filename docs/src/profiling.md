@@ -70,6 +70,14 @@ various information that can be used to reconstruct both the inferred
 dependencies and the parallel execution traces of the `DataFlowTask`s, as
 illustrated next.
 
+!!! warning
+    When using `@log`, you typically want the block of code being benchmarked
+    to wait for the completion of its `DataFlowTask`s before returning
+    (otherwise the `LoggerInfo` object that is returned may lack information
+    regarding the `DataFlowTask`s that have not been completed). In the example
+    above, that was achieved through the use of `fetch` in the last line of the
+    `work` function.
+
 ## DAG visualization
 
 In order to better understand what this example does, and check that *data
@@ -108,7 +116,7 @@ path that took the longest run time during the computation.
 ## Scheduling and profiling information
 
 The collected scheduling & profiling information can be visualized in a graph
-produced by the [`DataFlowTasks.plot`](@ref) function (note that it requires a
+produced by the [`DataFlowTasks.plot_traces`](@ref) function (note that it requires a
 `Makie` backend; using `GLMakie` brings a bit more interactivity than
 `CairoMakie`) on the `logger` object:
 
