@@ -247,7 +247,7 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 ## Manually call GC to avoid noise from previous runs
 GC.gc()
 
-## Profile the code and return a `Logger` object:
+## Profile the code and return a `LogInfo` object:
 logger = DataFlowTasks.@log cholesky_dft!(A ,ts);
 
 # Visualizing the DAG can be helpful. When debugging, this representation of

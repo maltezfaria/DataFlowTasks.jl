@@ -44,7 +44,7 @@ function work(A, B)
 end
 ```
 
-## Creating a [`Logger`](@ref DataFlowTasks.Logger)
+## Creating a [`LogInfo`](@ref DataFlowTasks.LogInfo)
 
 In order to inspect code which makes use of `DataFlowTask`s, you
 can use the [`DataFlowTasks.@log`](@ref) macro to keep a trace of
@@ -65,7 +65,7 @@ work(copy(A),copy(B))
 logger = DataFlowTasks.@log work(A, B)
 ```
 
-The `logger` object above, of [`Logger`](@ref DataFlowTasks.Logger) type, stores
+The `logger` object above, of [`LogInfo`](@ref DataFlowTasks.LogInfo) type, stores
 various information that can be used to reconstruct both the inferred
 dependencies and the parallel execution traces of the `DataFlowTask`s, as
 illustrated next.

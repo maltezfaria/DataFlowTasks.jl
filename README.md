@@ -228,7 +228,7 @@ been discarded:
 # Manually call GC to avoid noise from previous runs
 GC.gc()
 
-# Profile the code and return a `Logger` object:
+# Profile the code and return a `LogInfo` object:
 logger = DataFlowTasks.@log cholesky_dft!(A ,ts);
 ````
 

@@ -44,15 +44,15 @@ struct InsertionLog
 end
 
 """
-    struct Logger
+    struct LogInfo
 
-Contains informations on the program's progress. For thread-safety, the `Logger`
+Contains informations on the program's progress. For thread-safety, the `LogInfo`
 structure uses one vector of [`TaskLog`](@ref) per thread.
 """
-struct Logger
+struct LogInfo
     tasklogs::Vector{Vector{TaskLog}}
     insertionlogs::Vector{Vector{InsertionLog}}
-    function Logger()
+    function LogInfo()
         # internal constructor to guarantee that there is always one vector per
         # thread to do the logging
         new(
@@ -63,18 +63,18 @@ struct Logger
 end
 
 """
-    const LOGGER::Ref{Logger}
+    const LOGGER::Ref{LogInfo}
 
-Global `Logger` being used to record the events. Can be changed using [`setlogger!`](@ref).
+Global `LogInfo` being used to record the events. Can be changed using [`setlogger!`](@ref).
 """
-const LOGGER = Ref{Maybe{Logger}}()
+const LOGGER = Ref{Maybe{LogInfo}}()
 
 """
-    setlogger!(l::Logger)
+    setlogger!(l::LogInfo)
 
 Set the global (default) logger to `l`.
 """
-function setlogger!(l::Maybe{Logger})
+function setlogger!(l::Maybe{LogInfo})
     LOGGER[] = l
 end
 
@@ -114,9 +114,9 @@ end
     DataFlowTasks.@log expr --> logger
     DataFlowTasks.@log logger expr --> logger
 
-Execute `expr` and return a `logger::[`Logger`](@ref)` with the recorded events.
+Execute `expr` and return a `logger::[`LogInfo`](@ref)` with the recorded events.
 
-If called with a `Logger` as a first argument, append the events to the it
+If called with a `LogInfo` as a first argument, append the events to the it
 instead of creating a new one.
 """
 macro log(logger,ex)
@@ -132,7 +132,7 @@ end
 
 macro log(ex)
     quote
-        logger = Logger()
+        logger = LogInfo()
         @log logger $(esc(ex))
     end
 end
@@ -142,7 +142,7 @@ end
 
 Base.isless(t1::TaskLog,t2::TaskLog) = isless(t1.tag,t2.tag)
 
-function topological_sort(l::Logger)
+function topological_sort(l::LogInfo)
     tlogs = Iterators.flatten(l.tasklogs) |> collect
     sort!(tlogs)
 end

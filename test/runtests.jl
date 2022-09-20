@@ -12,4 +12,4 @@ using SafeTestsets
     # include("staticscheduler_test.jl")
 end
 
-@safetestset "Logger tests" begin include("logger_test.jl") end
+@safetestset "LogInfo tests" begin include("loginfo_test.jl") end
