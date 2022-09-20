@@ -15,7 +15,7 @@ profiling parallel programs:
     therefore only declaring those as *optional dependencies* (using
     `Requires.jl`). The user can either set up a stacked
     environment in which these dependencies are available, or use the 
-    [`DataFlowTasks.@using_opt`](@ref) macro which to handle the environment automatically.
+    [`DataFlowTasks.@using_opt`](@ref) macro which handles the environment automatically.
 
 Let's first introduce a small example that will help illustrate the features
 introduced here:
@@ -62,10 +62,10 @@ B = ones(3000, 3000)
 work(copy(A),copy(B)) 
 
 # activate logging of events
-logger = DataFlowTasks.@log work(A, B)
+log_info = DataFlowTasks.@log work(A, B)
 ```
 
-The `logger` object above, of [`LogInfo`](@ref DataFlowTasks.LogInfo) type, stores
+The `log_info` object above, of [`LogInfo`](@ref DataFlowTasks.LogInfo) type, stores
 various information that can be used to reconstruct both the inferred
 dependencies and the parallel execution traces of the `DataFlowTask`s, as
 illustrated next.
@@ -73,7 +73,7 @@ illustrated next.
 !!! warning
     When using `@log`, you typically want the block of code being benchmarked
     to wait for the completion of its `DataFlowTask`s before returning
-    (otherwise the `LoggerInfo` object that is returned may lack information
+    (otherwise the `LogInfo` object that is returned may lack information
     regarding the `DataFlowTask`s that have not been completed). In the example
     above, that was achieved through the use of `fetch` in the last line of the
     `work` function.
@@ -88,7 +88,7 @@ DataFlowTasks.plot_dag) function:
 
 ```@example profiling
 DataFlowTasks.@using_opt GraphViz # or `using GraphViz` if your environment has it
-DataFlowTasks.plot_dag(logger)
+DataFlowTasks.plot_dag(log_info)
 ```
 
 When the working environment supports rich media, the DAG will be displayed
@@ -96,7 +96,7 @@ automatically. In other cases, it is possible to export it to an image using
 [`savedag`](@ref DataFlowTasks.savedag):
 
 ```@example profiling
-g = DataFlowTasks.plot_dag(logger)
+g = DataFlowTasks.plot_dag(log_info)
 DataFlowTasks.savedag("profiling-example.svg", g)
 nothing # hide
 ```
@@ -118,11 +118,11 @@ path that took the longest run time during the computation.
 The collected scheduling & profiling information can be visualized in a graph
 produced by the [`DataFlowTasks.plot_traces`](@ref) function (note that it requires a
 `Makie` backend; using `GLMakie` brings a bit more interactivity than
-`CairoMakie`) on the `logger` object:
+`CairoMakie`) on the `log_info` object:
 
 ```@example profiling
 DataFlowTasks.@using_opt CairoMakie # or GLMakie to benefit from more interactivity
-DataFlowTasks.plot_traces(logger; categories=["init", "mutate", "read"])
+DataFlowTasks.plot_traces(log_info; categories=["init", "mutate", "read"])
 nothing # hide
 ```
 

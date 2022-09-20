@@ -1,0 +1,9 @@
+coverage:
+  status:
+    project:
+      default:
+        # auto compares coverage to the previous base commit
+        target: auto
+        # this allow a 1% drop from the previous base commit coverage
+        # (useful when we remove dead but documented code)
+        threshold: 1%

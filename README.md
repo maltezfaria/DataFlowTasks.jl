@@ -69,14 +69,14 @@ the parallalel traces) can be done using the `@log` macro:
 
 ````julia
 using GraphViz # triggers additional code loading, powered by Requires.jl
-logger = DataFlowTasks.@log let
+log_info = DataFlowTasks.@log let
     @dspawn fill!(@W(A), 0)             label="write whole"
     @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
     @dspawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
     res = @dspawn @R(A)                 label="read whole"
     fetch(res)
 end
-dag = DataFlowTasks.plot_dag(logger)
+dag = DataFlowTasks.plot_dag(log_info)
 ````
 
 ![](docs/readme/example_dag.svg)
@@ -229,7 +229,7 @@ been discarded:
 GC.gc()
 
 # Profile the code and return a `LogInfo` object:
-logger = DataFlowTasks.@log cholesky_dft!(A ,ts);
+log_info = DataFlowTasks.@log cholesky_dft!(A ,ts);
 ````
 
 Visualizing the DAG can be helpful. When debugging, this representation of
@@ -242,7 +242,7 @@ In this more complex example, we can see how quickly the DAG complexity
 increases (even though the test case only has 4x4 blocks here):
 
 ````julia
-dag = DataFlowTasks.plot_dag(logger)
+dag = DataFlowTasks.plot_dag(log_info)
 ````
 
 ![](docs/readme/cholesky_dag.svg)
@@ -254,7 +254,7 @@ performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DataFlowTasks.plot_traces(logger;categories=["chol", "ldiv", "schur"])
+trace = DataFlowTasks.plot_traces(log_info; categories=["chol", "ldiv", "schur"])
 ````
 
 ![](docs/readme/cholesky_trace.svg)

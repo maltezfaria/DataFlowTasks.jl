@@ -151,7 +151,6 @@ out
 # output
 
 4.0
-
 ```
 
 See also: [`LogInfo`](@ref)
@@ -162,13 +161,13 @@ function with_logging(f)
 end
 
 """
-    DataFlowTasks.@log block --> loginfo
+    DataFlowTasks.@log expr --> LogInfo
 
-Execute `expr` and return a `loginfo::[`LogInfo`](@ref)` with the recorded
+Execute `expr` and return a [`LogInfo`](@ref) instance with the recorded
 events.
 
 !!! warning
-    The `loginfo` object may be incomplete if `block` returns before all
+    The returned `LogInfo` instance may be incomplete if `block` returns before all
     `DataFlowTasks` spawened inside of it are completed. Typically `block`
     should `fetch` the outcome before returning to properly benchmark the code
     that it runs (and not merely the tasks that it spawns).
