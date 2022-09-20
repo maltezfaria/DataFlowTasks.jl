@@ -309,9 +309,9 @@ end
 
 
 """
-    plot(logger; categories)
+    plot(loginfo; categories)
 
-Plot DataFlowTasks `logger` labeled informations with categories.
+Plot DataFlowTasks `loginfo` labeled informations with categories.
 
 Entries in `categories` define how to group tasks in categories for
 plotting. Each entry can be:
@@ -322,47 +322,9 @@ plotting. Each entry can be:
   regex are grouped together. The string is used as a label for the category
   itself.
 
-## Example
-
-```@example
-using CairoMakie
-using DataFlowTasks
-using DataFlowTasks: plot, resetlogger!, sync
-
-init!(A) = (A .= rand())                # Write
-mutate!(A) = (A .= exp.(sum(A).^2).^2)  # Read/Write
-get(A,B) = A+B                          # Read
-function work(A, B)
-    @dspawn init!(@W(A))      label="init A"
-    @dspawn init!(@W(B))      label="init B"
-    @dspawn mutate!(@RW(A))   label="mutate A"
-    @dspawn mutate!(@RW(B))   label="mutate B"
-    @dspawn get(@R(A), @R(B)) label="read A,B"
-    sync()
-end
-
-# Context
-A = ones(2000, 2000)
-B = ones(2000, 2000)
-
-# Compilation
-# run your code once to avoid seeing artifacts related to compilation in your logged data
-work(copy(A), copy(B))
-
-# Start "real" profiling work in a clean environment
-# - reset the internal logger state to discard data collected during previous runs
-# - start from a clean memory state. If garbage collection happens during the
-#   run, we'll know it's triggered by the real workload and the visualization will
-#   highlight its impact.
-resetlogger!()
-GC.gc()
-
-# Real Work
-work(A, B)
-
-# LogInfo Visualization
-plot(categories=["init", "read", "work on B" => r"B\$"])
-```
+See the
+[documentation](https://maltezfaria.github.io/DataFlowTasks.jl/dev/profiling/)
+for more information on how to profile and visualize `DataFlowTasks`.
 """
 function plot(logger; categories=String[])
     # Figure
