@@ -285,7 +285,7 @@ The parallel trace shows how blur and roberts tasks are interspersed in the time
 
 DataFlowTasks.@using_opt CairoMakie
 
-trace = DataFlowTasks.plot(log_info, categories=["blur", "roberts"])
+trace = DataFlowTasks.plot_traces(log_info, categories=["blur", "roberts"])
 save("trace.png", trace) #src
 nothing #hide #md
 

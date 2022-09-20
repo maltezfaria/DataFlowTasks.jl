@@ -170,13 +170,13 @@ GC.gc()
 
 ## Real workload to be analysed
 Ac = copy(A)
-logger = DataFlowTasks.@log cholesky_dft!(Ac, ts);
+log_info = DataFlowTasks.@log cholesky_dft!(Ac, ts)
 
 # The number of tasks being $\mathcal{O}(n^3)$, we can see how quickly the DAG
 # complexity increases (even though the test case only has 8×8 tiles here):
 
 using GraphViz
-dag = DataFlowTasks.dagplot(logger)
+dag = DataFlowTasks.plot_dag(log_info)
 DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
 nothing #hide
 
@@ -191,7 +191,7 @@ nothing #hide
 # performance limiting factors:
 
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DataFlowTasks.plot(logger;categories=["chol", "ldiv", "schur"])
+trace = DataFlowTasks.plot_traces(log_info; categories=["chol", "ldiv", "schur"])
 save("cholesky_trace.svg", trace) #src
 nothing #hide
 
