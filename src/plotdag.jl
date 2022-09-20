@@ -31,7 +31,7 @@ representing the underlying graph in `logger`
 and to be plotted by GraphViz with Graph(logger_to_dot())
 """
 function loggertodot(logger)
-    path = criticalpath(logger)
+    path = longest_path(logger)
 
     # Write DOT graph
     # ---------------

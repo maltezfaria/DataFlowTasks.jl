@@ -137,9 +137,9 @@ macro log(ex)
     end
 end
 
-############################################################################
-#                           To Plot DAG
-############################################################################
+# These implement the required interface to consider a Logger as a graph and
+# compute its longest path
+
 Base.isless(t1::TaskLog,t2::TaskLog) = isless(t1.tag,t2.tag)
 
 function topological_sort(l::Logger)
@@ -147,48 +147,5 @@ function topological_sort(l::Logger)
     sort!(tlogs)
 end
 
-"""
-    criticalpath(logger) --> path
-
-Finds the critical path of the logger's DAG
-"""
-function criticalpath(logger)
-    # check that logger contains tasks with contiguous tags (not necessarily
-    # starting at 1)
-    tasklogs = topological_sort(logger)
-    nbnodes  = length(tasklogs)
-    for i in 2:nbnodes
-        tag(tasklogs[i]) == tag(tasklogs[i-1]) + 1 || error("tasks not contiguous")
-    end
-    # HACK: because the current algorithm assumes the tasks start at one, apply
-    # a shift here and at the end
-    shift = tag(first(tasklogs)) - 1
-
-    # Declaration of the adjacency list for DAG analysis
-    # Note : we add a virtual first node 1 that represent the beginning of the DAG
-
-    adj = Dict{Int64, Set{Pair{Int64, Float64}}}()
-    for i ∈ 1:nbnodes+1
-        push!(adj, i=>Set{Pair{Int64, Float64}}())
-    end
-
-
-    # Initialize adjacency list
-    # ------------------
-    for tasklog ∈ tasklogs
-        # Weight of the arc from tasklog.tag to other nodes
-        task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
-
-        # If no inneighbors than it's one of the first tasks
-        # Note : considering we remove nodes from the dag, it's not necessarly true
-        if length(tasklog.inneighbors) == 0
-            push!(adj[1], tasklog.tag+1-shift => 0)
-        end
-
-        # Defines edges
-        for neighbour ∈ tasklog.inneighbors
-            push!(adj[neighbour+1-shift], tasklog.tag+1-shift => task_duration)
-        end
-    end
-    longestpath(adj) .+ shift
-end
+intags(t::TaskLog) = t.inneighbors
+weight(t::TaskLog) = task_duration(t) * 1e-9
