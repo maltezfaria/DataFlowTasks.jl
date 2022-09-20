@@ -65,6 +65,16 @@ struct LogInfo
     end
 end
 
+#TODO: show more relevant information
+function Base.show(io::IO,l::LogInfo)
+    nodes = topological_sort(l)
+    n     = length(nodes)
+    cp    = longest_path(l)
+    ctasks = filter(t->tag(t) ∈ cp,nodes)
+    ct    = sum(weight(t) for t in ctasks) # critical time
+    println(io,"LogInfo with $n logged task",n==1 ? "" : "s")
+    print(io,"\t critical time: $(round(ct,sigdigits=2)) seconds")
+end
 
 """
     const LOGINFO::Ref{LogInfo}
