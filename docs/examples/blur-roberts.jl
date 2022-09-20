@@ -23,7 +23,7 @@ function blur_tilestep!(v₂, v₁, ri, rj)
     end
 end
 # Update tile v₂, given by the ranges of indices (ri,rj), depending on v₁
-function robert_tilestep!(v₂, v₁, ri, rj)   
+function robert_tilestep!(v₂, v₁, ri, rj)
     for i ∈ ri, j ∈ rj
         v₂[i,j] = v₁[i,j] - v₁[i-1,j+1] + v₁[i,j+1] - v₁[i-1,j]
     end
@@ -95,5 +95,5 @@ GC.gc()
 blurrobert(v, ts)
 
 # Profile
-DFT.plot(categories=["blur", "robert"])
-# DFT.dagplot()
+DFT.plot_traces(categories=["blur", "robert"])
+# DFT.plot_dag()

@@ -21,7 +21,8 @@ end
 A = ones(20, 20)
 B = ones(20, 20)
 
-DataFlowTasks.resetcounter!()
+# reset counter. Needed because the tests below assume tags started with 1
+DataFlowTasks.TASKCOUNTER[] = 0
 
 logger = DataFlowTasks.@log work(A, B)
 
@@ -44,8 +45,8 @@ dotstr = DataFlowTasks.loggertodot(logger)
 @test occursin("4 -> 5", dotstr)
 
 # Visualization call
-DataFlowTasks.plot(logger, categories=["A²", "B²", "A*B"])
-DataFlowTasks.dagplot(logger)
+DataFlowTasks.plot_traces(logger, categories=["A²", "B²", "A*B"])
+DataFlowTasks.plot_dag(logger)
 
 # do not the counter and make sure things still work
 logger = DataFlowTasks.@log work(A, B)

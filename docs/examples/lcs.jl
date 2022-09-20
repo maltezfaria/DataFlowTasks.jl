@@ -40,7 +40,7 @@ function parallelLCS_PTM(x, y, tilesize)
     # Parameters
     n = length(x)
     ntiles = round(Int, n/tilesize)
-    
+
     # F[i,j] contains the LCS between the first i elements of X
     # and the first j elements of y.
     # Contains an extra line + column of zeros for commodity in boundary conditions
@@ -62,7 +62,7 @@ function parallelLCS_PTM(x, y, tilesize)
             @RW Ft[1,tj]
             @R  Ft[1,tj-1]
             tiledLCS!(F, x, y, 1, tj, tilesize)
-        end label="1 ; ≥2" 
+        end label="1 ; ≥2"
     end
 
     # First Vertical Column
@@ -72,7 +72,7 @@ function parallelLCS_PTM(x, y, tilesize)
             @RW Ft[ti,1]
             @R  Ft[ti-1,1]
             tiledLCS!(F, x, y, ti, 1, tilesize)
-        end label="≥2 ; 1" 
+        end label="≥2 ; 1"
     end
 
     # Others
@@ -81,16 +81,16 @@ function parallelLCS_PTM(x, y, tilesize)
     for ti ∈ 2:ntiles, tj ∈ 2:ntiles
         @dspawn begin
             @RW Ft[ti,tj]
-            @R  Ft[ti-1,tj] Ft[ti,tj-1] Ft[ti-1, tj-1]            
+            @R  Ft[ti-1,tj] Ft[ti,tj-1] Ft[ti-1, tj-1]
             tiledLCS!(F, x, y, ti, tj, tilesize)
-        end label="≥2 ; ≥2" 
+        end label="≥2 ; ≥2"
     end
 
     DFT.sync()
 end
 
 
-# Longest common subsequence of x and y 
+# Longest common subsequence of x and y
 # ts : tilesize
 # WITHOUT PseudoTiledMatrix
 function parallelLCS(x, y, ts)
@@ -112,7 +112,7 @@ function parallelLCS(x, y, ts)
             @RW gettile(F, 1, blockj, ts)
             @R gettile(F, 1, blockj-1, ts)
             tiledLCS!(F, x, y, 1, blockj, ts)
-        end label="1 ; ≥2" 
+        end label="1 ; ≥2"
     end
 
     # First Vertical Column
@@ -121,7 +121,7 @@ function parallelLCS(x, y, ts)
             @RW gettile(F, blocki, 1, ts)
             @R gettile(F, blocki-1, 1, ts)
             tiledLCS!(F, x, y, blocki, 1, ts)
-        end label="≥2 ; 1" 
+        end label="≥2 ; 1"
     end
 
     # Others
@@ -132,7 +132,7 @@ function parallelLCS(x, y, ts)
             @R gettile(F, blocki-1, blockj, ts)
             @R gettile(F, blocki, blockj-1, ts)
             tiledLCS!(F, x, y, blocki, blockj, ts)
-        end label="≥2 ; ≥2" 
+        end label="≥2 ; ≥2"
     end
 
     DFT.sync()
@@ -170,7 +170,7 @@ GC.gc()
 parallelLCS(x, y, blocks)
 
 # Plot
-f = DFT.plot(categories=["1 ; 1", "1 ; ≥2", "≥2 ; 1", "≥2 ; ≥2"])
+f = DFT.plot_traces(categories=["1 ; 1", "1 ; ≥2", "≥2 ; 1", "≥2 ; ≥2"])
 
 # DFT.resetlogger!()
 # bs = @benchmark serialLCS(x, y) samples=1
@@ -179,7 +179,6 @@ f = DFT.plot(categories=["1 ; 1", "1 ; ≥2", "≥2 ; 1", "≥2 ; ≥2"])
 # display(bs)
 # display(bp)
 
-# g = DFT.dagplot()
+# g = DFT.plot_dag()
 # GraphViz.layout!(g)
 # DFT.savedag("dag.svg", g)
-

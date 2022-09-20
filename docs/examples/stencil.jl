@@ -15,7 +15,7 @@ function initialization!(Un, n)
     for i ∈ 1:n, j ∈ 1:n
         i_inchoc = idxcenter-chocsize ≤ i ≤ idxcenter+chocsize
         j_inchoc = idxcenter-chocsize ≤ j ≤ idxcenter+chocsize
-        
+
         i_inchoc && j_inchoc && (Un[i,j] = 1)
     end
 end
@@ -85,4 +85,4 @@ function main()
 end
 main()
 
-f = DFT.plot(categories=["tile", "swap"])
+f = DFT.plot_traces(categories=["tile", "swap"])

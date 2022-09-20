@@ -76,14 +76,14 @@ fetch(result)
 # the parallalel traces) can be done using the `@log` macro:
 
 using GraphViz # triggers additional code loading, powered by Requires.jl
-logger = DataFlowTasks.@log let
+log_info = DataFlowTasks.@log let
     @dspawn fill!(@W(A), 0)             label="write whole"
     @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
     @dspawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
     res = @dspawn @R(A)                 label="read whole"
     fetch(res)
 end
-dag = DataFlowTasks.dagplot(logger)
+dag = DataFlowTasks.plot_dag(log_info)
 DataFlowTasks.savedag("example_dag.svg", dag) #src
 
 #md # ![](example_dag.svg)
@@ -247,8 +247,8 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 ## Manually call GC to avoid noise from previous runs
 GC.gc()
 
-## Profile the code and return a `Logger` object:
-logger = DataFlowTasks.@log cholesky_dft!(A ,ts);
+## Profile the code and return a `LogInfo` object:
+log_info = DataFlowTasks.@log cholesky_dft!(A ,ts);
 
 # Visualizing the DAG can be helpful. When debugging, this representation of
 # dependencies between tasks as inferred by `DataFlowTasks` can help identify
@@ -259,7 +259,7 @@ logger = DataFlowTasks.@log cholesky_dft!(A ,ts);
 # In this more complex example, we can see how quickly the DAG complexity
 # increases (even though the test case only has 4x4 blocks here):
 
-dag = DataFlowTasks.dagplot(logger)
+dag = DataFlowTasks.plot_dag(log_info)
 DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
 
 #md # ![](cholesky_dag.svg)
@@ -270,7 +270,7 @@ DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
 # performance limiting factors:
 
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DataFlowTasks.plot(logger;categories=["chol", "ldiv", "schur"])
+trace = DataFlowTasks.plot_traces(log_info; categories=["chol", "ldiv", "schur"])
 save("cholesky_trace.svg", trace) #src
 
 #md # ![](cholesky_trace.svg)

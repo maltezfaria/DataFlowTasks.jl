@@ -22,8 +22,8 @@ struct Gantt
 end
 
 
-#= Contains additional post-processed informations on the logger =#
-mutable struct LoggerInfo
+#= Contains additional post-processed informations on the LogInfo =#
+mutable struct ExtendedLogInfo
     firsttime::Float64              # First measured time
     lasttime::Float64               # Last measured time
     computingtime::Float64          # Cumulative time spent computing
@@ -35,7 +35,7 @@ mutable struct LoggerInfo
     categories::Vector{Pair{String, Regex}} # (label => regex) pairs for categories
     path::Vector{Int64}             # Critical Path
 
-    function LoggerInfo(logger::Logger, categories, path)
+    function ExtendedLogInfo(logger::LogInfo, categories, path)
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
         othertime     = (lasttime-firsttime) * length(logger.tasklogs)
 
@@ -54,7 +54,7 @@ end
 
 
 #= Gives minimum and maximum times the logger has measured. =#
-function timelimits(logger::Logger)
+function timelimits(logger::LogInfo)
     iter = Iterators.flatten(logger.tasklogs)
     minimum(t->t.time_start,iter), maximum(t->t.time_finish,iter)
 end
@@ -73,7 +73,7 @@ end
 
 
 #= Initialize gantt and loginfo structures from logger. =#
-function extractloggerinfo!(logger::Logger, loginfo::LoggerInfo, gantt::Gantt)
+function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Gantt)
     # Gantt data : Initialization TASKLOGS
     # ------------------------------------
     for tasklog ∈ Iterators.flatten(logger.tasklogs)
@@ -137,7 +137,7 @@ end
 
 
 #= Handles the gantt chart trace part of the global plot =#
-function traceplot(ax, logger::Logger, gantt::Gantt, loginfo::LoggerInfo)
+function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     hasdefault = (loginfo.timespercat[end] !=0 ? true : false)
 
     lengthx = length(loginfo.categories)+1
@@ -205,7 +205,7 @@ end
 
 
 #= Handles the plot that indicates the repartition between computing, inserting, and other times =#
-function activityplot(ax, loginfo::LoggerInfo)
+function activityplot(ax, loginfo::ExtendedLogInfo)
     # Axis attributes
     # ---------------
     ax.xticks = (1:3, ["Computing", "Inserting", "Other"])
@@ -227,7 +227,7 @@ end
 
 
 #= Handles the time boundaries part of the global plot =#
-function boundsplot(ax, loginfo::LoggerInfo)
+function boundsplot(ax, loginfo::ExtendedLogInfo)
     # Axis attributes
     # ---------------
     ax.xticks = (1:3, ["Critical\nPath", "Without\nWaiting" , "Real"])
@@ -244,7 +244,7 @@ function boundsplot(ax, loginfo::LoggerInfo)
 end
 
 #= Handles the sorting by labeled categories part of the plot =#
-function categoriesplot(ax, loginfo::LoggerInfo)
+function categoriesplot(ax, loginfo::ExtendedLogInfo)
     categories = loginfo.categories
     hasdefault = (loginfo.timespercat[end] !=0 ? true : false)
 
@@ -280,7 +280,7 @@ function categoriesplot(ax, loginfo::LoggerInfo)
 end
 
 #= Handles the interactivity part of the plot =#
-function react(ax, logger::Logger, gantt::Gantt)
+function react(ax, logger::LogInfo, gantt::Gantt)
     to = Observable("")
 
     on(events(ax.parent).mouseposition) do mp
@@ -309,9 +309,9 @@ end
 
 
 """
-    plot(logger; categories)
+    plot_traces(loginfo; categories)
 
-Plot DataFlowTasks `logger` labeled informations with categories.
+Plot DataFlowTasks `loginfo` labeled informations with categories.
 
 Entries in `categories` define how to group tasks in categories for
 plotting. Each entry can be:
@@ -322,49 +322,11 @@ plotting. Each entry can be:
   regex are grouped together. The string is used as a label for the category
   itself.
 
-## Example
-
-```@example
-using CairoMakie
-using DataFlowTasks
-using DataFlowTasks: plot, resetlogger!, sync
-
-init!(A) = (A .= rand())                # Write
-mutate!(A) = (A .= exp.(sum(A).^2).^2)  # Read/Write
-get(A,B) = A+B                          # Read
-function work(A, B)
-    @dspawn init!(@W(A))      label="init A"
-    @dspawn init!(@W(B))      label="init B"
-    @dspawn mutate!(@RW(A))   label="mutate A"
-    @dspawn mutate!(@RW(B))   label="mutate B"
-    @dspawn get(@R(A), @R(B)) label="read A,B"
-    sync()
-end
-
-# Context
-A = ones(2000, 2000)
-B = ones(2000, 2000)
-
-# Compilation
-# run your code once to avoid seeing artifacts related to compilation in your logged data
-work(copy(A), copy(B))
-
-# Start "real" profiling work in a clean environment
-# - reset the internal logger state to discard data collected during previous runs
-# - start from a clean memory state. If garbage collection happens during the
-#   run, we'll know it's triggered by the real workload and the visualization will
-#   highlight its impact.
-resetlogger!()
-GC.gc()
-
-# Real Work
-work(A, B)
-
-# Logger Visualization
-plot(categories=["init", "read", "work on B" => r"B\$"])
-```
+See the
+[documentation](https://maltezfaria.github.io/DataFlowTasks.jl/dev/profiling/)
+for more information on how to profile and visualize `DataFlowTasks`.
 """
-function plot(logger; categories=String[])
+function plot_traces(logger; categories=String[])
     # Figure
     # ------
     fig = Figure(
@@ -374,7 +336,7 @@ function plot(logger; categories=String[])
 
     # Extract logger informations
     # ---------------------------
-    loginfo = LoggerInfo(logger, categories, longest_path(logger))
+    loginfo = ExtendedLogInfo(logger, categories, longest_path(logger))
     gantt = Gantt()
     extractloggerinfo!(logger, loginfo, gantt)
 

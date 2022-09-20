@@ -44,15 +44,18 @@ struct InsertionLog
 end
 
 """
-    struct Logger
+    struct LogInfo
 
-Contains informations on the program's progress. For thread-safety, the `Logger`
-structure uses one vector of [`TaskLog`](@ref) per thread.
+Contains informations on the program's progress. For thread-safety, the
+`LogInfo` structure uses one vector of [`TaskLog`](@ref) per thread.
+
+You can visualize and postprocess a `LogInfo` using [`plot_dag`](@ref) and
+[`plot_traces`](@ref).
 """
-struct Logger
+struct LogInfo
     tasklogs::Vector{Vector{TaskLog}}
     insertionlogs::Vector{Vector{InsertionLog}}
-    function Logger()
+    function LogInfo()
         # internal constructor to guarantee that there is always one vector per
         # thread to do the logging
         new(
@@ -62,47 +65,45 @@ struct Logger
     end
 end
 
-"""
-    const LOGGER::Ref{Logger}
-
-Global `Logger` being used to record the events. Can be changed using [`setlogger!`](@ref).
-"""
-const LOGGER = Ref{Maybe{Logger}}()
-
-"""
-    setlogger!(l::Logger)
-
-Set the global (default) logger to `l`.
-"""
-function setlogger!(l::Maybe{Logger})
-    LOGGER[] = l
+#TODO: show more relevant information
+function Base.show(io::IO,l::LogInfo)
+    nodes = topological_sort(l)
+    n     = length(nodes)
+    cp    = longest_path(l)
+    ctasks = filter(t->tag(t) ∈ cp,nodes)
+    ct    = sum(weight(t) for t in ctasks) # critical time
+    println(io,"LogInfo with $n logged task",n==1 ? "" : "s")
+    print(io,"\t critical time: $(round(ct,sigdigits=2)) seconds")
 end
 
 """
-    getlogger()
+    const LOGINFO::Ref{LogInfo}
 
-Return the global logger.
+Global `LogInfo` being used to record the events. Can be changed using
+[`_setloginfo!`](@ref).
 """
-function getlogger()
-    LOGGER[]
+const LOGINFO = Ref{Maybe{LogInfo}}()
+
+"""
+    _setloginfo!(l::LogInfo)
+
+Set the active logger to `l`.
+"""
+function _setloginfo!(l::Maybe{LogInfo})
+    LOGINFO[] = l
+end
+
+"""
+    _getloginfo()
+
+Return the active logger.
+"""
+function _getloginfo()
+    LOGINFO[]
 end
 
 function haslogger()
-    !isnothing(getlogger())
-end
-
-"""
-    resetlogger(logger)
-
-Clear the `logger`'s memory, logging states, and reset environnement for new
-measures.
-"""
-function resetlogger!(logger)
-    map(empty!, logger.tasklogs)
-    map(empty!, logger.insertionlogs)
-    # FIXME: this should not be called here, but for the moment some graph
-    # algorithm assume the logged tasks start with taskid=1.
-    # TASKCOUNTER[] = 0
+    !isnothing(_getloginfo())
 end
 
 #= Utility function to get number of task nodes of the logger =#
@@ -111,29 +112,73 @@ function nbtasknodes(logger)
 end
 
 """
-    DataFlowTasks.@log expr --> logger
-    DataFlowTasks.@log logger expr --> logger
+    with_logging!(f,l::LogInfo)
 
-Execute `expr` and return a `logger::[`Logger`](@ref)` with the recorded events.
-
-If called with a `Logger` as a first argument, append the events to the it
-instead of creating a new one.
+Similar to [`with_logging`](@ref), but append events to `l`.
 """
-macro log(logger,ex)
-    quote
-        _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
-        old_logger = getlogger()
-        setlogger!($logger)
-        $(esc(ex))
-        setlogger!(old_logger)
-        $logger
-    end
+function with_logging!(f,l::LogInfo)
+    _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
+    old_logger = _getloginfo()
+    _setloginfo!(l)
+    res = f()
+    _setloginfo!(old_logger)
+    return res,l
 end
 
+"""
+    with_logging(f) --> f(),loginfo
+
+Execute `f()` and log `DataFlowTask`s into the `loginfo` object.
+
+## Examples:
+
+```jldoctest; output = false
+using DataFlowTasks
+
+A,B = zeros(2), ones(2);
+
+out,loginfo = DataFlowTasks.with_logging() do
+    @dspawn fill!(@W(A),1)
+    @dspawn fill!(@W(B),1)
+    res = @dspawn sum(@R(A)) + sum(@R(B))
+    fetch(res)
+end
+
+#
+
+out
+
+# output
+
+4.0
+```
+
+See also: [`LogInfo`](@ref)
+"""
+function with_logging(f)
+    l = LogInfo()
+    with_logging!(f,l)
+end
+
+"""
+    DataFlowTasks.@log expr --> LogInfo
+
+Execute `expr` and return a [`LogInfo`](@ref) instance with the recorded
+events.
+
+!!! warning
+    The returned `LogInfo` instance may be incomplete if `block` returns before all
+    `DataFlowTasks` spawened inside of it are completed. Typically `expr`
+    should `fetch` the outcome before returning to properly benchmark the code
+    that it runs (and not merely the tasks that it spawns).
+
+See also: [`with_logging`](@ref), [`with_logging!`](@ref)
+"""
 macro log(ex)
     quote
-        logger = Logger()
-        @log logger $(esc(ex))
+        f = () -> $(esc(ex))
+        out,loginfo = with_logging(f)
+        loginfo
     end
 end
 
@@ -142,7 +187,7 @@ end
 
 Base.isless(t1::TaskLog,t2::TaskLog) = isless(t1.tag,t2.tag)
 
-function topological_sort(l::Logger)
+function topological_sort(l::LogInfo)
     tlogs = Iterators.flatten(l.tasklogs) |> collect
     sort!(tlogs)
 end

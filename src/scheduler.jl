@@ -58,7 +58,7 @@ end
 """
     struct Stop
 
-Singleton type used to safely interrupt a task reading from an `AbstractChannel.
+Singleton type used to safely interrupt a task reading from an `AbstractChannel`.
 """
 struct Stop end
 
@@ -76,7 +76,7 @@ tasks. The interface requires the following methods:
 -`spawn(t,sch)`
 -`schedule(t,sch)`
 
-## See also: [`JuliaScheduler`](@ref)
+See also: [`JuliaScheduler`](@ref)
 """
 abstract type TaskGraphScheduler end
 
@@ -127,7 +127,7 @@ dag(sch::TaskGraphScheduler) = sch.dag
     sync([sch::TaskGraphScheduler])
 
 Wait for all nodes in `sch` to be finished before continuining. If called with
-no arguments, use  the current scheduler.
+no arguments, use the current scheduler.
 """
 function sync(sch::TaskGraphScheduler=getscheduler())
     dag = sch.dag
@@ -138,7 +138,7 @@ end
 """
     struct JuliaScheduler{T} <: TaskGraphScheduler{T}
 
-Implement a simple scheduling strategy which consists of delegating the
+Implements a simple scheduling strategy which consists of delegating the
 [`DataFlowTask`](@ref)s to the native Julia scheduler for execution immediately
 after the data dependencies have been analyzed using its `dag::DAG`. This is
 the default scheduler used by [`DataFlowTasks`](@ref).
@@ -195,9 +195,8 @@ end
 """
     start_dag_worker(sch)
 
-Start a forever-running task associated with `sch` which takes nodes from
-`finished` and removes them from the `dag`. The task blocks if `finished` is
-empty.
+Start a task associated with `sch` which takes nodes from its `finished` queue
+and removes them from the `dag`. The task blocks if `finished` is empty.
 """
 function start_dag_worker(sch::JuliaScheduler=getscheduler())
     task = @async while true
@@ -266,21 +265,19 @@ infer task dependencies.
 - `priority`: inform the scheduler about the relative priority of the task. This
   information is not (yet) leveraged by the default scheduler.
 
-## See also:
-
-[`@dtask`](@ref), [`@dasync`](@ref)
+See also: [`@dtask`](@ref), [`@dasync`](@ref)
 
 ## Examples:
 
 Below are 3 equivalent ways to create the same `DataFlowTask`, which expresses a
 Read-Write dependency on `C` and Read dependencies on `A` and `B`
 
-```julia
-using LinearAlgebra
-A = rand(10, 10)
-B = rand(10, 10)
-C = rand(10, 10)
-α, β = (100.0, 10.0)
+```jldoctest; output = false
+using DataFlowTasks,LinearAlgebra
+A = ones(5, 5)
+B = ones(5, 5)
+C = zeros(5, 5)
+α, β = (1, 0)
 
 # Option 1: annotate arguments in a function call
 @dspawn mul!(@RW(C), @R(A), @R(B), α, β)
@@ -294,7 +291,18 @@ end
 
 # Option 3: specify data access modes after the code block
 # (i.e. alongside keyword arguments)
-@dspawn mul!(C, A, B, α, β) @RW(C) @R(A,B)
+res = @dspawn mul!(C, A, B, α, β) @RW(C) @R(A,B)
+
+fetch(res) # a 5×5 matrix of 5.0
+
+# output
+
+5×5 Matrix{Float64}:
+ 5.0  5.0  5.0  5.0  5.0
+ 5.0  5.0  5.0  5.0  5.0
+ 5.0  5.0  5.0  5.0  5.0
+ 5.0  5.0  5.0  5.0  5.0
+ 5.0  5.0  5.0  5.0  5.0
 ```
 
 Here is a more complete example, demonstrating a full computation involving 2 different tasks.
@@ -338,14 +346,12 @@ macro dspawn(expr, kwargs...)
     end
 end
 
-
-
 """
     @dasync expr [kwargs...]
 
 Like [`@dspawn`](@ref), but schedules the task to run on the current thread.
 
-## See also:
+See also:
 
 [`@dspawn`](@ref), [`@dtask`](@ref)
 """

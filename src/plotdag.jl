@@ -3,11 +3,11 @@
 using .GraphViz
 
 """
-    dagplot(logger)
+    plot_dag(logger)
 
 Plot the dag in DOT format
 """
-function dagplot(logger)
+function plot_dag(logger)
     # Create GraphViz graph DOT format file
     g = GraphViz.Graph(loggertodot(logger))
 end
