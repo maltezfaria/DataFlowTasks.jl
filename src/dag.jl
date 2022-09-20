@@ -283,7 +283,7 @@ in reverse order.
 
 Required interface for the graph:
 - topological_sort(graph) -> collection of nodes in `graph`, sorted in topological order
-- inneighbors(node)       -> collection of predecessors of `node` (identified by their tags)
+- intags(node)            -> collection of predecessors of `node` (identified by their tags)
 - weight(node)            -> cost of `node` (a positive Float64)
 - tag(node)               -> id of `node` (a strictly positive Int)
 =#
@@ -297,7 +297,7 @@ function longest_path(graph)
         # Find the predecessor with the longest path leading to it
         path_length = 0.0
         predecessor = 0
-        for n in inneighbors(node)
+        for n in intags(node)
             pl, _ = lp[n]
             if pl > path_length
                 path_length = pl

@@ -147,5 +147,5 @@ function topological_sort(l::Logger)
     sort!(tlogs)
 end
 
-inneighbors(t::TaskLog) = t.inneighbors
-weight(t::TaskLog) = (t.time_finish - t.time_start) * 10^(-9)
+intags(t::TaskLog) = t.inneighbors
+weight(t::TaskLog) = task_duration(t) * 1e-9

@@ -80,7 +80,7 @@ end
     FakeNode  = NamedTuple{(:tag, :weight, :predecessors)}
 
     DataFlowTasks.topological_sort(g::FakeGraph) = g.nodes
-    DataFlowTasks.inneighbors(n::FakeNode) = n.predecessors
+    DataFlowTasks.intags(n::FakeNode) = n.predecessors
     DataFlowTasks.weight(n::FakeNode) = n.weight
     DataFlowTasks.tag(n::FakeNode) = n.tag
 
