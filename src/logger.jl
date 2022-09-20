@@ -63,32 +63,32 @@ struct LogInfo
 end
 
 """
-    const LOGGER::Ref{LogInfo}
+    const LOGINFO::Ref{LogInfo}
 
-Global `LogInfo` being used to record the events. Can be changed using [`setlogger!`](@ref).
+Global `LogInfo` being used to record the events. Can be changed using [`setloginfo!`](@ref).
 """
-const LOGGER = Ref{Maybe{LogInfo}}()
+const LOGINFO = Ref{Maybe{LogInfo}}()
 
 """
-    setlogger!(l::LogInfo)
+    setloginfo!(l::LogInfo)
 
 Set the global (default) logger to `l`.
 """
-function setlogger!(l::Maybe{LogInfo})
-    LOGGER[] = l
+function setloginfo!(l::Maybe{LogInfo})
+    LOGINFO[] = l
 end
 
 """
-    getlogger()
+    getloginfo()
 
 Return the global logger.
 """
-function getlogger()
-    LOGGER[]
+function getloginfo()
+    LOGINFO[]
 end
 
 function haslogger()
-    !isnothing(getlogger())
+    !isnothing(getloginfo())
 end
 
 """
@@ -122,16 +122,14 @@ events.
     should `fetch` the outcome before returning to properly benchmark the code
     that it runs (and not merely the tasks that it spawns).
 
-If called with a `LogInfo` as a first argument, append the events to the it
-instead of creating a new one.
 """
 macro log(logger,ex)
     quote
         _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
-        old_logger = getlogger()
-        setlogger!($logger)
+        old_logger = getloginfo()
+        setloginfo!($logger)
         $(esc(ex))
-        setlogger!(old_logger)
+        setloginfo!(old_logger)
         $logger
     end
 end

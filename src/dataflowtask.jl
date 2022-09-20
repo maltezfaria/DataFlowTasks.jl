@@ -47,7 +47,7 @@ mutable struct DataFlowTask
             if _log_mode() && haslogger()
                 tid = Threads.threadid()
                 task_log = TaskLog(tj.tag, t₀, t₁, tid, inneighbors_, tj.label)
-                push!(getlogger().tasklogs[tid], task_log)
+                push!(getloginfo().tasklogs[tid], task_log)
             end
             put!(sch.finished,tj)
             res

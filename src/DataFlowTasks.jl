@@ -53,7 +53,7 @@ function __init__()
     setscheduler!(sch)
 
     # no logger by default
-    setlogger!(nothing)
+    setloginfo!(nothing)
 end
 
 """

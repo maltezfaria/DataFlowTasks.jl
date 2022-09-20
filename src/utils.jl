@@ -18,7 +18,7 @@ end
 If `mode=true`, information regarding the [`DataFlowTask`](@ref)s will be logged
 in the current logger.
 
-## See also: [`getlogger`](@ref), [`setlogger!`](@ref), [`TaskLog`](@ref).
+## See also: [`getloginfo`](@ref), [`setloginfo!`](@ref), [`TaskLog`](@ref).
 """
 function enable_log(mode = true)
     _log_mode() == mode && return mode
