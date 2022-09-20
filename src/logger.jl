@@ -79,63 +79,37 @@ end
 """
     const LOGINFO::Ref{LogInfo}
 
-Global `LogInfo` being used to record the events. Can be changed using [`setloginfo!`](@ref).
+Global `LogInfo` being used to record the events. Can be changed using
+[`_setloginfo!`](@ref).
 """
 const LOGINFO = Ref{Maybe{LogInfo}}()
 
 """
-    setloginfo!(l::LogInfo)
+    _setloginfo!(l::LogInfo)
 
-Set the global (default) logger to `l`.
+Set the active logger to `l`.
 """
-function setloginfo!(l::Maybe{LogInfo})
+function _setloginfo!(l::Maybe{LogInfo})
     LOGINFO[] = l
 end
 
 """
-    getloginfo()
+    _getloginfo()
 
-Return the global logger.
+Return the active logger.
 """
-function getloginfo()
+function _getloginfo()
     LOGINFO[]
 end
 
 function haslogger()
-    !isnothing(getloginfo())
-end
-
-"""
-    resetlogger(logger)
-
-Clear the `logger`'s memory, logging states, and reset environnement for new
-measures.
-"""
-function resetlogger!(logger)
-    map(empty!, logger.tasklogs)
-    map(empty!, logger.insertionlogs)
-    # FIXME: this should not be called here, but for the moment some graph
-    # algorithm assume the logged tasks start with taskid=1.
-    # TASKCOUNTER[] = 0
+    !isnothing(_getloginfo())
 end
 
 #= Utility function to get number of task nodes of the logger =#
 function nbtasknodes(logger)
     sum(length(threadlog) for threadlog ∈ logger.tasklogs)
 end
-
-# These implement the required interface to consider a Logger as a graph and
-# compute its longest path
-
-Base.isless(t1::TaskLog,t2::TaskLog) = isless(t1.tag,t2.tag)
-
-function topological_sort(l::LogInfo)
-    tlogs = Iterators.flatten(l.tasklogs) |> collect
-    sort!(tlogs)
-end
-
-intags(t::TaskLog) = t.inneighbors
-weight(t::TaskLog) = task_duration(t) * 1e-9
 
 """
     with_logging!(f,l::LogInfo)
@@ -144,10 +118,10 @@ Similar to [`with_logging`](@ref), but append events to `l`.
 """
 function with_logging!(f,l::LogInfo)
     _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
-    old_logger = getloginfo()
-    setloginfo!(l)
+    old_logger = _getloginfo()
+    _setloginfo!(l)
     res = f()
-    setloginfo!(old_logger)
+    _setloginfo!(old_logger)
     return res,l
 end
 
@@ -158,7 +132,7 @@ Execute `f()` and log `DataFlowTask`s into the `loginfo` object.
 
 ## Examples:
 
-```jldoctest
+```jldoctest; output = false
 using DataFlowTasks
 
 A,B = zeros(2), ones(2);
@@ -208,3 +182,16 @@ macro log(ex)
         loginfo
     end
 end
+
+# These implement the required interface to consider a Logger as a graph and
+# compute its longest path
+
+Base.isless(t1::TaskLog,t2::TaskLog) = isless(t1.tag,t2.tag)
+
+function topological_sort(l::LogInfo)
+    tlogs = Iterators.flatten(l.tasklogs) |> collect
+    sort!(tlogs)
+end
+
+intags(t::TaskLog) = t.inneighbors
+weight(t::TaskLog) = task_duration(t) * 1e-9

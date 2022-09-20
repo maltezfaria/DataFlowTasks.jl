@@ -43,7 +43,7 @@ export
     @dspawn
 
 function __init__()
-    # Makie conditionnal loading
+    # Conditionnal loading
     @require Makie="ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" include("plotgeneral.jl")
     @require GraphViz="f526b714-d49f-11e8-06ff-31ed36ee7ee0" include("plotdag.jl")
 
@@ -53,7 +53,7 @@ function __init__()
     setscheduler!(sch)
 
     # no logger by default
-    setloginfo!(nothing)
+    _setloginfo!(nothing)
 end
 
 """

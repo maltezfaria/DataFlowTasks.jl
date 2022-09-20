@@ -6,8 +6,9 @@ list of nodes with edges coming into a node `i` can be retrieved using
 [`inneighbors(dag,i)`](@ref); similarly, the list of nodes with edges leaving
 from `i` can be retrieved using [`outneighbors(dag,i)`](@ref).
 
-`DAG` is a buffered structure with a buffer of size `sz_max`: calling [`addnode!`](@ref) on it will block
-if the `DAG` has more than `sz_max` elements.
+`DAG` is a buffered structure with a buffer of size `sz_max`: calling
+[`addnode!`](@ref) on it will block if the `DAG` has more than `sz_max`
+elements.
 """
 struct DAG{T}
     inoutlist::OrderedDict{T,Tuple{Set{T},Set{T}}}
@@ -21,7 +22,7 @@ end
 """
     DAG{T}(sz)
 
-Create a buffered `DAG` holding a maximum of `s` nodes of type `T`.
+Create a buffered `DAG` holding a maximum of `sz` nodes of type `T`.
 """
 function DAG{T}(sz = typemax(Int)) where T
     sz = sz == Inf ? typemax(Int) : Int(sz)
@@ -160,7 +161,7 @@ function addnode!(dag::DAG,kv::Pair,check=false)
         diff = Base.GC_Diff(Base.gc_num(), stats)
         t₁ = time_ns()
         tid = Threads.threadid()
-        _log_mode() && haslogger() && push!(getloginfo().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
+        _log_mode() && haslogger() && push!(_getloginfo().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
     finally
         unlock(dag)
     end
@@ -205,7 +206,7 @@ end
 """
     isconnected(dag,i,j)
 
-Check if there is path in `dag` connecting `i` to `j`.
+Check if there is a path in `dag` connecting `i` to `j`.
 """
 function isconnected(dag::DAG,i,j)
     for k in inneighbors(dag,j)

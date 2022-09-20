@@ -12,7 +12,7 @@ those dependencies.
 A `DataFlowTask` behaves much like a Julia `Task`: you can call `wait(t)`,
 `schedule(t)` and `fetch(t)` on it.
 
-## See also: [`@dtask`](@ref), [`@dspawn`](@ref), [`@dasync`](@ref).
+See also: [`@dtask`](@ref), [`@dspawn`](@ref), [`@dasync`](@ref).
 """
 mutable struct DataFlowTask
     data::Tuple
@@ -43,11 +43,11 @@ mutable struct DataFlowTask
             t₀  = time_ns()
             res = code()
             t₁  = time_ns()
-            # Push new TaskLog if logging activated AND there is an available logger
+            # Push new TaskLog if logging activated
             if _log_mode() && haslogger()
                 tid = Threads.threadid()
                 task_log = TaskLog(tj.tag, t₀, t₁, tid, inneighbors_, tj.label)
-                push!(getloginfo().tasklogs[tid], task_log)
+                push!(_getloginfo().tasklogs[tid], task_log)
             end
             put!(sch.finished,tj)
             res
@@ -62,15 +62,6 @@ end
 Global counter of created `DataFlowTask`s.
 """
 const TASKCOUNTER = Ref(0)
-
-"""
-    resetcounter!()
-
-Reset the [`TASKCOUNTER`](@ref) to `0`.
-"""
-function resetcounter!()
-    TASKCOUNTER[] = 0
-end
 
 """
     data(t::DataFlowTask[,i])
@@ -301,9 +292,7 @@ for execution.
 See [`@dspawn`](@ref) for information on how to annotate `expr` to specify data
 dependencies, and a list of supported keyword arguments.
 
-## See also:
-
-[`@dspawn`](@ref), [`@dasync`](@ref)
+See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
 macro dtask(expr, kwargs...)
     _dtask(expr, kwargs; source=__source__)

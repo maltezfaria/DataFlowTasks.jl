@@ -1,4 +1,7 @@
-# FIXME: make PR to OrderedCollections to allow for reverse iterators
+# FIXME: should we be able to iterate over an ordered dictionary in reverse
+# order? For some reason that does not work (it does not work either for a
+# regular `Dict`), so the lines below commit type piracy to make `OrderedDict`
+# be "reverse iterable".
 function Base.iterate(rt::Iterators.Reverse{<:OrderedDict})
     t = rt.itr
     t.ndel > 0 && DataStructures.OrderedCollections.rehash!(t)
@@ -15,10 +18,14 @@ end
 """
     enable_log(mode = true)
 
-If `mode=true`, information regarding the [`DataFlowTask`](@ref)s will be logged
-in the current logger.
+If `mode` is `true` (the default), logging is enabled throug the [`@log`](@ref)
+macro. Calling `enable_log(false)` will de-activate logging at compile time to
+avoid any possible overhead.
 
-## See also: [`getloginfo`](@ref), [`setloginfo!`](@ref), [`TaskLog`](@ref).
+Note that changing the log mode at runtime will may invalidate code, possibly
+triggering recompilation.
+
+See also: [`@log`](@ref), [`with_logging`](@ref)
 """
 function enable_log(mode = true)
     _log_mode() == mode && return mode

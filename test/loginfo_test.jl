@@ -21,7 +21,8 @@ end
 A = ones(20, 20)
 B = ones(20, 20)
 
-DataFlowTasks.resetcounter!()
+# reset counter. Needed because the tests below assume tags started with 1
+DataFlowTasks.TASKCOUNTER[] = 0
 
 logger = DataFlowTasks.@log work(A, B)
 

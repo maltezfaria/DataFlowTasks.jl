@@ -1,6 +1,6 @@
 #=
 This file defines `memory_overlap` for some commonly used (native) arrays. It
-covers some interseting use cases, and show how to implement the interface.
+covers some interseting use cases, and shows how to implement the interface.
 =#
 
 using LinearAlgebra
@@ -39,7 +39,7 @@ end
 function _memory_overlap(di::SubArray,dj::SubArray)
     idx1 = di.indices
     idx2 = dj.indices
-    length(idx1) == length(idx2) || error()
+    length(idx1) == length(idx2) || error("subarrays must have the same dimension")
     N = length(idx1)
     inter = ntuple(i->idxintersect(idx1[i],idx2[i]),N)
     all(inter)
