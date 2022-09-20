@@ -46,8 +46,11 @@ end
 """
     struct LogInfo
 
-Contains informations on the program's progress. For thread-safety, the `LogInfo`
-structure uses one vector of [`TaskLog`](@ref) per thread.
+Contains informations on the program's progress. For thread-safety, the
+`LogInfo` structure uses one vector of [`TaskLog`](@ref) per thread.
+
+You can visualize and postprocess a `LogInfo` using [`plot_dag`](@ref) and
+[`plot_traces`](@ref).
 """
 struct LogInfo
     tasklogs::Vector{Vector{TaskLog}}
@@ -61,6 +64,7 @@ struct LogInfo
         )
     end
 end
+
 
 """
     const LOGINFO::Ref{LogInfo}
@@ -110,37 +114,6 @@ function nbtasknodes(logger)
     sum(length(threadlog) for threadlog ∈ logger.tasklogs)
 end
 
-"""
-    DataFlowTasks.@log block --> loginfo
-
-Execute `expr` and return a `loginfo::[`LogInfo`](@ref)` with the recorded
-events.
-
-!!! warning
-    The `loginfo` object may be incomplete if `block` returns before all
-    `DataFlowTasks` spawened inside of it are completed. Typically `block`
-    should `fetch` the outcome before returning to properly benchmark the code
-    that it runs (and not merely the tasks that it spawns).
-
-"""
-macro log(logger,ex)
-    quote
-        _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
-        old_logger = getloginfo()
-        setloginfo!($logger)
-        $(esc(ex))
-        setloginfo!(old_logger)
-        $logger
-    end
-end
-
-macro log(ex)
-    quote
-        logger = LogInfo()
-        @log logger $(esc(ex))
-    end
-end
-
 # These implement the required interface to consider a Logger as a graph and
 # compute its longest path
 
@@ -153,3 +126,75 @@ end
 
 intags(t::TaskLog) = t.inneighbors
 weight(t::TaskLog) = task_duration(t) * 1e-9
+
+"""
+    with_logging!(f,l::LogInfo)
+
+Similar to [`with_logging`](@ref), but append events to `l`.
+"""
+function with_logging!(f,l::LogInfo)
+    _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
+    old_logger = getloginfo()
+    setloginfo!(l)
+    res = f()
+    setloginfo!(old_logger)
+    return res,l
+end
+
+"""
+    with_logging(f) --> f(),loginfo
+
+Execute `f()` and log `DataFlowTask`s into the `loginfo` object.
+
+## Examples:
+
+```jldoctest
+using DataFlowTasks
+
+A,B = zeros(2), ones(2);
+
+out,loginfo = DataFlowTasks.with_logging() do
+    @dspawn fill!(@W(A),1)
+    @dspawn fill!(@W(B),1)
+    res = @dspawn sum(@R(A)) + sum(@R(B))
+    fetch(res)
+end
+
+#
+
+out
+
+# output
+
+4.0
+
+```
+
+See also: [`LogInfo`](@ref)
+"""
+function with_logging(f)
+    l = LogInfo()
+    with_logging!(f,l)
+end
+
+"""
+    DataFlowTasks.@log block --> loginfo
+
+Execute `expr` and return a `loginfo::[`LogInfo`](@ref)` with the recorded
+events.
+
+!!! warning
+    The `loginfo` object may be incomplete if `block` returns before all
+    `DataFlowTasks` spawened inside of it are completed. Typically `block`
+    should `fetch` the outcome before returning to properly benchmark the code
+    that it runs (and not merely the tasks that it spawns).
+
+See also: [`with_logging`](@ref), [`with_logging!`](@ref)
+"""
+macro log(ex)
+    quote
+        f = () -> $(esc(ex))
+        out,loginfo = with_logging(f)
+        loginfo
+    end
+end
