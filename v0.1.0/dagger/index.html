@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Comparaison with Dagger.jl · DataFlowTasks.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://maltezfaria.github.io/DataFlowTasks.jl/dagger/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">DataFlowTasks.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Getting started</a></li><li><a class="tocitem" href="../profiling/">Debugging &amp; Profiling</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../examples/cholesky/cholesky/">Tiled Cholesky Factorization</a></li><li><a class="tocitem" href="../examples/blur-roberts/blur-roberts/">Blur &amp; Roberts image filters</a></li></ul></li><li><a class="tocitem" href="../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Comparaison with Dagger.jl</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Comparaison with Dagger.jl</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/maltezfaria/DataFlowTasks.jl/blob/main/docs/src/dagger.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="dagger-section"><a class="docs-heading-anchor" href="#dagger-section">Comparaison with Dagger.jl</a><a id="dagger-section-1"></a><a class="docs-heading-anchor-permalink" href="#dagger-section" title="Permalink"></a></h1><h2 id="What&#39;s-Dagger.jl"><a class="docs-heading-anchor" href="#What&#39;s-Dagger.jl">What&#39;s <code>Dagger.jl</code></a><a id="What&#39;s-Dagger.jl-1"></a><a class="docs-heading-anchor-permalink" href="#What&#39;s-Dagger.jl" title="Permalink"></a></h2><p>Dagger is a package for parallel computing, inspired by Python&#39;s Dask library, that is meant to be <code>flexible</code> and easy to use. It&#39;s supposed to help the parallelization of a complex serial code without the need to refactor everything. It uses a <code>functionnal</code> paradigm to easily imply dependencies between tasks, so they are not to be thought by the user. An exemple from Dagger.jl&#39;s documentation :  </p><pre><code class="language- hljs">using Dagger
+
+add1(value) = value + 1
+add2(value) = value + 2
+combine(a...) = sum(a)
+
+p = Dagger.@spawn add1(4)
+q = Dagger.@spawn add2(p)
+r = Dagger.@spawn add1(3)
+s = Dagger.@spawn combine(p, q, r)
+
+@assert fetch(s) == 16</code></pre><p>The result of the first task will be stored in <code>p</code>, and Dagger detects that <code>q</code> needs <code>p</code> to run, etc.. So the dependencies are automatically computed, and give the next DAG :  </p><p><img src="../DaggersDag.png" alt="Dagger&#39;s DAG"/>  </p><p>Under the hood, what&#39;s happening is we don&#39;t manipulate numbers, and matrices, but <code>EagerThunks</code>. After the fisrt line, <code>p</code> has become an EagerThunk, a sort of task carrying all the informations needed by Dagger.</p><p>Because we now know the dependencies between all tasks, we can give that to a <code>scheduler</code> (Dagger.jl implements his own), and give those tasks to different cores.</p><p>Dagger.jl&#39;s abstraction handles <code>multi-threading</code> and <code>distributed</code> parallel computing.</p><p>Like Dask, Dagger.jl comes with it&#39;s own data structures, mainly <code>DArrays</code>, for distributed memory computing.</p><h2 id="Comparison"><a class="docs-heading-anchor" href="#Comparison">Comparison</a><a id="Comparison-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison" title="Permalink"></a></h2><p>The main points that separate working with DataFlowTasks and Dagger are :</p><ul><li>The approach : dependencies are not implied by variable <code>names</code>, but by variable&#39;s associated <code>memory</code>.</li><li>Data structure : data structures are not wrapped into a package&#39;s own data structure (EagerThunk).</li><li><code>Distributed</code> parallelism : not supported by DataFlowTasks. </li><li>Dagger use a <code>functionnal</code> paradigm.</li><li>Scheduler : Dagger has it&#39;s own <code>scheduler</code>, where DataFlowTasks uses Julia&#39;s default one.</li><li><code>Performances</code> (see below)</li></ul><h2 id="Case-study"><a class="docs-heading-anchor" href="#Case-study">Case study</a><a id="Case-study-1"></a><a class="docs-heading-anchor-permalink" href="#Case-study" title="Permalink"></a></h2><p>DataFlowTasks is oriented towards linear algebra matrix computations, let&#39;s see how it can be prefered as Dagger.jl in that case by looking at the cholesky tiled factorization algorithm. We&#39;ll consider our matrix <code>A</code> already divided in blocks, where <code>Aij</code> is a view of the block at index <code>(i,j)</code>.   The pseudo-code for this algorithm would be :</p><pre><code class="language-julia hljs">Requires : A of size m*n 
+for i in 1:m
+    Aii &lt;- cholesky(Aii)
+    for j in i+1:m
+        Aij &lt;- ldiv(Aii,Aij)
+    end
+    for j in i+1:m
+        for k in j:n
+            Ajk &lt;- schurcomplement(Ajk, Aji, Aik)
+        end
+    end
+end</code></pre><p>In the first place, we can see that Dagger.jl&#39;s functionnal paradigm behaves like what we are used to write in pseudo-code : <code>Aii &lt;- cholesky(Aii)</code>. Usually though, code would written like : <code>cholesky!(Aii)</code>, the function modifying the variable.  </p><p>The problem here is that in this code, we&#39;ll only use a couple of variables names : <code>Aii</code>, <code>Aij</code>, <code>Ajk</code> etc... that will represent, depending on the iteration, a different matrix block.   To illustrate :</p><pre><code class="language- hljs">p = Dagger.@spawn add1(4)
+p = Dagger.@spawn add2(2)
+q = Dagger.@spawn add1(p)</code></pre><p>Here the first task is shadowed by second, q will only wait for the second task.   Therefore in the cholesky tiled factorization, we have to have a single variable name for every block of memory. Before computing anything we have to change our paradigm : we can&#39;t manipulate blocks of memory, we have to manipulate <code>Eagerthunks</code> previously mapped to blocks of memory.</p><pre><code class="language- hljs"># Map thunks to blocks of memory
+thunks = Matrix{Dagger.EagerThunk}(undef, m, n)
+# ...
+
+# Work on thunks
+for i in 1:m
+    thunks[i, i] = Dagger.@spawn cholesky(thunks[i, i])
+    # ...
+end
+
+# Reverse mapping from thunks to blocks of memory
+for i in 1:m, j in i:n
+    Aij .= fetch(thunks[i, j])
+end</code></pre><p>It can be more natural to reason on memory access, rather than on return values stored by variables. The DataFlowTasks cholesky tiled factorization would look more similar to the common pseudo-code showed above :</p><pre><code class="language- hljs">for i in 1:m
+    @dpsawn cholesky!(@RW(Aii))
+    for j in i+1:m
+        @dspawn ldiv!(@R(L), @RW(Aij))
+    end
+    for j in i+1:m
+        for k in j:n
+            @dspawn matmul!(@RW(Ajk), @R(Aji), @R(Aik))
+        end
+    end
+end</code></pre><p>With DataFlowTasks, the approach is thinking in an isolated way, at the moment of writing the function call, what are the modes of access of the variables. There&#39;s no need to take the whole code into account.</p><h2 id="Write-After-Read"><a class="docs-heading-anchor" href="#Write-After-Read">Write After Read</a><a id="Write-After-Read-1"></a><a class="docs-heading-anchor-permalink" href="#Write-After-Read" title="Permalink"></a></h2><p>Dagger.jl doesn&#39;t detect this kind of dependcies (WAR). Although it&#39;s not the most common type of depency, it&#39;s still worth noticing. Let&#39;s look at a simple example.</p><p>Let a vector of 4 elements <code>X = ones(4)</code>, with 2 views <code>X₁ = @views X[1:2]</code> and <code>X₂ = @views X[3:4]</code>. We reproduce here the behaviour of the data structures we used in the cholesky tiled factorization exemple. We will use the 2 next functions to work on this data structure.</p><pre><code class="language-julia hljs">function longTask(Xᵢ...)
+    sleep(2)
+    Xᵢ[1] .*= (2.0 .+ Xᵢ[2])
+end
+function shortTask(Xᵢ...)
+    Xᵢ[1] .+= 1.0
+end</code></pre><p>The work we want to do will be of type : <code>RW(X₁) -&gt; RW(X₂) R(X₁) -&gt; RW(X₁)</code>, and we will name those 3 tasks <code>tᵢ</code> with <code>i ∈ [1, 2, 3]</code>. The code will be :</p><pre><code class="language-julia hljs">X₁ = Dagger.@spawn shortTask(X₁)
+X₂ = Dagger.@spawn longTask(X₂, X₁)
+# fetch(X₂) needs to be added if we want it to work
+X₁ = Dagger.@spawn shortTask(X₁)
+
+fetch(X₁)
+fetch(X₂)
+X</code></pre><p>We could think that because X₁ is in argument in t₂, when we&#39;ll want to write on X₁ in t₃, we will wait for t₂ to be finished. If it&#39;s the case, will have the following stats for X (the middle bar represent the separation X₁ and X₂ induce) :</p><pre><code class="nohighlight hljs">1 1 | 1 1
+2 2 | 1 1  --&gt; t₁
+1 1 | 4 4  --&gt; t₂
+3 3 | 4 4  --&gt; t₃</code></pre><p>Instead if we don&#39;t wait for t₂, we&#39;ll have an inversion of t₃ and t₂. We will have :</p><pre><code class="nohighlight hljs">1 1 | 1 1
+2 2 | 1 1  --&gt; t₁
+3 3 | 1 1  --&gt; t₃
+3 3 | 5 5  --&gt; t₂</code></pre><p>Actually, it&#39;s the case when the tasks are meant to be of different times like they are now (to illustrate the point). If they are not so different with each other, the code becomes non-determinstic.</p><p>!!! TO DO : PERFORMANCE DIFFERENCES !!!</p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Friday 30 September 2022 07:09">Friday 30 September 2022</span>. Using Julia version 1.8.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
