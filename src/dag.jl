@@ -180,10 +180,14 @@ function update_edges!(dag::DAG,nodej)
     # update dependencies from newer to older and reinfornce transitivity by
     # skipping predecessors of nodes which are already connected
     for (nodei,_) in Iterators.reverse(dag)
+        nodei == nodej  && continue
+        if force_linear_dag()
+            addedge!(dag,nodei,nodej)
+            break
+        end
         ti     = tag(nodei)
         (ti ∈ transitively_connected) && continue
         @assert nodei ≤ nodej
-        nodei == nodej  && continue
         dep    = data_dependency(nodei,nodej)
         dep   || continue
         addedge!(dag,nodei,nodej)

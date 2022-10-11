@@ -146,6 +146,7 @@ function memory_overlap(di,dj)
     return true
 end
 
+force_linear_dag() = false
 
 """
     force_sequential(mode = true)
