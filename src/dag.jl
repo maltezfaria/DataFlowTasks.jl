@@ -187,12 +187,17 @@ function update_edges!(dag::DAG,nodej)
         end
         ti     = tag(nodei)
         (ti ∈ transitively_connected) && continue
+        # if a DataFlowTask is in data, add the edge directly to the DAG
         @assert nodei ≤ nodej
         dep    = data_dependency(nodei,nodej)
         dep   || continue
         addedge!(dag,nodei,nodej)
         update_transitively_connected!(transitively_connected,nodei,dag)
         # addedge_transitive!(dag,nodei,nodej)
+    end
+    # if a DataFlowTask is in data and it is still active, add the edge directly to the DAG
+    for d in data(nodej)
+        (d isa DataFlowTask) && (tag(d) ∉ transitively_connected) && haskey(dag.inoutlist,d) && addedge!(dag,d,nodej)
     end
     return dag
 end
