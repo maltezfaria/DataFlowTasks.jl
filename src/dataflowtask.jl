@@ -148,7 +148,17 @@ function memory_overlap(di,dj)
     return true
 end
 
-force_linear_dag() = false
+"""
+    force_linear_dag(mode=false)
+
+If `mode` is `true`, nodes are added to the DAG in a linear fashion, i.e. the DAG
+connects node `i` to node `i+1`. This is useful for debugging purposes.
+"""
+function force_linear_dag(mode=false)
+    @eval _linear_dag() = $mode
+end
+
+_linear_dag() = false
 
 """
     force_sequential(mode = true)
@@ -158,6 +168,8 @@ code is simply run as it appears in the sources. In effect, this makes `@dspawn`
 a no-op.
 
 By default, sequential mode is disabled when the program starts.
+
+See also: [`force_linear_dag`](@ref).
 """
 function force_sequential(seq::Bool = true; static::Bool = false)
     dyn = static ? :sta : :dyn

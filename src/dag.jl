@@ -181,7 +181,7 @@ function update_edges!(dag::DAG,nodej)
     # skipping predecessors of nodes which are already connected
     for (nodei,_) in Iterators.reverse(dag)
         nodei == nodej  && continue
-        if force_linear_dag()
+        if _linear_dag()
             addedge!(dag,nodei,nodej)
             break
         end
