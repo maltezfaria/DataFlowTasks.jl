@@ -1,22 +1,25 @@
-@info "Loading DataFlowTasks dag plot utilities"
+module DataFlowTasks_GraphViz_Ext
 
-using .GraphViz
+using GraphViz
+using DataFlowTasks
+using DataFlowTasks: LogInfo, longest_path
+
+function __init__()
+    @info "Loading DataFlowTasks dag plot utilities"
+end
 
 """
     plot_dag(logger)
 
 Plot the dag in DOT format
 """
-function plot_dag(logger)
-    # Create GraphViz graph DOT format file
-    g = GraphViz.Graph(loggertodot(logger))
-end
+GraphViz.Graph(log_info::LogInfo) = GraphViz.Graph(loggertodot(log_info))
 
 """
     savedag(filepath, graph)
 Save svg dag image in filepath
 """
-function savedag(filepath::String, graph::GraphViz.Graph)
+function DataFlowTasks.savedag(filepath::String, graph::GraphViz.Graph)
     !graph.didlayout && GraphViz.layout!(graph)
     open(filepath, "w") do io
         GraphViz.render(io, graph)
@@ -60,4 +63,6 @@ function loggertodot(logger)
     end
 
     str *= "}"
+end
+
 end

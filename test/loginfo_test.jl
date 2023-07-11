@@ -4,6 +4,13 @@ using LinearAlgebra
 
 DataFlowTasks.@using_opt GraphViz, CairoMakie
 
+# Check that extensions were loaded correctly
+MakieExt = Base.get_extension(DataFlowTasks, :DataFlowTasks_Makie_Ext)
+@test MakieExt isa Module
+
+GraphVizExt = Base.get_extension(DataFlowTasks, :DataFlowTasks_GraphViz_Ext)
+@test GraphVizExt isa Module
+
 # NOTE: the functions below call sleep to make sure the computation does not finish
 # before full dag is created. Otherwise the critical path may be "incomplete"
 # and the tests on `longest_path` will fail
@@ -37,7 +44,7 @@ path = DataFlowTasks.longest_path(logger)
 @test path == [5, 3, 2, 1]
 
 # DOT Format File
-dotstr = DataFlowTasks.loggertodot(logger)
+dotstr = GraphVizExt.loggertodot(logger)
 @test occursin("strict digraph dag", dotstr)
 @test occursin("1 -> 2", dotstr)
 @test occursin("2 -> 3", dotstr)
@@ -45,8 +52,8 @@ dotstr = DataFlowTasks.loggertodot(logger)
 @test occursin("4 -> 5", dotstr)
 
 # Visualization call
-DataFlowTasks.plot_traces(logger, categories=["A²", "B²", "A*B"])
-DataFlowTasks.plot_dag(logger)
+plt = plot(logger, categories=["A²", "B²", "A*B"])
+graph = GraphViz.Graph(logger)
 
 # do not the counter and make sure things still work
 logger = DataFlowTasks.@log work(A, B)

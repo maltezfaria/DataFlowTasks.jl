@@ -1,6 +1,11 @@
-@info "Loading DataFlowTasks general plot utilities"
+module DataFlowTasks_Makie_Ext
 
-using .Makie
+using Makie
+using DataFlowTasks: LogInfo, longest_path
+
+function __init__()
+    @info "Loading DataFlowTasks general plot utilities"
+end
 
 
 #= Contains data to plot the Gantt Chart (parallel trace).
@@ -326,7 +331,7 @@ See the
 [documentation](https://maltezfaria.github.io/DataFlowTasks.jl/dev/profiling/)
 for more information on how to profile and visualize `DataFlowTasks`.
 """
-function plot_traces(logger; categories=String[])
+function Makie.plot(logger::LogInfo; categories=String[])
     # Figure
     # ------
     fig = Figure(
@@ -366,4 +371,6 @@ function plot_traces(logger; categories=String[])
     @info "Other        : $(loginfo.othertime)"
 
     fig
+end
+
 end

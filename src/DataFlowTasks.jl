@@ -8,7 +8,6 @@ module DataFlowTasks
 const PROJECT_ROOT =  pkgdir(DataFlowTasks)
 
 using DataStructures
-using Requires
 using Compat
 import Pkg
 
@@ -43,10 +42,6 @@ export
     @dspawn
 
 function __init__()
-    # Conditionnal loading
-    @require Makie="ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" include("plotgeneral.jl")
-    @require GraphViz="f526b714-d49f-11e8-06ff-31ed36ee7ee0" include("plotdag.jl")
-
     # default scheduler
     capacity  = 50
     sch       = JuliaScheduler(capacity)
@@ -78,17 +73,19 @@ macro using_opt(pkgnames)
     using_expr = Expr(:using)
     using_expr.args = [Expr(:., pkg) for pkg in pkgnames]
 
-    dft_path = joinpath(@__DIR__, "..", "optional-deps")
+    dft_path = joinpath(@__DIR__, "..", "ext")
     quote
         const cpp = $Pkg.project().path
         $Pkg.activate($dft_path, io=devnull)
         try
-            $Pkg.instantiate()
+            $Pkg.resolve(io=devnull)
             $using_expr
         finally
             $Pkg.activate(cpp, io=devnull)
         end
     end
 end
+
+function savedag end
 
 end # module
