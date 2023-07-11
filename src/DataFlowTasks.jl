@@ -76,8 +76,9 @@ macro using_opt(pkgnames)
     dft_path = joinpath(@__DIR__, "..", "ext")
     quote
         const cpp = $Pkg.project().path
-        $Pkg.activate($dft_path, io=devnull)
         try
+            $Pkg.activate($dft_path, io=devnull)
+            $Pkg.develop(path=joinpath(@__DIR__, ".."), io=devnull)
             $Pkg.resolve(io=devnull)
             $using_expr
         finally
@@ -86,6 +87,12 @@ macro using_opt(pkgnames)
     end
 end
 
+"""
+    DataFlowTasks.savedag(filepath, graph)
+
+Save `graph` as an SVG image at `filepath`. This requires `GraphViz` to be
+available.
+"""
 function savedag end
 
 end # module

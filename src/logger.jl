@@ -49,8 +49,8 @@ end
 Contains informations on the program's progress. For thread-safety, the
 `LogInfo` structure uses one vector of [`TaskLog`](@ref) per thread.
 
-You can visualize and postprocess a `LogInfo` using [`plot_dag`](@ref) and
-[`plot_traces`](@ref).
+You can visualize and postprocess a `LogInfo` using `GraphViz.Graph` and
+`Makie.plot`.
 """
 struct LogInfo
     tasklogs::Vector{Vector{TaskLog}}

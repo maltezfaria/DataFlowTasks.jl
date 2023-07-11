@@ -15,16 +15,16 @@ Pkg = "1.6"
 StaticArrays = "1.5"
 julia = "1.6"
 
-[weakdeps]
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
-
 [extensions]
-DataFlowTasks_Makie_Ext = "Makie"
 DataFlowTasks_GraphViz_Ext = "GraphViz"
+DataFlowTasks_Makie_Ext = "Makie"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test"]
+
+[weakdeps]
+GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"

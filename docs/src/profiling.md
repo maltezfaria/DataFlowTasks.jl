@@ -83,12 +83,12 @@ illustrated next.
 In order to better understand what this example does, and check that *data
 dependencies* were suitably annotated, it can be useful to look at the Directed
 Acyclic Graph (DAG) representing *task dependencies* as they were inferred by
-`DataFlowTasks`. The DAG can be visualized with the [`plot_dag`](@ref
-DataFlowTasks.plot_dag) function:
+`DataFlowTasks`. The DAG can be visualized by creating a `GraphViz.Graph` out of
+it:
 
 ```@example profiling
 DataFlowTasks.@using_opt GraphViz # or `using GraphViz` if your environment has it
-DataFlowTasks.plot_dag(log_info)
+GraphViz.Graph(log_info)
 ```
 
 When the working environment supports rich media, the DAG will be displayed
@@ -96,8 +96,8 @@ automatically. In other cases, it is possible to export it to an image using
 [`savedag`](@ref DataFlowTasks.savedag):
 
 ```@example profiling
-g = DataFlowTasks.plot_dag(log_info)
-DataFlowTasks.savedag("profiling-example.svg", g)
+dag = GraphViz.Graph(log_info)
+DataFlowTasks.savedag("profiling-example.svg", dag)
 nothing # hide
 ```
 
@@ -115,14 +115,13 @@ path that took the longest run time during the computation.
 
 ## Scheduling and profiling information
 
-The collected scheduling & profiling information can be visualized in a graph
-produced by the [`DataFlowTasks.plot_traces`](@ref) function (note that it requires a
-`Makie` backend; using `GLMakie` brings a bit more interactivity than
-`CairoMakie`) on the `log_info` object:
+The collected scheduling & profiling information can be visualized by plotting
+the `log_info` object using `Makie` (note that using the `GLMakie` backend
+brings a bit more interactivity than `CairoMakie`):
 
 ```@example profiling
 DataFlowTasks.@using_opt CairoMakie # or GLMakie to benefit from more interactivity
-DataFlowTasks.plot_traces(log_info; categories=["init", "mutate", "read"])
+plot(log_info; categories=["init", "mutate", "read"])
 nothing # hide
 ```
 

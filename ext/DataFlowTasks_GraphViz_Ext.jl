@@ -9,16 +9,14 @@ function __init__()
 end
 
 """
-    plot_dag(logger)
+    GraphViz.Graph(log_info::LogInfo)
 
-Plot the dag in DOT format
+Produce a `GraphViz.Graph` representing the DAG of tasks collected in `log_info`.
+
+See also: [`DataFlowTasks.@log`](@ref)
 """
 GraphViz.Graph(log_info::LogInfo) = GraphViz.Graph(loggertodot(log_info))
 
-"""
-    savedag(filepath, graph)
-Save svg dag image in filepath
-"""
 function DataFlowTasks.savedag(filepath::String, graph::GraphViz.Graph)
     !graph.didlayout && GraphViz.layout!(graph)
     open(filepath, "w") do io
