@@ -314,9 +314,9 @@ end
 
 
 """
-    plot_traces(loginfo; categories)
+    plot(log_info; categories)
 
-Plot DataFlowTasks `loginfo` labeled informations with categories.
+Plot DataFlowTasks `log_info` labeled informations with categories.
 
 Entries in `categories` define how to group tasks in categories for
 plotting. Each entry can be:
@@ -331,7 +331,7 @@ See the
 [documentation](https://maltezfaria.github.io/DataFlowTasks.jl/dev/profiling/)
 for more information on how to profile and visualize `DataFlowTasks`.
 """
-function Makie.plot(logger::LogInfo; categories=String[])
+function Makie.plot(log_info::LogInfo; categories=String[])
     # Figure
     # ------
     fig = Figure(
@@ -341,9 +341,9 @@ function Makie.plot(logger::LogInfo; categories=String[])
 
     # Extract logger informations
     # ---------------------------
-    loginfo = ExtendedLogInfo(logger, categories, longest_path(logger))
+    loginfo = ExtendedLogInfo(log_info, categories, longest_path(log_info))
     gantt = Gantt()
-    extractloggerinfo!(logger, loginfo, gantt)
+    extractloggerinfo!(log_info, loginfo, gantt)
 
     # Layouts
     # --------------------------------------------
@@ -356,13 +356,13 @@ function Makie.plot(logger::LogInfo; categories=String[])
 
     # Plot each part
     # --------------
-    traceplot(axtrc, logger, gantt, loginfo)
+    traceplot(axtrc, log_info, gantt, loginfo)
     activityplot(axact, loginfo)
     boundsplot(axinf, loginfo)
     categoriesplot(axcat, loginfo)
 
     # Events management
-    react(axtrc, logger, gantt)
+    react(axtrc, log_info, gantt)
 
     # Terminal Informations
     # ---------------------

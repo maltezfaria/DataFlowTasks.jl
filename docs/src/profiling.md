@@ -12,10 +12,10 @@ profiling parallel programs:
 
     Visualization tools require additional dependencies (such as `Makie` or
     `GraphViz`) which are only needed during the development stage. We are
-    therefore only declaring those as *optional dependencies* (using
-    `Requires.jl`). The user can either set up a stacked
-    environment in which these dependencies are available, or use the 
-    [`DataFlowTasks.@using_opt`](@ref) macro which handles the environment automatically.
+    therefore only declaring those as *weak dependencies* (for Julia v1.9 and
+    above). The user can either set up a stacked environment in which these
+    dependencies are available, or use the [`DataFlowTasks.@using_opt`](@ref)
+    macro which handles the environment automatically.
 
 Let's first introduce a small example that will help illustrate the features
 introduced here:
@@ -83,8 +83,8 @@ illustrated next.
 In order to better understand what this example does, and check that *data
 dependencies* were suitably annotated, it can be useful to look at the Directed
 Acyclic Graph (DAG) representing *task dependencies* as they were inferred by
-`DataFlowTasks`. The DAG can be visualized by creating a `GraphViz.Graph` out of
-it:
+`DataFlowTasks`. The DAG can be visualized by creating a
+[`GraphViz.Graph`](@ref) out of it:
 
 ```@example profiling
 DataFlowTasks.@using_opt GraphViz # or `using GraphViz` if your environment has it
@@ -93,7 +93,7 @@ GraphViz.Graph(log_info)
 
 When the working environment supports rich media, the DAG will be displayed
 automatically. In other cases, it is possible to export it to an image using
-[`savedag`](@ref DataFlowTasks.savedag):
+[`DataFlowTasks.savedag`](@ref):
 
 ```@example profiling
 dag = GraphViz.Graph(log_info)
@@ -115,9 +115,9 @@ path that took the longest run time during the computation.
 
 ## Scheduling and profiling information
 
-The collected scheduling & profiling information can be visualized by plotting
-the `log_info` object using `Makie` (note that using the `GLMakie` backend
-brings a bit more interactivity than `CairoMakie`):
+The collected scheduling & profiling information can be visualized using
+[`Makie.plot`](@ref) on the the `log_info` object (note that using the `GLMakie`
+backend brings a bit more interactivity than `CairoMakie`):
 
 ```@example profiling
 DataFlowTasks.@using_opt CairoMakie # or GLMakie to benefit from more interactivity

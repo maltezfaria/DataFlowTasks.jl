@@ -56,6 +56,12 @@ end
 
 Load `pkgnames` from optional dependencies.
 
+!!! warning
+
+    This feature is experimental and might break in the future. It may be useful
+    for quick experiments, but adding `GraphViz` or `Makie` to a full-fledged
+    environment should be preferred when possible.
+
 ## Examples:
 ```example
 using DataFlowTasks

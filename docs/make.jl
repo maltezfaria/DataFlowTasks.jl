@@ -11,8 +11,16 @@ end
 
 DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using CairoMakie, GraphViz, DataFlowTasks); recursive=true)
 
+modules = [DataFlowTasks]
+if isdefined(Base, :get_extension)
+    using GraphViz, CairoMakie
+    const GraphViz_Ext = Base.get_extension(DataFlowTasks, :DataFlowTasks_GraphViz_Ext)
+    const Makie_Ext    = Base.get_extension(DataFlowTasks, :DataFlowTasks_Makie_Ext)
+    append!(modules, (GraphViz_Ext, Makie_Ext))
+end
+
 makedocs(;
-    modules=[DataFlowTasks],
+    modules = modules,
     repo="https://github.com/maltezfaria/DataFlowTasks.jl/blob/{commit}{path}#{line}",
     sitename="DataFlowTasks.jl",
     format=Documenter.HTML(;
