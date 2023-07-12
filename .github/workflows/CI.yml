@@ -10,7 +10,8 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1' 
+          - '1.6'
+          - '1'
         os:
           - ubuntu-latest
         arch:
@@ -36,6 +37,7 @@ jobs:
       - run: git clone https://github.com/maltezfaria/TiledFactorization
       - run: |
           julia --project="TiledFactorization" -e '
+            VERSION >= v"1.9" || exit()
             import Pkg
             Pkg.develop(Pkg.PackageSpec(path=pwd()))
             Pkg.instantiate()
