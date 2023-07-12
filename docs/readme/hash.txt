@@ -5,4 +5,4 @@ d3815864a4bcf235a3a098d983e981f5914ea0f8 src/logger.jl
 b61cb70ce7785bbd1e9c70dc812d046d32f70367 src/arrayinterface.jl
 f91eaf305165e3fd46db56ec7cce79f1d759a379 src/dag.jl
 54d97a8d74ef22144f6a5b64f05e94cde71a3071 src/scheduler.jl
-1c1e54158298af122a954de7af151f663c50b61c docs/readme/README.jl
+eaedaf205480ef42629cb7329e93fc0307081429 docs/readme/README.jl
