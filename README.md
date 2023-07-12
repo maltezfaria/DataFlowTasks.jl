@@ -68,7 +68,7 @@ represented as a Directed Acyclic Graph. Reconstructing the `DAG` (as well as
 the parallalel traces) can be done using the `@log` macro:
 
 ````julia
-using GraphViz # triggers additional code loading, powered by Requires.jl
+using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
 log_info = DataFlowTasks.@log let
     @dspawn fill!(@W(A), 0)             label="write whole"
     @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
@@ -76,14 +76,14 @@ log_info = DataFlowTasks.@log let
     res = @dspawn @R(A)                 label="read whole"
     fetch(res)
 end
-dag = DataFlowTasks.plot_dag(log_info)
+dag = GraphViz.Graph(log_info)
 ````
 
 ![](docs/readme/example_dag.svg)
 
 In the example above, the tasks *write 1:2* and *write 3:4* access
 different parts of the array `A` and are
-therefore independant, as shown in the DAG.
+therefore independent, as shown in the DAG.
 
 ## Example : Parallel Cholesky Factorization
 
@@ -100,12 +100,12 @@ version of this algorithm decomposes the matrix A into tiles (of even sizes,
 in this simplified version). At each step of the algorithm, we do a Cholesky
 factorization on the diagonal tile, use a triangular solve to update all of
 the tiles at the right of the diagonal tile, and finally update all the tiles
-of the submatrix with a schur complement.
+of the submatrix with a Schur complement.
 
 If we have a matrix A decomposed in `n x n` tiles, then the algorithm will
 have `n` steps. The `i`-th step (with `i ∈ [1:n]`) will perform
 
-- `1` cholesky factorization of the (i,i) block,
+- `1` Cholesky factorization of the (i,i) block,
 - `(i-1)` triangular solves (one for each block in the `i`-th row),
 - `i*(i-1)/2` matrix multiplications to update the submatrix.
 
@@ -128,7 +128,7 @@ function cholesky_tiled!(A, ts)
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
-        # Diagonal cholesky serial factorization
+        # Diagonal Cholesky serial factorization
         cholesky!(T[i,i])
 
         # Left blocks update
@@ -163,7 +163,7 @@ function cholesky_dft!(A, ts)
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
-        # Diagonal cholesky serial factorization
+        # Diagonal Cholesky serial factorization
         @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
 
         # Left blocks update
@@ -194,7 +194,7 @@ The code below shows how to use this `cholesky_tiled!` function, as well as
 how to profile the program and get information about how tasks were scheduled:
 
 ````julia
-# DataFlowTasks environnement setup
+# DataFlowTasks environment setup
 
 # Context
 n  = 2048
@@ -216,7 +216,7 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 
 ## Debugging and Profiling
 
-DataFlowTasks comes with debugging and profiling tools which help
+DataFlowTasks comes with debugging and profiling tools that help
 understanding how task dependencies were inferred, and how tasks were
 scheduled during execution.
 
@@ -242,19 +242,19 @@ In this more complex example, we can see how quickly the DAG complexity
 increases (even though the test case only has 4x4 blocks here):
 
 ````julia
-dag = DataFlowTasks.plot_dag(log_info)
+dag = GraphViz.Graph(log_info)
 ````
 
 ![](docs/readme/cholesky_dag.svg)
 
-The parallel trace plot shows a timeline of the tasks execution on available
-threads. It helps understanding how tasks were scheduled. The same window also
+The parallel trace plot shows a timeline of the tasks' execution on available
+threads. It helps in understanding how tasks were scheduled. The same window also
 carries other general information allowing to better understand the
 performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = DataFlowTasks.plot_traces(log_info; categories=["chol", "ldiv", "schur"])
+trace = plot(log_info; categories=["chol", "ldiv", "schur"])
 ````
 
 ![](docs/readme/cholesky_trace.svg)
@@ -263,13 +263,13 @@ We see here that the execution time is bounded by the length of the critical
 path: with this block size and matrix size, the algorithm does not expose
 enough parallelism to occupy all threads without waiting periods.
 
-We'll cover in details the usage and possibilities of the visualization in the
+We'll cover in detail the usage and possibilities of the visualization in the
 documentation.
 
 Note that the debugging & profiling tools need additional dependencies such as
 `Makie` and `GraphViz`, which are only meant to be used interactively during
 the development process. These packages are therefore only considered as
-optional depdendencies; assuming they are available in your work environment,
+optional dependencies; assuming they are available in your work environment,
 calling e.g. `using GraphViz` will load some additional code from
 `DataFlowTasks` (see also the documentation of `DataFlowTasks.@using_opt` if
 you prefer an alternative way of handling these extra dependencies).
@@ -285,7 +285,7 @@ implementations for the sequential building blocks operating on tiles:
 
 This approach is pursued in
 [`TiledFactorization.jl`](https://github.com/maltezfaria/TiledFactorization),
-where all the above mentioned building blocks are combined with the
+where all the above-mentioned building blocks are combined with the
 parallelization strategy presented here to create a *pure Julia*
 implementation of the matrix factorizations. The performances of this
 implementation is assessed in the following plot, by comparison to MKL on a

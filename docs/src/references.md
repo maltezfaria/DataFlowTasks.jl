@@ -1,5 +1,5 @@
 # [References](@id references-section)
 
 ```@autodocs
-Modules =   [DataFlowTasks]
+Modules = [DataFlowTasks, GraphViz_Ext, Makie_Ext]
 ```
