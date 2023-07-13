@@ -60,3 +60,9 @@ memory_overlap(A,T::LinearAlgebra.AbstractTriangular) = memory_overlap(T,A)
 # Adjoint delegates to parent
 memory_overlap(T::Adjoint,A) = memory_overlap(T.parent,A)
 memory_overlap(A,T::Adjoint) = memory_overlap(T,A)
+memory_overlap(A::Adjoint,B::Adjoint) = memory_overlap(A.parent,B.parent)
+
+# Resolve ambiguities
+memory_overlap(A::LinearAlgebra.AbstractTriangular, B::LinearAlgebra.Adjoint) = memory_overlap(A.data,B.parent)
+memory_overlap(A::LinearAlgebra.Adjoint, B::LinearAlgebra.AbstractTriangular) = memory_overlap(B,A)
+memory_overlap(A::LinearAlgebra.AbstractTriangular,B::LinearAlgebra.AbstractTriangular) = memory_overlap(A.data,B.data)
