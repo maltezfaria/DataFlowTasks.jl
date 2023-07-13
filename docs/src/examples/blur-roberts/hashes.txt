@@ -2,7 +2,7 @@
 5ce2f7af1e9a511dc54b448d2910f0a5d03bd80b src/utils.jl
 d3815864a4bcf235a3a098d983e981f5914ea0f8 src/logger.jl
 95e2f80c66afb5e07505ed03c0fcc6fff63ce2ac src/dataflowtask.jl
-b61cb70ce7785bbd1e9c70dc812d046d32f70367 src/arrayinterface.jl
+89a3d8e369851a7c009d517c1bc5c33f965390bc src/arrayinterface.jl
 f91eaf305165e3fd46db56ec7cce79f1d759a379 src/dag.jl
-54d97a8d74ef22144f6a5b64f05e94cde71a3071 src/scheduler.jl
+0f16ea5c8c8faac71536c2f27ba1f9a99e5d5229 src/scheduler.jl
 da39a3ee5e6b4b0d3255bfef95601890afd80709 docs/src/examples/blur-roberts

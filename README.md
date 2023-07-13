@@ -14,6 +14,7 @@ parallel tasks.
 This `README` is also available in notebook form:
 [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](docs/readme/README.ipynb)
 [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/main/docs/readme/README.ipynb)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 ## Installation
 
