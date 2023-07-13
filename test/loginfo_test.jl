@@ -35,10 +35,10 @@ path = DataFlowTasks.longest_path(logger)
 @test path == [5, 3, 2, 1]
 
 
-DataFlowTasks.stack_weakdeps_env!(verbose=true)
-using GraphViz, CairoMakie
-
 if isdefined(Base, :get_extension)
+    DataFlowTasks.stack_weakdeps_env!(verbose=true)
+    using GraphViz, CairoMakie
+
     @testset "DataFlowTasks_GraphVizExt" begin
         # Check that the extension has been loaded correctly
         GraphVizExt = Base.get_extension(DataFlowTasks, :DataFlowTasks_GraphViz_Ext)
