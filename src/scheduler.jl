@@ -228,13 +228,13 @@ function stop_dag_worker(sch::JuliaScheduler=getscheduler())
 end
 
 # interface methods for JuliaScheduler
-function spawn(tj,::JuliaScheduler)
+function spawn(tj::DataFlowTask,::JuliaScheduler)
     tj.task.sticky = false
     schedule(tj.task)
     return tj
 end
 
-function Base.schedule(tj,::JuliaScheduler)
+function Base.schedule(tj::DataFlowTask,::JuliaScheduler)
     schedule(tj.task)
     return tj
 end

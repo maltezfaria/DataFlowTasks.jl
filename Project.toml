@@ -7,29 +7,29 @@ Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
-[compat]
-Compat = "3.42, 4"
-DataStructures = "0.18"
-GraphViz = "0.2"
-Makie = "0.19"
-Pkg = "1.6"
-StaticArrays = "1.5"
-julia = "1.6"
+[weakdeps]
+GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [extensions]
 DataFlowTasks_GraphViz_Ext = "GraphViz"
 DataFlowTasks_Makie_Ext = "Makie"
 
+[compat]
+Aqua = "0.6"
+Compat = "3.42, 4"
+DataStructures = "0.18"
+GraphViz = "0.2"
+Makie = "0.19"
+Pkg = "1.6"
+julia = "1.6"
+
 [extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test"]
-
-[weakdeps]
-GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
