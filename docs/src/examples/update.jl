@@ -6,7 +6,7 @@ option ∉ ("", "--check-only") && @warn "Unknown option: `$option`"
 
 for example in ["cholesky", "blur-roberts"]
     hash_path = joinpath(example, "hashes.txt")
-    hash_new, hash_old = hashes(hash_path, example)
+    hash_new, hash_old = hashes(hash_path, "$example/$example.jl")
 
     if hash_new == hash_old
         @info "Example up-to-date: `$example`"

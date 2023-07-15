@@ -9,6 +9,7 @@ for example in ["cholesky", "blur-roberts"]
     Literate.notebook(src, dir)
 end
 
+DataFlowTasks.stack_weakdeps_env!()
 DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using CairoMakie, GraphViz, DataFlowTasks); recursive=true)
 
 modules = [DataFlowTasks]

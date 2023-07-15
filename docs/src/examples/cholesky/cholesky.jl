@@ -175,6 +175,7 @@ log_info = DataFlowTasks.@log cholesky_dft!(Ac, ts)
 # The number of tasks being $\mathcal{O}(n^3)$, we can see how quickly the DAG
 # complexity increases (even though the test case only has 8×8 tiles here):
 
+DataFlowTasks.stack_weakdeps_env!()
 using GraphViz
 dag = GraphViz.Graph(log_info)
 DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
