@@ -5,6 +5,7 @@
 [![Build Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)](https://github.com/maltezfaria/DataFlowTasks.jl/actions)
 [![codecov](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl/branch/main/graph/badge.svg?token=UOWU691WWG)](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl)
 ![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-blue.svg)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 `DataFlowTasks.jl` is a Julia package dedicated to parallel programming on
 multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE)
@@ -14,7 +15,6 @@ parallel tasks.
 This `README` is also available in notebook form:
 [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](docs/readme/README.ipynb)
 [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/main/docs/readme/README.ipynb)
-[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 ## Installation
 
