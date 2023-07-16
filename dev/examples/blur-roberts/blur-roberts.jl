@@ -283,7 +283,8 @@ The parallel trace shows how blur and roberts tasks are interspersed in the time
 
 =#
 
-DataFlowTasks.@using_opt CairoMakie
+DataFlowTasks.stack_weakdeps_env!()
+using CairoMakie
 
 trace = plot(log_info, categories=["blur", "roberts"])
 save("trace.png", trace) #src
