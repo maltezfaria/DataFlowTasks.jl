@@ -20,7 +20,7 @@ GraphViz.Graph(log_info::LogInfo) = GraphViz.Graph(loggertodot(log_info))
 function DataFlowTasks.savedag(filepath::String, graph::GraphViz.Graph)
     !graph.didlayout && GraphViz.layout!(graph)
     open(filepath, "w") do io
-        GraphViz.render(io, graph)
+        return GraphViz.render(io, graph)
     end
 end
 
@@ -51,7 +51,7 @@ function loggertodot(logger)
             red = false
 
             # Is this connection is in critical path
-            (neighbour ∈ path && tasklog.tag ∈ path) && (red=true)
+            (neighbour ∈ path && tasklog.tag ∈ path) && (red = true)
 
             # Edge
             str *= """ $neighbour -> $(tasklog.tag) """
@@ -60,7 +60,7 @@ function loggertodot(logger)
         end
     end
 
-    str *= "}"
+    return str *= "}"
 end
 
 end

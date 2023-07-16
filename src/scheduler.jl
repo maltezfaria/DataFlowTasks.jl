@@ -8,10 +8,10 @@ struct FinishedChannel{T} <: AbstractChannel{T}
     data::Vector{T}
     cond_take::Threads.Condition
     function FinishedChannel{T}() where {T}
-        lock      = Threads.ReentrantLock()
+        lock = Threads.ReentrantLock()
         cond_take = Threads.Condition(lock)
-        data      = Vector{T}()
-        new(data,cond_take)
+        data = Vector{T}()
+        return new(data, cond_take)
     end
 end
 
@@ -33,7 +33,7 @@ function Base.take!(c::FinishedChannel)
     end
 end
 
-function Base.put!(c::FinishedChannel{T},t::T) where {T}
+function Base.put!(c::FinishedChannel{T}, t::T) where {T}
     lock(c)
     try
         push!(c.data, t)
@@ -107,7 +107,7 @@ getscheduler() = (SCHEDULER[])
 Run `f`, but push `DataFlowTask`s to the scheduler `dag` in `sch` instead of the
 default `dag`.
 """
-function with_scheduler(f,sch)
+function with_scheduler(f, sch)
     old = getscheduler()
     setscheduler!(sch)
     res = f()
@@ -115,11 +115,11 @@ function with_scheduler(f,sch)
     return res
 end
 
-spawn(tj::DataFlowTask) = spawn(tj,getscheduler())
-Base.schedule(tj::DataFlowTask) = schedule(tj,getscheduler())
+spawn(tj::DataFlowTask) = spawn(tj, getscheduler())
+Base.schedule(tj::DataFlowTask) = schedule(tj, getscheduler())
 
-addnode!(sch::TaskGraphScheduler,tj,check=true)     = addnode!(sch.dag,tj,check)
-remove_node!(sch::TaskGraphScheduler,tj) = remove_node!(sch.dag,tj)
+addnode!(sch::TaskGraphScheduler, tj, check = true) = addnode!(sch.dag, tj, check)
+remove_node!(sch::TaskGraphScheduler, tj) = remove_node!(sch.dag, tj)
 
 dag(sch::TaskGraphScheduler) = sch.dag
 
@@ -129,7 +129,7 @@ dag(sch::TaskGraphScheduler) = sch.dag
 Wait for all nodes in `sch` to be finished before continuining. If called with
 no arguments, use the current scheduler.
 """
-function sync(sch::TaskGraphScheduler=getscheduler())
+function sync(sch::TaskGraphScheduler = getscheduler())
     dag = sch.dag
     isempty(dag) || wait(dag.cond_empty)
     return sch
@@ -158,9 +158,9 @@ mutable struct JuliaScheduler{T} <: TaskGraphScheduler
         if sz <= 0
             throw(ArgumentError("Scheduler buffer size must be a positive integer"))
         end
-        dag            = DAG{T}(sz)
-        finished       = FinishedChannel{Stoppable{T}}()
-        sch            = new(dag,finished)
+        dag = DAG{T}(sz)
+        finished = FinishedChannel{Stoppable{T}}()
+        sch = new(dag, finished)
         start_dag_worker(sch)
         return sch
     end
@@ -184,8 +184,8 @@ function restart_scheduler!(sch::JuliaScheduler)
     stop_dag_worker(sch)
     empty!(sch.finished)
     # go over all task in the dag and interrupt them
-    for (t,_) in sch.dag.inoutlist
-        istaskstarted(t.task) || schedule(t.task, :stop, error=true)
+    for (t, _) ∈ sch.dag.inoutlist
+        istaskstarted(t.task) || schedule(t.task, :stop; error = true)
     end
     empty!(sch.dag)
     start_dag_worker(sch)
@@ -198,19 +198,19 @@ end
 Start a task associated with `sch` which takes nodes from its `finished` queue
 and removes them from the `dag`. The task blocks if `finished` is empty.
 """
-function start_dag_worker(sch::JuliaScheduler=getscheduler())
+function start_dag_worker(sch::JuliaScheduler = getscheduler())
     task = @async while true
         @assert Threads.threadid() == 1 # sanity check?
         t = take!(sch.finished)
         t == Stop() && break
         # remove task `t` from the dag
-        remove_node!(sch,t)
+        remove_node!(sch, t)
     end
     sch.dag_worker = task
     return sch.dag_worker
 end
 
-function stop_dag_worker(sch::JuliaScheduler=getscheduler())
+function stop_dag_worker(sch::JuliaScheduler = getscheduler())
     t = sch.dag_worker
     @assert istaskstarted(t)
     if istaskdone(t)
@@ -228,13 +228,13 @@ function stop_dag_worker(sch::JuliaScheduler=getscheduler())
 end
 
 # interface methods for JuliaScheduler
-function spawn(tj::DataFlowTask,::JuliaScheduler)
+function spawn(tj::DataFlowTask, ::JuliaScheduler)
     tj.task.sticky = false
     schedule(tj.task)
     return tj
 end
 
-function Base.schedule(tj::DataFlowTask,::JuliaScheduler)
+function Base.schedule(tj::DataFlowTask, ::JuliaScheduler)
     schedule(tj.task)
     return tj
 end
@@ -244,10 +244,14 @@ function Base.show(io::IO, sch::JuliaScheduler)
     n = num_nodes(dag)
     e = num_edges(dag)
     f = length(sch.finished)
-    s1 = n==1 ? "" : "s"
-    s2 = f==1 ? "" : "s"
-    s3 = e==1 ? "" : "s"
-    print(io, typeof(sch)," with $n active node$s1, $f finished node$s2, and $e edge$s3 (capacity of $(dag.sz_max[]) nodes)")
+    s1 = n == 1 ? "" : "s"
+    s2 = f == 1 ? "" : "s"
+    s3 = e == 1 ? "" : "s"
+    return print(
+        io,
+        typeof(sch),
+        " with $n active node$s1, $f finished node$s2, and $e edge$s3 (capacity of $(dag.sz_max[]) nodes)",
+    )
 end
 
 """
@@ -341,8 +345,8 @@ Note that in the example above `t2` waited for `t1` because it read a data field
 that `t1` accessed in a writable manner.
 """
 macro dspawn(expr, kwargs...)
-    _dtask(expr, kwargs; source=__source__) do t
-        :($spawn($t))
+    _dtask(expr, kwargs; source = __source__) do t
+        return :($spawn($t))
     end
 end
 
@@ -356,7 +360,7 @@ See also:
 [`@dspawn`](@ref), [`@dtask`](@ref)
 """
 macro dasync(expr, kwargs...)
-    _dtask(expr, kwargs; source=__source__) do t
-        :($schedule($t))
+    _dtask(expr, kwargs; source = __source__) do t
+        return :($schedule($t))
     end
 end

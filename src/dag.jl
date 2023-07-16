@@ -24,7 +24,7 @@ end
 
 Create a buffered `DAG` holding a maximum of `sz` nodes of type `T`.
 """
-function DAG{T}(sz = typemax(Int)) where T
+function DAG{T}(sz = typemax(Int)) where {T}
     sz = sz == Inf ? typemax(Int) : Int(sz)
     if sz <= 0
         throw(ArgumentError("DAG buffer size must be a positive integer"))
@@ -32,17 +32,17 @@ function DAG{T}(sz = typemax(Int)) where T
     inoutlist  = OrderedDict{T,Tuple{Set{T},Set{T}}}()
     cond_push  = Condition()
     cond_empty = Condition()
-    lock = ReentrantLock()
+    lock       = ReentrantLock()
     _buffer    = Set{Int}()
-    return DAG{T}(inoutlist,cond_push,cond_empty,lock,Ref(sz),_buffer)
+    return DAG{T}(inoutlist, cond_push, cond_empty, lock, Ref(sz), _buffer)
 end
 
-function Base.resize!(dag::DAG,sz)
+function Base.resize!(dag::DAG, sz)
     sz = sz == Inf ? typemax(Int) : Int(sz)
     msg = """cannot resize `dag` (desired capacity too small to contain the
     already present nodes)"""
     num_nodes(dag) > sz && error(msg)
-    dag.sz_max[] = sz
+    return dag.sz_max[] = sz
 end
 
 """
@@ -53,7 +53,7 @@ A directed acyclic graph of `DataFlowTask`s.
 const TaskGraph = DAG{DataFlowTask}
 
 Base.isempty(dag::DAG)     = isempty(dag.inoutlist)
-Base.getindex(dag::DAG,i)  = dag.inoutlist[i]
+Base.getindex(dag::DAG, i) = dag.inoutlist[i]
 
 Base.lock(dag::DAG)   = lock(dag.lock)
 Base.unlock(dag::DAG) = unlock(dag.lock)
@@ -79,7 +79,7 @@ Number of edges in the `DAG`.
 """
 function num_edges(dag::DAG)
     acc = 0
-    for (_,(inlist,_)) in dag.inoutlist
+    for (_, (inlist, _)) ∈ dag.inoutlist
         acc += length(inlist)
     end
     return acc
@@ -90,14 +90,14 @@ end
 
 List of predecessors of `i` in `dag`.
 """
-inneighbors(dag::DAG,i)  = dag.inoutlist[i][1]
+inneighbors(dag::DAG, i) = dag.inoutlist[i][1]
 
 """
     outneighbors(dag,i)
 
 List of successors of `j` in `dag`.
 """
-outneighbors(dag::DAG,i) = dag.inoutlist[i][2]
+outneighbors(dag::DAG, i) = dag.inoutlist[i][2]
 
 """
     capacity(dag)
@@ -117,17 +117,17 @@ function Base.empty!(dag::DAG)
 end
 
 Iterators.reverse(dag::DAG) = Iterators.reverse(dag.inoutlist)
-Base.iterate(dag::DAG,state=1) = iterate(dag.inoutlist,state)
+Base.iterate(dag::DAG, state = 1) = iterate(dag.inoutlist, state)
 
 """
     addedge!(dag,i,j)
 
 Add (directed) edge connecting node `i` to node `j` in the `dag`.
 """
-function addedge!(dag::DAG{T},i::T,j::T) where {T}
+function addedge!(dag::DAG{T}, i::T, j::T) where {T}
     @assert i < j
-    push!(outneighbors(dag,i),j)
-    push!(inneighbors(dag,j),i)
+    push!(outneighbors(dag, i), j)
+    push!(inneighbors(dag, j), i)
     return dag
 end
 
@@ -140,11 +140,11 @@ as empty (no edges added). The `check` flag is used to indicate if a data flow
 analysis should be performed to update the dependencies of the newly inserted
 node.
 """
-function addnode!(dag::DAG{T},i::T,check=false) where {T}
-    addnode!(dag,i=>(Set{T}(),Set{T}()),check)
+function addnode!(dag::DAG{T}, i::T, check = false) where {T}
+    return addnode!(dag, i => (Set{T}(), Set{T}()), check)
 end
 
-function addnode!(dag::DAG,kv::Pair,check=false)
+function addnode!(dag::DAG, kv::Pair, check = false)
     while num_nodes(dag) == dag.sz_max[]
         wait(dag.cond_push)
     end
@@ -153,15 +153,20 @@ function addnode!(dag::DAG,kv::Pair,check=false)
         t₀ = time_ns()
         stats = Base.gc_num()
         # -------
-        push!(dag.inoutlist,kv)
-        k,v = kv
-        check  && update_edges!(dag,k)
+        push!(dag.inoutlist, kv)
+        k, v = kv
+        check && update_edges!(dag, k)
 
         # -------
         diff = Base.GC_Diff(Base.gc_num(), stats)
         t₁ = time_ns()
         tid = Threads.threadid()
-        _log_mode() && haslogger() && push!(_getloginfo().insertionlogs[tid], InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
+        _log_mode() &&
+            haslogger() &&
+            push!(
+                _getloginfo().insertionlogs[tid],
+                InsertionLog(t₀, t₁, diff.total_time, tag(k), tid),
+            )
     finally
         unlock(dag)
     end
@@ -174,40 +179,43 @@ end
 Perform the data-flow analysis to update the edges of node `i`. Both incoming
 and outgoing edges are updated.
 """
-function update_edges!(dag::DAG,nodej)
+function update_edges!(dag::DAG, nodej)
     transitively_connected = dag._buffer
     empty!(transitively_connected)
     # update dependencies from newer to older and reinfornce transitivity by
     # skipping predecessors of nodes which are already connected
-    for (nodei,_) in Iterators.reverse(dag)
-        nodei == nodej  && continue
+    for (nodei, _) ∈ Iterators.reverse(dag)
+        nodei == nodej && continue
         if _linear_dag()
-            addedge!(dag,nodei,nodej)
+            addedge!(dag, nodei, nodej)
             break
         end
-        ti     = tag(nodei)
+        ti = tag(nodei)
         (ti ∈ transitively_connected) && continue
         # if a DataFlowTask is in data, add the edge directly to the DAG
         @assert nodei ≤ nodej
-        dep    = data_dependency(nodei,nodej)
-        dep   || continue
-        addedge!(dag,nodei,nodej)
-        update_transitively_connected!(transitively_connected,nodei,dag)
+        dep = data_dependency(nodei, nodej)
+        dep || continue
+        addedge!(dag, nodei, nodej)
+        update_transitively_connected!(transitively_connected, nodei, dag)
         # addedge_transitive!(dag,nodei,nodej)
     end
     # if a DataFlowTask is in data and it is still active, add the edge directly to the DAG
-    for d in data(nodej)
-        (d isa DataFlowTask) && (tag(d) ∉ transitively_connected) && haskey(dag.inoutlist,d) && addedge!(dag,d,nodej)
+    for d ∈ data(nodej)
+        (d isa DataFlowTask) &&
+            (tag(d) ∉ transitively_connected) &&
+            haskey(dag.inoutlist, d) &&
+            addedge!(dag, d, nodej)
     end
     return dag
 end
 
-function update_transitively_connected!(transitively_connected,node,dag)
-    for nodei in inneighbors(dag,node)
+function update_transitively_connected!(transitively_connected, node, dag)
+    for nodei ∈ inneighbors(dag, node)
         ti = tag(nodei)
         (ti ∈ transitively_connected) && continue
-        push!(transitively_connected,ti)
-        update_transitively_connected!(transitively_connected,nodei,dag)
+        push!(transitively_connected, ti)
+        update_transitively_connected!(transitively_connected, nodei, dag)
     end
     return transitively_connected
 end
@@ -217,14 +225,14 @@ end
 
 Check if there is a path in `dag` connecting `i` to `j`.
 """
-function isconnected(dag::DAG,i,j)
-    for k in inneighbors(dag,j)
-        if k==i
+function isconnected(dag::DAG, i, j)
+    for k ∈ inneighbors(dag, j)
+        if k == i
             return true
-        elseif k<i
+        elseif k < i
             continue
         else#k>i
-            isconnected(dag,i,k) && (return true)
+            isconnected(dag, i, k) && (return true)
         end
     end
     return false
@@ -235,8 +243,8 @@ end
 
 Add edge connecting nodes `i` and `j` if there is no path connecting them already.
 """
-function addedge_transitive!(dag,i,j)
-    isconnected(dag,i,j) ? dag : addedge!(dag,i,j)
+function addedge_transitive!(dag, i, j)
+    return isconnected(dag, i, j) ? dag : addedge!(dag, i, j)
 end
 
 """
@@ -244,26 +252,26 @@ end
 
 Check if there is an edge connecting `i` to `j`.
 """
-has_edge(dag::DAG,i,j) = j ∈ outneighbors(dag,i)
+has_edge(dag::DAG, i, j) = j ∈ outneighbors(dag, i)
 
 """
     remove_node!(dag::DAG,i)
 
 Remove node `i` and all of its edges from `dag`.
 """
-function remove_node!(dag::DAG,i)
+function remove_node!(dag::DAG, i)
     lock(dag)
     try
-        if !isempty(inneighbors(dag,i))
+        if !isempty(inneighbors(dag, i))
             @warn "removing a node with incoming neighbors"
         end
-        (inlist,outlist) = pop!(dag.inoutlist,i)
+        (inlist, outlist) = pop!(dag.inoutlist, i)
         # remove i from the inlist of all its outneighbors
-        for j in outlist
-            pop!(inneighbors(dag,j),i)
+        for j ∈ outlist
+            pop!(inneighbors(dag, j), i)
         end
         # notify a task waiting to push into the dag
-        notify(dag.cond_push,nothing;all=false)
+        notify(dag.cond_push, nothing; all = false)
         # if dag is empty, notify
         isempty(dag) && notify(dag.cond_empty)
     finally
@@ -275,11 +283,14 @@ end
 function Base.show(io::IO, dag::DAG{T}) where {T}
     n = num_nodes(dag)
     e = num_edges(dag)
-    s1 = n==1 ? "" : "s"
-    s2 = e==1 ? "" : "s"
-    print(io, typeof(dag)," with $n node$s1 and $e edge$s2 (capacity of $(dag.sz_max[]) nodes)")
+    s1 = n == 1 ? "" : "s"
+    s2 = e == 1 ? "" : "s"
+    return print(
+        io,
+        typeof(dag),
+        " with $n node$s1 and $e edge$s2 (capacity of $(dag.sz_max[]) nodes)",
+    )
 end
-
 
 ############################################################################
 #                           Critical Path
@@ -301,13 +312,13 @@ function longest_path(graph)
     # lp[n] = (length, n′)   where:
     # - length is the length of the longest path leading to n
     # - n′ is the predecessor of n in this path (or 0 if n is the first node in the path)
-    lp = Dict{Int64, Tuple{Float64, Int}}()
+    lp = Dict{Int64,Tuple{Float64,Int}}()
 
-    for node in topological_sort(graph)
+    for node ∈ topological_sort(graph)
         # Find the predecessor with the longest path leading to it
         path_length = 0.0
         predecessor = 0
-        for n in intags(node)
+        for n ∈ intags(node)
             pl, _ = lp[n]
             if pl > path_length
                 path_length = pl
@@ -330,5 +341,5 @@ function longest_path(graph)
         node == 0 && break
         push!(path, node)
     end
-    path
+    return path
 end

@@ -16,27 +16,27 @@ addresses. Otherwise, compare their `parent`s by default.
 When both `di` and `dj` are `SubArray`s we compare the actual indices of the
 `SubArray`s when their parents are the same (to avoid too many false positives).
 """
-function memory_overlap(di::Array,dj::Array)
+function memory_overlap(di::Array, dj::Array)
     if isbitstype(eltype(di)) && isbitstype(eltype(dj))
-        return pointer(di)===pointer(dj)
+        return pointer(di) === pointer(dj)
     else
         warn("memory of Arrays of non-bitstype elements are assumed to overlap by default")
         return true
     end
 end
-memory_overlap(A::AbstractArray,B::AbstractArray) = memory_overlap(parent(A),parent(B))
+memory_overlap(A::AbstractArray, B::AbstractArray) = memory_overlap(parent(A), parent(B))
 
-function memory_overlap(di::SubArray,dj::SubArray)
+function memory_overlap(di::SubArray, dj::SubArray)
     if pointer(di.parent) !== pointer(dj.parent)
         return false
     else
-        _memory_overlap(di,dj)
+        _memory_overlap(di, dj)
     end
 end
 
 # for subarrays, check their indices. For now assume that the indices have the
 # same length since this simplifies the logic
-function _memory_overlap(di::SubArray,dj::SubArray)
+function _memory_overlap(di::SubArray, dj::SubArray)
     idx1 = di.indices
     idx2 = dj.indices
     msg = """
@@ -45,9 +45,9 @@ function _memory_overlap(di::SubArray,dj::SubArray)
     """
     length(idx1) == length(idx2) || (warn(msg); return true)
     N = length(idx1)
-    inter = ntuple(i->idxintersect(idx1[i],idx2[i]),N)
-    all(inter)
+    inter = ntuple(i -> idxintersect(idx1[i], idx2[i]), N)
+    return all(inter)
 end
 
-idxintersect(a,b) = !isempty(intersect(a,b))
-idxintersect(a::Number,b::Number) = a == b
+idxintersect(a, b) = !isempty(intersect(a, b))
+idxintersect(a::Number, b::Number) = a == b
