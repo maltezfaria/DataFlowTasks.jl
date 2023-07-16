@@ -2,8 +2,6 @@ using Test
 using DataFlowTasks
 using LinearAlgebra
 
-DataFlowTasks.@using_opt GraphViz, CairoMakie
-
 # NOTE: the functions below call sleep to make sure the computation does not finish
 # before full dag is created. Otherwise the critical path may be "incomplete"
 # and the tests on `longest_path` will fail
@@ -36,7 +34,11 @@ nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs
 path = DataFlowTasks.longest_path(logger)
 @test path == [5, 3, 2, 1]
 
+
 if isdefined(Base, :get_extension)
+    DataFlowTasks.stack_weakdeps_env!(verbose=true)
+    using GraphViz, CairoMakie
+
     @testset "DataFlowTasks_GraphVizExt" begin
         # Check that the extension has been loaded correctly
         GraphVizExt = Base.get_extension(DataFlowTasks, :DataFlowTasks_GraphViz_Ext)

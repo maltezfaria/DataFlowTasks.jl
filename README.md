@@ -5,7 +5,6 @@
 [![Build Status](https://github.com/maltezfaria/DataFlowTasks.jl/workflows/CI/badge.svg)](https://github.com/maltezfaria/DataFlowTasks.jl/actions)
 [![codecov](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl/branch/main/graph/badge.svg?token=UOWU691WWG)](https://codecov.io/gh/maltezfaria/DataFlowTasks.jl)
 ![Lifecycle](https://img.shields.io/badge/lifecycle-experimental-blue.svg)
-[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 `DataFlowTasks.jl` is a Julia package dedicated to parallel programming on
 multi-core shared memory CPUs. From user annotations (READ, WRITE, READWRITE)
@@ -15,6 +14,7 @@ parallel tasks.
 This `README` is also available in notebook form:
 [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](docs/readme/README.ipynb)
 [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/main/docs/readme/README.ipynb)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 ## Installation
 
@@ -65,11 +65,11 @@ fetch(result)
 
 From annotations describing task-data dependencies, `DataFlowTasks.jl` infers
 dependencies between tasks. Internally, this set of dependencies is
-represented as a Directed Acyclic Graph. Reconstructing the `DAG` (as well as
-the parallalel traces) can be done using the `@log` macro:
+represented as a Directed Acyclic Graph. All the data needed to reconstruct
+the `DAG` (as well as the parallalel traces) can be collected using the `@log`
+macro:
 
 ````julia
-using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
 log_info = DataFlowTasks.@log let
     @dspawn fill!(@W(A), 0)             label="write whole"
     @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
@@ -77,6 +77,13 @@ log_info = DataFlowTasks.@log let
     res = @dspawn @R(A)                 label="read whole"
     fetch(res)
 end
+````
+
+And the DAG can be visualized using `GraphViz`:
+
+````julia
+DataFlowTasks.stack_weakdeps_env!() # Set up a stacked environment so that weak dependencies such as GraphViz can be loaded. More about that hereafter.
+using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
 dag = GraphViz.Graph(log_info)
 ````
 
@@ -272,8 +279,10 @@ Note that the debugging & profiling tools need additional dependencies such as
 the development process. These packages are therefore only considered as
 optional dependencies; assuming they are available in your work environment,
 calling e.g. `using GraphViz` will load some additional code from
-`DataFlowTasks` (see also the documentation of `DataFlowTasks.@using_opt` if
-you prefer an alternative way of handling these extra dependencies).
+`DataFlowTasks`. If these dependencies are not directly available in the
+current environment stack, `DataFlowTasks.stack_weakdeps_env!()` can be called
+to push to the loading stack a new environment in which these optional
+dependencies are available.
 
 # Performances
 

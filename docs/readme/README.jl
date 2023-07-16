@@ -73,10 +73,10 @@ fetch(result)
 
 # From annotations describing task-data dependencies, `DataFlowTasks.jl` infers
 # dependencies between tasks. Internally, this set of dependencies is
-# represented as a Directed Acyclic Graph. Reconstructing the `DAG` (as well as
-# the parallalel traces) can be done using the `@log` macro:
+# represented as a Directed Acyclic Graph. All the data needed to reconstruct
+# the `DAG` (as well as the parallalel traces) can be collected using the `@log`
+# macro:
 
-using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
 log_info = DataFlowTasks.@log let
     @dspawn fill!(@W(A), 0)             label="write whole"
     @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
@@ -84,6 +84,11 @@ log_info = DataFlowTasks.@log let
     res = @dspawn @R(A)                 label="read whole"
     fetch(res)
 end
+
+# And the DAG can be visualized using `GraphViz`:
+
+DataFlowTasks.stack_weakdeps_env!() # Set up a stacked environment so that weak dependencies such as GraphViz can be loaded. More about that hereafter.
+using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
 dag = GraphViz.Graph(log_info)
 DataFlowTasks.savedag("example_dag.svg", dag) #src
 
@@ -290,8 +295,10 @@ save("cholesky_trace.svg", trace) #src
 # the development process. These packages are therefore only considered as
 # optional dependencies; assuming they are available in your work environment,
 # calling e.g. `using GraphViz` will load some additional code from
-# `DataFlowTasks` (see also the documentation of `DataFlowTasks.@using_opt` if
-# you prefer an alternative way of handling these extra dependencies).
+# `DataFlowTasks`. If these dependencies are not directly available in the
+# current environment stack, `DataFlowTasks.stack_weakdeps_env!()` can be called
+# to push to the loading stack a new environment in which these optional
+# dependencies are available.
 
 #-
 

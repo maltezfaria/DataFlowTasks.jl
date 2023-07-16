@@ -10,6 +10,8 @@ const PROJECT_ROOT =  pkgdir(DataFlowTasks)
 using DataStructures
 using Compat
 import Pkg
+import TOML
+import Scratch
 
 """
     @enum AccessMode READ WRITE READWRITE
@@ -51,47 +53,63 @@ function __init__()
     _setloginfo!(nothing)
 end
 
-"""
-    DataFlowTasks.@using_opt pkgnames
 
-Load `pkgnames` from optional dependencies.
+const WEAKDEPS_PROJ = let
+    deps = TOML.parse(read(joinpath(@__DIR__, "..", "ext", "Project.toml"), String))["deps"]
+    filter!(deps) do (pkg, _)
+        pkg != String(nameof(@__MODULE__))
+    end
+    compat = Dict{String, Any}()
+    for (pkg, bound) in TOML.parse(read(joinpath(@__DIR__, "..", "Project.toml"), String))["compat"]
+        pkg ∈ keys(deps) || continue
+        compat[pkg] = bound
+    end
+    Dict("deps" => deps, "compat" => compat)
+end
+
+"""
+    DataFlowTasks.stack_weakdeps_env!(; verbose = false)
+
+Push to the load stack an environment providing the weak dependencies of
+DataFlowTasks. During the development stage, this allows benefiting from the
+profiling / debugging features of DataFlowTasks without having to install
+`GraphViz` or `Makie` in the project environment.
+
+This can take quite some time if packages have to be installed or
+precompiled. Run in `verbose` mode to see what happens.
 
 !!! warning
 
-    This feature is experimental and might break in the future. It may be useful
-    for quick experiments, but adding `GraphViz` or `Makie` to a full-fledged
-    environment should be preferred when possible.
+    This feature is experimental and might break in the future.
 
 ## Examples:
 ```example
-using DataFlowTasks
-DataFlowTasks.@using_opt GraphViz
+DataFlowTasks.stack_weakdeps_env!()
+using GraphViz
 ```
 """
-macro using_opt(pkgnames)
-    if pkgnames isa Symbol
-        pkgnames = [pkgnames]
-    else
-        @assert pkgnames.head == :tuple
-        pkgnames = pkgnames.args
+function stack_weakdeps_env!(; verbose = false)
+    weakdeps_env = Scratch.@get_scratch!("weakdeps-$(VERSION.major).$(VERSION.minor)")
+    open(joinpath(weakdeps_env, "Project.toml"), "w") do f
+        TOML.print(f, WEAKDEPS_PROJ)
     end
 
-    using_expr = Expr(:using)
-    using_expr.args = [Expr(:., pkg) for pkg in pkgnames]
+    cpp = Pkg.project().path
+    io = verbose ? stderr : devnull
 
-    dft_path = joinpath(@__DIR__, "..", "ext")
-    quote
-        const cpp = $Pkg.project().path
-        try
-            $Pkg.activate($dft_path, io=devnull)
-            $Pkg.develop(path=joinpath(@__DIR__, ".."), io=devnull)
-            $Pkg.resolve(io=devnull)
-            $using_expr
-        finally
-            $Pkg.activate(cpp, io=devnull)
-        end
+    try
+        Pkg.activate(weakdeps_env; io)
+        Pkg.resolve(; io)
+        Pkg.instantiate(; io)
+        Pkg.status()
+    finally
+        Pkg.activate(cpp; io)
     end
+
+    push!(LOAD_PATH, weakdeps_env)
+    nothing
 end
+
 
 """
     DataFlowTasks.savedag(filepath, graph)

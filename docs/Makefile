@@ -5,16 +5,21 @@ setup:
             using Pkg;                           \
             Pkg.develop(PackageSpec(path="..")); \
             Pkg.instantiate()'
+	julia --project -e '                                 \
+            using DataFlowTasks;                             \
+            DataFlowTasks.stack_weakdeps_env!(verbose=true); \
+            using GraphViz, CairoMakie'
 
 update: readme-update examples-update
 
 check: readme-check examples-check
 
 doctest:
-	julia --project -e '                    \
-            using Documenter: DocMeta, doctest; \
-            using CairoMakie, GraphViz;         \
-            using DataFlowTasks;                \
+	julia --project -e '                     \
+            using Documenter: DocMeta, doctest;  \
+            using DataFlowTasks;                 \
+            DataFlowTasks.stack_weakdeps_env!(); \
+            using CairoMakie, GraphViz;          \
             DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true); \
             doctest(DataFlowTasks)'
 

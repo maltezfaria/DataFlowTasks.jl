@@ -14,14 +14,15 @@ profiling parallel programs:
     `GraphViz`) which are only needed during the development stage. We are
     therefore only declaring those as *weak dependencies* (for Julia v1.9 and
     above). The user can either set up a stacked environment in which these
-    dependencies are available, or use the [`DataFlowTasks.@using_opt`](@ref)
-    macro which handles the environment automatically.
+    dependencies are available, or use the [`DataFlowTasks.stack_weakdeps_env!()`](@ref)
+    function which handles the environment stack automatically.
 
 Let's first introduce a small example that will help illustrate the features
 introduced here:
 
 ```@example profiling
 using DataFlowTasks
+DataFlowTasks.stack_weakdeps_env!() #hide
 
 # Utility functions
 init!(x)    = (x .= rand())     # Write
@@ -87,7 +88,7 @@ Acyclic Graph (DAG) representing *task dependencies* as they were inferred by
 [`GraphViz.Graph`](@ref) out of it:
 
 ```@example profiling
-DataFlowTasks.@using_opt GraphViz # or `using GraphViz` if your environment has it
+using GraphViz
 GraphViz.Graph(log_info)
 ```
 
@@ -120,7 +121,7 @@ The collected scheduling & profiling information can be visualized using
 backend brings a bit more interactivity than `CairoMakie`):
 
 ```@example profiling
-DataFlowTasks.@using_opt CairoMakie # or GLMakie to benefit from more interactivity
+using CairoMakie # or GLMakie to benefit from more interactivity
 plot(log_info; categories=["init", "mutate", "read"])
 nothing # hide
 ```
