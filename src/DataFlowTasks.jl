@@ -5,7 +5,7 @@ Create `Task`s which can keep track of how data flows through it.
 """
 module DataFlowTasks
 
-const PROJECT_ROOT =  pkgdir(DataFlowTasks)
+const PROJECT_ROOT = pkgdir(DataFlowTasks)
 
 using DataStructures
 using Compat
@@ -38,29 +38,26 @@ include("dag.jl")
 include("scheduler.jl")
 # include("otherschedulers.jl")
 
-export
-    @dtask,
-    @dasync,
-    @dspawn
+export @dtask, @dasync, @dspawn
 
 function __init__()
     # default scheduler
-    capacity  = 50
-    sch       = JuliaScheduler(capacity)
+    capacity = 50
+    sch      = JuliaScheduler(capacity)
     setscheduler!(sch)
 
     # no logger by default
-    _setloginfo!(nothing)
+    return _setloginfo!(nothing)
 end
-
 
 const WEAKDEPS_PROJ = let
     deps = TOML.parse(read(joinpath(@__DIR__, "..", "ext", "Project.toml"), String))["deps"]
     filter!(deps) do (pkg, _)
-        pkg != String(nameof(@__MODULE__))
+        return pkg != String(nameof(@__MODULE__))
     end
-    compat = Dict{String, Any}()
-    for (pkg, bound) in TOML.parse(read(joinpath(@__DIR__, "..", "Project.toml"), String))["compat"]
+    compat = Dict{String,Any}()
+    for (pkg, bound) in
+        TOML.parse(read(joinpath(@__DIR__, "..", "Project.toml"), String))["compat"]
         pkg ∈ keys(deps) || continue
         compat[pkg] = bound
     end
@@ -91,7 +88,7 @@ using GraphViz
 function stack_weakdeps_env!(; verbose = false)
     weakdeps_env = Scratch.@get_scratch!("weakdeps-$(VERSION.major).$(VERSION.minor)")
     open(joinpath(weakdeps_env, "Project.toml"), "w") do f
-        TOML.print(f, WEAKDEPS_PROJ)
+        return TOML.print(f, WEAKDEPS_PROJ)
     end
 
     cpp = Pkg.project().path
@@ -107,9 +104,8 @@ function stack_weakdeps_env!(; verbose = false)
     end
 
     push!(LOAD_PATH, weakdeps_env)
-    nothing
+    return nothing
 end
-
 
 """
     DataFlowTasks.savedag(filepath, graph)

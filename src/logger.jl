@@ -58,22 +58,22 @@ struct LogInfo
     function LogInfo()
         # internal constructor to guarantee that there is always one vector per
         # thread to do the logging
-        new(
-            [Vector{TaskLog}()      for _ ∈ 1:Threads.nthreads()],
-            [Vector{InsertionLog}() for _ ∈ 1:Threads.nthreads()]
+        return new(
+            [Vector{TaskLog}() for _ in 1:Threads.nthreads()],
+            [Vector{InsertionLog}() for _ in 1:Threads.nthreads()],
         )
     end
 end
 
 #TODO: show more relevant information
-function Base.show(io::IO,l::LogInfo)
+function Base.show(io::IO, l::LogInfo)
     nodes = topological_sort(l)
-    n     = length(nodes)
-    cp    = longest_path(l)
-    ctasks = filter(t->tag(t) ∈ cp,nodes)
-    ct    = sum(weight(t) for t in ctasks) # critical time
-    println(io,"LogInfo with $n logged task",n==1 ? "" : "s")
-    print(io,"\t critical time: $(round(ct,sigdigits=2)) seconds")
+    n = length(nodes)
+    cp = longest_path(l)
+    ctasks = filter(t -> tag(t) ∈ cp, nodes)
+    ct = sum(weight(t) for t in ctasks) # critical time
+    println(io, "LogInfo with $n logged task", n == 1 ? "" : "s")
+    return print(io, "\t critical time: $(round(ct,sigdigits=2)) seconds")
 end
 
 """
@@ -90,7 +90,7 @@ const LOGINFO = Ref{Maybe{LogInfo}}()
 Set the active logger to `l`.
 """
 function _setloginfo!(l::Maybe{LogInfo})
-    LOGINFO[] = l
+    return LOGINFO[] = l
 end
 
 """
@@ -99,16 +99,16 @@ end
 Return the active logger.
 """
 function _getloginfo()
-    LOGINFO[]
+    return LOGINFO[]
 end
 
 function haslogger()
-    !isnothing(_getloginfo())
+    return !isnothing(_getloginfo())
 end
 
 #= Utility function to get number of task nodes of the logger =#
 function nbtasknodes(logger)
-    sum(length(threadlog) for threadlog ∈ logger.tasklogs)
+    return sum(length(threadlog) for threadlog in logger.tasklogs)
 end
 
 """
@@ -116,13 +116,14 @@ end
 
 Similar to [`with_logging`](@ref), but append events to `l`.
 """
-function with_logging!(f,l::LogInfo)
-    _log_mode() == true || error("you must run `enable_log()` to activate the logger before profiling")
+function with_logging!(f, l::LogInfo)
+    _log_mode() == true ||
+        error("you must run `enable_log()` to activate the logger before profiling")
     old_logger = _getloginfo()
     _setloginfo!(l)
     res = f()
     _setloginfo!(old_logger)
-    return res,l
+    return res, l
 end
 
 """
@@ -157,7 +158,7 @@ See also: [`LogInfo`](@ref)
 """
 function with_logging(f)
     l = LogInfo()
-    with_logging!(f,l)
+    return with_logging!(f, l)
 end
 
 """
@@ -177,7 +178,7 @@ See also: [`with_logging`](@ref), [`with_logging!`](@ref)
 macro log(ex)
     quote
         f = () -> $(esc(ex))
-        out,loginfo = with_logging(f)
+        out, loginfo = with_logging(f)
         loginfo
     end
 end
@@ -185,11 +186,11 @@ end
 # These implement the required interface to consider a Logger as a graph and
 # compute its longest path
 
-Base.isless(t1::TaskLog,t2::TaskLog) = isless(t1.tag,t2.tag)
+Base.isless(t1::TaskLog, t2::TaskLog) = isless(t1.tag, t2.tag)
 
 function topological_sort(l::LogInfo)
     tlogs = Iterators.flatten(l.tasklogs) |> collect
-    sort!(tlogs)
+    return sort!(tlogs)
 end
 
 intags(t::TaskLog) = t.inneighbors

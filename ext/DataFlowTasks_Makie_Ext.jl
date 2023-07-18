@@ -7,7 +7,6 @@ function __init__()
     @info "Loading DataFlowTasks general plot utilities"
 end
 
-
 #= Contains data to plot the Gantt Chart (parallel trace).
 It's a Struct of Array paradigm where all the entries i
 of all the arrays tells us information about a same task. =#
@@ -19,13 +18,12 @@ struct Gantt
 
     function Gantt()
         threads = Vector{Int64}()
-        jobids  = Vector{Int64}()
-        starts  = Vector{Float64}()
-        stops   = Vector{Float64}()
-        new(threads, jobids, starts, stops)
+        jobids = Vector{Int64}()
+        starts = Vector{Float64}()
+        stops = Vector{Float64}()
+        return new(threads, jobids, starts, stops)
     end
 end
-
 
 #= Contains additional post-processed informations on the LogInfo =#
 mutable struct ExtendedLogInfo
@@ -37,33 +35,36 @@ mutable struct ExtendedLogInfo
     t∞::Float64                     # Inf. proc time
     t_nowait::Float64               # Time if we didn't wait at all
     timespercat::Vector{Float64}    # timespercat[i] cumulative time for category i
-    categories::Vector{Pair{String, Regex}} # (label => regex) pairs for categories
+    categories::Vector{Pair{String,Regex}} # (label => regex) pairs for categories
     path::Vector{Int64}             # Critical Path
 
     function ExtendedLogInfo(logger::LogInfo, categories, path)
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
-        othertime     = (lasttime-firsttime) * length(logger.tasklogs)
+        othertime = (lasttime - firsttime) * length(logger.tasklogs)
 
         normalize_category(x) = x
-        normalize_category(x::String) = (x=>Regex(x))
+        normalize_category(x::String) = (x => Regex(x))
 
-        new(
-            firsttime, lasttime,
-            0, 0, othertime,
-            0, 0,
-            zeros(length(categories)+1), normalize_category.(categories),
-            path
+        return new(
+            firsttime,
+            lasttime,
+            0,
+            0,
+            othertime,
+            0,
+            0,
+            zeros(length(categories) + 1),
+            normalize_category.(categories),
+            path,
         )
     end
 end
 
-
 #= Gives minimum and maximum times the logger has measured. =#
 function timelimits(logger::LogInfo)
     iter = Iterators.flatten(logger.tasklogs)
-    minimum(t->t.time_start,iter), maximum(t->t.time_finish,iter)
+    return minimum(t -> t.time_start, iter), maximum(t -> t.time_finish, iter)
 end
-
 
 #= Considering a `label` and a the full list of labels `categories`,
 gives the index of the occurence of label in `categories`. =#
@@ -73,25 +74,24 @@ function jobid(label::String, categories)
         occursin(rx, label) && return i  # find first
     end
 
-    return length(categories)+1
+    return length(categories) + 1
 end
-
 
 #= Initialize gantt and loginfo structures from logger. =#
 function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Gantt)
     # Gantt data : Initialization TASKLOGS
     # ------------------------------------
-    for tasklog ∈ Iterators.flatten(logger.tasklogs)
+    for tasklog in Iterators.flatten(logger.tasklogs)
         # Gantt data
         # ----------
         push!(gantt.threads, tasklog.tid)
-        push!(gantt.jobids , jobid(tasklog.label, loginfo.categories))
-        push!(gantt.starts , tasklog.time_start  * 10^(-9) - loginfo.firsttime)
-        push!(gantt.stops  , tasklog.time_finish * 10^(-9) - loginfo.firsttime)
+        push!(gantt.jobids, jobid(tasklog.label, loginfo.categories))
+        push!(gantt.starts, tasklog.time_start * 10^(-9) - loginfo.firsttime)
+        push!(gantt.stops, tasklog.time_finish * 10^(-9) - loginfo.firsttime)
 
         # General Informations
         # --------------------
-        task_duration  = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
+        task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
         # ----
         loginfo.othertime     -= task_duration
         loginfo.computingtime += task_duration
@@ -104,48 +104,47 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
 
     # Gantt data : Initialization INSERTIONLOGS
     # -----------------------------------------
-    for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
+    for insertionlog in Iterators.flatten(logger.insertionlogs)
         if insertionlog.gc_time != 0
-            gc_start = insertionlog.time_start  * 10^(-9) - loginfo.firsttime
+            gc_start = insertionlog.time_start * 10^(-9) - loginfo.firsttime
             gc_finish = gc_start + insertionlog.gc_time * 10^(-9)
             insertion_start = gc_finish
             insertion_finish = insertionlog.time_finish * 10^(-9) - loginfo.firsttime
 
             # GC Task
-            push!(gantt.threads , insertionlog.tid)
-            push!(gantt.jobids  , length(loginfo.categories)+3)
-            push!(gantt.starts  , gc_start)
-            push!(gantt.stops   , gc_finish)
+            push!(gantt.threads, insertionlog.tid)
+            push!(gantt.jobids, length(loginfo.categories) + 3)
+            push!(gantt.starts, gc_start)
+            push!(gantt.stops, gc_finish)
         else
-            insertion_start = insertionlog.time_start  * 10^(-9) - loginfo.firsttime
+            insertion_start = insertionlog.time_start * 10^(-9) - loginfo.firsttime
             insertion_finish = insertionlog.time_finish * 10^(-9) - loginfo.firsttime
         end
 
         # Gantt data
         # ----------
         push!(gantt.threads, insertionlog.tid)
-        push!(gantt.jobids , length(loginfo.categories)+2)
-        push!(gantt.starts , insertion_start)
-        push!(gantt.stops  , insertion_finish)
+        push!(gantt.jobids, length(loginfo.categories) + 2)
+        push!(gantt.starts, insertion_start)
+        push!(gantt.stops, insertion_finish)
 
         # General Informations
         # --------------------
-        task_duration  = (insertionlog.time_finish - insertionlog.time_start) * 10^(-9)
+        task_duration         = (insertionlog.time_finish - insertionlog.time_start) * 10^(-9)
         loginfo.othertime     -= task_duration
         loginfo.insertingtime += task_duration
     end
 
     loginfo.t_nowait /= length(logger.tasklogs)
 
-    gantt
+    return gantt
 end
-
 
 #= Handles the gantt chart trace part of the global plot =#
 function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
-    hasdefault = (loginfo.timespercat[end] !=0 ? true : false)
+    hasdefault = (loginfo.timespercat[end] != 0 ? true : false)
 
-    lengthx = length(loginfo.categories)+1
+    lengthx = length(loginfo.categories) + 1
     hasdefault && (lengthx += 1)
 
     # Axis attributes
@@ -153,7 +152,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     ax.xlabel = "Time (s)"
     ax.ylabel = "Thread"
     ax.yticks = 1:max(gantt.threads...)
-    xlims!(ax, 0, loginfo.lasttime-loginfo.firsttime)
+    xlims!(ax, 0, loginfo.lasttime - loginfo.firsttime)
 
     if length(loginfo.categories) ≥ 4
         grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
@@ -168,20 +167,20 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     barplot!(
         ax,
         gantt.threads,
-        gantt.stops,
+        gantt.stops;
         fillto = gantt.starts,
         direction = :x,
         color = colors[gantt.jobids],
         gap = 0.5,
         strokewidth = 0.5,
         strokecolor = :grey,
-        width = 1.25
+        width = 1.25,
     )
 
     # Check if we measured some gc
     didgc = false
-    for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
-        insertionlog.gc_time != 0 && (didgc=true)
+    for insertionlog in Iterators.flatten(logger.insertionlogs)
+        insertionlog.gc_time != 0 && (didgc = true)
     end
 
     # Labels
@@ -189,7 +188,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     hasdefault && (c = [c..., :black])
     c = [c..., :red]
     didgc && (c = [c..., cgrad(:sun)[1]])
-    elements = [PolyElement(polycolor = i) for i in c]
+    elements = [PolyElement(; polycolor = i) for i in c]
 
     y = String[]
     push!(y, first.(loginfo.categories)...)
@@ -198,16 +197,16 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     push!(y, "insertion")
     didgc && push!(y, "gc")
 
-    Legend(
-        ax.parent[1,1],
+    return Legend(
+        ax.parent[1, 1],
         elements,
-        y,
+        y;
         orientation = :horizontal,
-        halign = :right, valign = :top,
-        margin = (5, 5, 5, 5)
+        halign = :right,
+        valign = :top,
+        margin = (5, 5, 5, 5),
     )
 end
-
 
 #= Handles the plot that indicates the repartition between computing, inserting, and other times =#
 function activityplot(ax, loginfo::ExtendedLogInfo)
@@ -218,40 +217,35 @@ function activityplot(ax, loginfo::ExtendedLogInfo)
 
     # Barplot
     # -------
-    barplot!(
+    return barplot!(
         ax,
         1:3,
-        [
-            loginfo.computingtime,
-            loginfo.insertingtime,
-            loginfo.othertime
-        ],
-        color = cgrad(:PRGn)[1:3]
+        [loginfo.computingtime, loginfo.insertingtime, loginfo.othertime];
+        color = cgrad(:PRGn)[1:3],
     )
 end
-
 
 #= Handles the time boundaries part of the global plot =#
 function boundsplot(ax, loginfo::ExtendedLogInfo)
     # Axis attributes
     # ---------------
-    ax.xticks = (1:3, ["Critical\nPath", "Without\nWaiting" , "Real"])
+    ax.xticks = (1:3, ["Critical\nPath", "Without\nWaiting", "Real"])
     ax.ylabel = "Time (s)"
 
     # Barplot
     # -------
-    barplot!(
+    return barplot!(
         ax,
         1:3,
-        [loginfo.t∞, loginfo.t_nowait , (loginfo.lasttime-loginfo.firsttime)],
-        color = cgrad(:sun)[1:3]
+        [loginfo.t∞, loginfo.t_nowait, (loginfo.lasttime - loginfo.firsttime)];
+        color = cgrad(:sun)[1:3],
     )
 end
 
 #= Handles the sorting by labeled categories part of the plot =#
 function categoriesplot(ax, loginfo::ExtendedLogInfo)
     categories = loginfo.categories
-    hasdefault = (loginfo.timespercat[end] !=0 ? true : false)
+    hasdefault = (loginfo.timespercat[end] != 0 ? true : false)
 
     # Axis attributes
     lengthx = length(categories)
@@ -260,7 +254,6 @@ function categoriesplot(ax, loginfo::ExtendedLogInfo)
     hasdefault && (ticks = [ticks..., "default"])
     ax.xticks = (1:lengthx, ticks)
     ax.ylabel = "Time (s)"
-
 
     # Colors
     if length(loginfo.categories) ≥ 4
@@ -275,13 +268,7 @@ function categoriesplot(ax, loginfo::ExtendedLogInfo)
     # -------
     y = loginfo.timespercat[1:end]
     !hasdefault && (y = y[1:end-1])
-    barplot!(
-        ax,
-        1:lengthx,
-        y,
-        color = grad
-    )
-
+    return barplot!(ax, 1:lengthx, y; color = grad)
 end
 
 #= Handles the interactivity part of the plot =#
@@ -293,7 +280,7 @@ function react(ax, logger::LogInfo, gantt::Gantt)
 
         k = 1
         match = false
-        for tasklog ∈ Iterators.flatten(logger.tasklogs)
+        for tasklog in Iterators.flatten(logger.tasklogs)
             condx = gantt.starts[k] <= pos[1] <= gantt.stops[k]
             condy = gantt.threads[k] - 0.3 <= pos[2] <= gantt.threads[k] + 0.3
             if condx && condy
@@ -304,14 +291,12 @@ function react(ax, logger::LogInfo, gantt::Gantt)
             k += 1
         end
 
-        !match && (to[] = "Task Label")
-
+        return !match && (to[] = "Task Label")
     end
     on(to) do t
-        ax.title = "Parallel Trace\n$t"
+        return ax.title = "Parallel Trace\n$t"
     end
 end
-
 
 """
     plot(log_info; categories)
@@ -331,13 +316,10 @@ See the
 [documentation](https://maltezfaria.github.io/DataFlowTasks.jl/dev/profiling/)
 for more information on how to profile and visualize `DataFlowTasks`.
 """
-function Makie.plot(log_info::LogInfo; categories=String[])
+function Makie.plot(log_info::LogInfo; categories = String[])
     # Figure
     # ------
-    fig = Figure(
-        backgroundcolor = RGBf(0.98, 0.98, 0.98),
-        resolution = (1280, 720)
-    )
+    fig = Figure(; backgroundcolor = RGBf(0.98, 0.98, 0.98), resolution = (1280, 720))
 
     # Extract logger informations
     # ---------------------------
@@ -347,12 +329,12 @@ function Makie.plot(log_info::LogInfo; categories=String[])
 
     # Layouts
     # --------------------------------------------
-    axtrc = Axis(fig[1,1]     , title="Parallel Trace\n Task Label")
-    axact = Axis(fig[2,1][1,1], title="Activity")
-    axinf = Axis(fig[2,1][1,2], title="Time Bounds")
-    axcat = Axis(fig[2,1][1,3], title="Times per Category")
+    axtrc = Axis(fig[1, 1]; title = "Parallel Trace\n Task Label")
+    axact = Axis(fig[2, 1][1, 1]; title = "Activity")
+    axinf = Axis(fig[2, 1][1, 2]; title = "Time Bounds")
+    axcat = Axis(fig[2, 1][1, 3]; title = "Times per Category")
     # -------
-    rowsize!(fig.layout, 1, Relative(2/3))
+    rowsize!(fig.layout, 1, Relative(2 / 3))
 
     # Plot each part
     # --------------
@@ -370,7 +352,7 @@ function Makie.plot(log_info::LogInfo; categories=String[])
     @info "Inserting    : $(loginfo.insertingtime)"
     @info "Other        : $(loginfo.othertime)"
 
-    fig
+    return fig
 end
 
 end
