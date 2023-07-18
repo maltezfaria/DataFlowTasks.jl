@@ -10,8 +10,8 @@ using DataFlowTasks: R, W, RW
 function fork_join(n, s, m = 1)
     A = rand(2n)
     @dspawn do_work(s, @RW A) label = "first"
-    for iter ∈ 1:m
-        for i ∈ 1:n
+    for iter in 1:m
+        for i in 1:n
             Av = view(A, [i, i + n])
             @dspawn do_work(s, @RW Av) label = "indep($i)"
         end

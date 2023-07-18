@@ -79,7 +79,7 @@ Number of edges in the `DAG`.
 """
 function num_edges(dag::DAG)
     acc = 0
-    for (_, (inlist, _)) ∈ dag.inoutlist
+    for (_, (inlist, _)) in dag.inoutlist
         acc += length(inlist)
     end
     return acc
@@ -184,7 +184,7 @@ function update_edges!(dag::DAG, nodej)
     empty!(transitively_connected)
     # update dependencies from newer to older and reinfornce transitivity by
     # skipping predecessors of nodes which are already connected
-    for (nodei, _) ∈ Iterators.reverse(dag)
+    for (nodei, _) in Iterators.reverse(dag)
         nodei == nodej && continue
         if _linear_dag()
             addedge!(dag, nodei, nodej)
@@ -201,7 +201,7 @@ function update_edges!(dag::DAG, nodej)
         # addedge_transitive!(dag,nodei,nodej)
     end
     # if a DataFlowTask is in data and it is still active, add the edge directly to the DAG
-    for d ∈ data(nodej)
+    for d in data(nodej)
         (d isa DataFlowTask) &&
             (tag(d) ∉ transitively_connected) &&
             haskey(dag.inoutlist, d) &&
@@ -211,7 +211,7 @@ function update_edges!(dag::DAG, nodej)
 end
 
 function update_transitively_connected!(transitively_connected, node, dag)
-    for nodei ∈ inneighbors(dag, node)
+    for nodei in inneighbors(dag, node)
         ti = tag(nodei)
         (ti ∈ transitively_connected) && continue
         push!(transitively_connected, ti)
@@ -226,7 +226,7 @@ end
 Check if there is a path in `dag` connecting `i` to `j`.
 """
 function isconnected(dag::DAG, i, j)
-    for k ∈ inneighbors(dag, j)
+    for k in inneighbors(dag, j)
         if k == i
             return true
         elseif k < i
@@ -267,7 +267,7 @@ function remove_node!(dag::DAG, i)
         end
         (inlist, outlist) = pop!(dag.inoutlist, i)
         # remove i from the inlist of all its outneighbors
-        for j ∈ outlist
+        for j in outlist
             pop!(inneighbors(dag, j), i)
         end
         # notify a task waiting to push into the dag
@@ -314,11 +314,11 @@ function longest_path(graph)
     # - n′ is the predecessor of n in this path (or 0 if n is the first node in the path)
     lp = Dict{Int64,Tuple{Float64,Int}}()
 
-    for node ∈ topological_sort(graph)
+    for node in topological_sort(graph)
         # Find the predecessor with the longest path leading to it
         path_length = 0.0
         predecessor = 0
-        for n ∈ intags(node)
+        for n in intags(node)
             pl, _ = lp[n]
             if pl > path_length
                 path_length = pl

@@ -76,7 +76,7 @@ end
 @testset "Buffering" begin
     sz = 10
     dag = DAG{Int}(sz)
-    for i ∈ 1:sz
+    for i in 1:sz
         addnode!(dag, i)
     end
     @test num_nodes(dag) == sz

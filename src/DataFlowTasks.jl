@@ -56,7 +56,7 @@ const WEAKDEPS_PROJ = let
         return pkg != String(nameof(@__MODULE__))
     end
     compat = Dict{String,Any}()
-    for (pkg, bound) ∈
+    for (pkg, bound) in
         TOML.parse(read(joinpath(@__DIR__, "..", "Project.toml"), String))["compat"]
         pkg ∈ keys(deps) || continue
         compat[pkg] = bound

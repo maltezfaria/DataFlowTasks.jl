@@ -29,4 +29,4 @@ join_lines_based_on_source = false
 indent_submodule = true
 separate_kwargs_with_semicolon = true
 surround_whereop_typeparameters = true
-for_in_replacement = "∈"
+for_in_replacement = "in"

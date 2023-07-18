@@ -59,8 +59,8 @@ struct LogInfo
         # internal constructor to guarantee that there is always one vector per
         # thread to do the logging
         return new(
-            [Vector{TaskLog}() for _ ∈ 1:Threads.nthreads()],
-            [Vector{InsertionLog}() for _ ∈ 1:Threads.nthreads()],
+            [Vector{TaskLog}() for _ in 1:Threads.nthreads()],
+            [Vector{InsertionLog}() for _ in 1:Threads.nthreads()],
         )
     end
 end
@@ -71,7 +71,7 @@ function Base.show(io::IO, l::LogInfo)
     n = length(nodes)
     cp = longest_path(l)
     ctasks = filter(t -> tag(t) ∈ cp, nodes)
-    ct = sum(weight(t) for t ∈ ctasks) # critical time
+    ct = sum(weight(t) for t in ctasks) # critical time
     println(io, "LogInfo with $n logged task", n == 1 ? "" : "s")
     return print(io, "\t critical time: $(round(ct,sigdigits=2)) seconds")
 end
@@ -108,7 +108,7 @@ end
 
 #= Utility function to get number of task nodes of the logger =#
 function nbtasknodes(logger)
-    return sum(length(threadlog) for threadlog ∈ logger.tasklogs)
+    return sum(length(threadlog) for threadlog in logger.tasklogs)
 end
 
 """

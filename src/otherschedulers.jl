@@ -96,7 +96,7 @@ function execute_dag(sch::StaticScheduler)
         @warn "DAG is empty"
         return sch
     else
-        for (t, _) ∈ sch.dag
+        for (t, _) in sch.dag
             schedule(t.task)
         end
         # wait on dag to be emptied. This means all nodes have been ran and finished.
@@ -146,7 +146,7 @@ function finished_to_runnable(dag, finished, runnable)
         # check if anyone in outlist is dependency-free after removal of t
         outlist = outneighbors(dag, t)
         remove_node!(dag, t)
-        for j ∈ outlist
+        for j in outlist
             if isempty(inneighbors(dag, j))
                 p = priority(j)
                 put!(runnable, j, p)
@@ -176,7 +176,7 @@ from `runnable` and execute them. If `background=true` the main thread
 function consume_runnable(runnable, nt, background = false)
     tasks = Task[]
     i1 = nt == 1 ? 1 : background ? 2 : 1
-    for i ∈ i1:nt
+    for i in i1:nt
         t = @tspawnat i begin
             while true
                 t = take!(runnable)

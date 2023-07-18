@@ -37,14 +37,14 @@ mutable struct DataFlowTask
         # Store inneighbors if logging activated
         _log_mode() &&
             haslogger() &&
-            (inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)])
+            (inneighbors_ = [task.tag for task in inneighbors(sch.dag, tj)])
 
         deps = inneighbors(sch.dag, tj) |> copy
         tj.task = @task handle_errors() do
             if sch isa JuliaScheduler
                 # in this case julia handles the scheduling, so we must pass the
                 # dependencies to the julia scheduler
-                for ti ∈ deps
+                for ti in deps
                     wait(ti)
                 end
             end
@@ -127,9 +127,9 @@ function data_dependency(ti::DataFlowTask, tj::DataFlowTask)
 end
 
 @noinline function _data_dependency(datai, modei, dataj, modej)
-    for (di, mi) ∈ zip(datai, modei)
+    for (di, mi) in zip(datai, modei)
         (di isa DataFlowTask) && continue
-        for (dj, mj) ∈ zip(dataj, modej)
+        for (dj, mj) in zip(dataj, modej)
             (dj isa DataFlowTask) && continue
             mi == READ && mj == READ && continue
             if memory_overlap(di, dj)
@@ -210,11 +210,11 @@ function _dtask(
     function try_register_access(expr::Expr)
         if expr.head == :macrocall
             tags = (READ => ("@R", "@←"), WRITE => ("@W", "@→"), READWRITE => ("@RW", "@↔"))
-            for (m, t) ∈ tags
+            for (m, t) in tags
                 if expr.args[1] ∈ Symbol.(t)
                     # Register access mode `m` for all data listed in `expr`
                     # If multiple data are listed, only return the first one
-                    for i ∈ 3:length(expr.args)
+                    for i in 3:length(expr.args)
                         push!(data, expr.args[i])
                         push!(mode, m)
                     end

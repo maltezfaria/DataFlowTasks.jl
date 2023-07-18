@@ -184,7 +184,7 @@ function restart_scheduler!(sch::JuliaScheduler)
     stop_dag_worker(sch)
     empty!(sch.finished)
     # go over all task in the dag and interrupt them
-    for (t, _) ∈ sch.dag.inoutlist
+    for (t, _) in sch.dag.inoutlist
         istaskstarted(t.task) || schedule(t.task, :stop; error = true)
     end
     empty!(sch.dag)

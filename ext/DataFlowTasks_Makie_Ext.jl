@@ -69,7 +69,7 @@ end
 #= Considering a `label` and a the full list of labels `categories`,
 gives the index of the occurence of label in `categories`. =#
 function jobid(label::String, categories)
-    for i ∈ eachindex(categories)
+    for i in eachindex(categories)
         (title, rx) = categories[i]
         occursin(rx, label) && return i  # find first
     end
@@ -81,7 +81,7 @@ end
 function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Gantt)
     # Gantt data : Initialization TASKLOGS
     # ------------------------------------
-    for tasklog ∈ Iterators.flatten(logger.tasklogs)
+    for tasklog in Iterators.flatten(logger.tasklogs)
         # Gantt data
         # ----------
         push!(gantt.threads, tasklog.tid)
@@ -104,7 +104,7 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
 
     # Gantt data : Initialization INSERTIONLOGS
     # -----------------------------------------
-    for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
+    for insertionlog in Iterators.flatten(logger.insertionlogs)
         if insertionlog.gc_time != 0
             gc_start = insertionlog.time_start * 10^(-9) - loginfo.firsttime
             gc_finish = gc_start + insertionlog.gc_time * 10^(-9)
@@ -179,7 +179,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
 
     # Check if we measured some gc
     didgc = false
-    for insertionlog ∈ Iterators.flatten(logger.insertionlogs)
+    for insertionlog in Iterators.flatten(logger.insertionlogs)
         insertionlog.gc_time != 0 && (didgc = true)
     end
 
@@ -188,7 +188,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     hasdefault && (c = [c..., :black])
     c = [c..., :red]
     didgc && (c = [c..., cgrad(:sun)[1]])
-    elements = [PolyElement(; polycolor = i) for i ∈ c]
+    elements = [PolyElement(; polycolor = i) for i in c]
 
     y = String[]
     push!(y, first.(loginfo.categories)...)
@@ -280,7 +280,7 @@ function react(ax, logger::LogInfo, gantt::Gantt)
 
         k = 1
         match = false
-        for tasklog ∈ Iterators.flatten(logger.tasklogs)
+        for tasklog in Iterators.flatten(logger.tasklogs)
             condx = gantt.starts[k] <= pos[1] <= gantt.stops[k]
             condy = gantt.threads[k] - 0.3 <= pos[2] <= gantt.threads[k] + 0.3
             if condx && condy

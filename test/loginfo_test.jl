@@ -26,7 +26,7 @@ logger = DataFlowTasks.@log work(A, B)
 
 @test length(logger.tasklogs) == Threads.nthreads()
 nbtasks = DataFlowTasks.nbtasknodes(logger)
-nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs)
+nbinsertion = sum(length(insertionlog) for insertionlog in logger.insertionlogs)
 @test nbtasks == 5
 @test nbinsertion == 5
 
@@ -71,7 +71,7 @@ end
 logger = DataFlowTasks.@log work(A, B)
 @test length(logger.tasklogs) == Threads.nthreads()
 nbtasks = DataFlowTasks.nbtasknodes(logger)
-nbinsertion = sum(length(insertionlog) for insertionlog ∈ logger.insertionlogs)
+nbinsertion = sum(length(insertionlog) for insertionlog in logger.insertionlogs)
 @test nbtasks == 5
 @test nbinsertion == 5
 

@@ -39,7 +39,7 @@ function loggertodot(logger)
     str = "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;"
     str *= """concentrate=true;"""
 
-    for tasklog ∈ Iterators.flatten(logger.tasklogs)
+    for tasklog in Iterators.flatten(logger.tasklogs)
         # Tasklog.tag node attributes
         str *= """ $(tasklog.tag) """
         tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)
@@ -47,7 +47,7 @@ function loggertodot(logger)
         str *= """[penwidth=2];"""
 
         # Defines edges
-        for neighbour ∈ tasklog.inneighbors
+        for neighbour in tasklog.inneighbors
             red = false
 
             # Is this connection is in critical path
