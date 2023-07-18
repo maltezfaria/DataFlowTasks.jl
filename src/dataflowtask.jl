@@ -21,45 +21,32 @@ mutable struct DataFlowTask
     priority::Float64
     label::String
     task::Task
-    function DataFlowTask(
-        code,
-        data,
-        mode::NTuple{N,AccessMode},
-        priority = 0,
-        label = "",
-        sch = getscheduler(),
-    ) where {N}
+    function DataFlowTask(code,data,mode::NTuple{N,AccessMode},priority=0,label="",sch=get_active_taskgraph()) where {N}
         @assert length(data) == N
         TASKCOUNTER[] += 1
-        tj = new(data, mode, TASKCOUNTER[], priority, label)
-        addnode!(sch, tj, true)
+        tj    = new(data,mode,TASKCOUNTER[],priority,label)
+        addnode!(sch,tj,true)
 
         # Store inneighbors if logging activated
-        _log_mode() &&
-            haslogger() &&
-            (inneighbors_ = [task.tag for task in inneighbors(sch.dag, tj)])
+        _log_mode() && haslogger() && (inneighbors_ = [task.tag for task ∈ inneighbors(sch.dag, tj)])
 
-        deps = inneighbors(sch.dag, tj) |> copy
+        deps  = inneighbors(sch.dag,tj) |> copy
         tj.task = @task handle_errors() do
-            if sch isa JuliaScheduler
-                # in this case julia handles the scheduling, so we must pass the
-                # dependencies to the julia scheduler
-                for ti in deps
-                    wait(ti)
-                end
+            for ti in deps
+                wait(ti)
             end
             # run the underlying code block and time its execution for logging
-            t₀ = time_ns()
+            t₀  = time_ns()
             res = code()
-            t₁ = time_ns()
+            t₁  = time_ns()
             # Push new TaskLog if logging activated
             if _log_mode() && haslogger()
                 tid = Threads.threadid()
                 task_log = TaskLog(tj.tag, t₀, t₁, tid, inneighbors_, tj.label)
                 push!(_getloginfo().tasklogs[tid], task_log)
             end
-            put!(sch.finished, tj)
-            return res
+            put!(sch.finished,tj)
+            res
         end
         return tj
     end
@@ -77,8 +64,8 @@ const TASKCOUNTER = Ref(0)
 
 Data accessed by `t`.
 """
-data(t::DataFlowTask) = t.data
-data(t::DataFlowTask, i) = t.data[i]
+data(t::DataFlowTask)        = t.data
+data(t::DataFlowTask,i)      = t.data[i]
 
 """
     access_mode(t::DataFlowTask[,i])
@@ -87,13 +74,13 @@ How `t` accesses its data.
 
 ## See: [`AccessMode`](@ref)
 """
-access_mode(t::DataFlowTask) = t.access_mode
-access_mode(t::DataFlowTask, i) = t.access_mode[i]
+access_mode(t::DataFlowTask)   = t.access_mode
+access_mode(t::DataFlowTask,i) = t.access_mode[i]
 
-Base.istaskdone(t::DataFlowTask) = istaskdone(t.task)
+Base.istaskdone(t::DataFlowTask)  = istaskdone(t.task)
 Base.istaskfailed(t::DataFlowTask) = istaskfailed(t.task)
 Base.istaskstarted(t::DataFlowTask) = istaskstarted(t.task)
-Base.wait(t::DataFlowTask) = wait(t.task)
+Base.wait(t::DataFlowTask)  = wait(t.task)
 Base.fetch(t::DataFlowTask) = fetch(t.task)
 
 # the tag gives a total order of the tasks, with smaller tasks being assumed to
@@ -101,12 +88,12 @@ Base.fetch(t::DataFlowTask) = fetch(t.task)
 tag(t::DataFlowTask) = t.tag
 tag(t) = t
 
-Base.hash(t::DataFlowTask, h::UInt64) = hash(t.tag, h)
-Base.:(==)(a::DataFlowTask, b::DataFlowTask) = (a.tag == b.tag)
-Base.isless(a::DataFlowTask, b::DataFlowTask) = isless(a.tag, b.tag)
+Base.hash(t::DataFlowTask,h::UInt64)        = hash(t.tag,h)
+Base.:(==)(a::DataFlowTask,b::DataFlowTask) = (a.tag == b.tag)
+Base.isless(a::DataFlowTask,b::DataFlowTask)  = isless(a.tag,b.tag)
 
-function Base.show(io::IO, t::DataFlowTask)
-    if isdefined(t, :task)
+function Base.show(io::IO,t::DataFlowTask)
+    if isdefined(t,:task)
         print(io, "DataFlowTask ($(t.task.state)) $(t.tag)")
     else
         print(io, "DataFlowTask (no Task created) $(t.tag)")
@@ -121,18 +108,18 @@ they read from and write to.
 """
 function data_dependency(ti::DataFlowTask, tj::DataFlowTask)
     # unpack and dispatch
-    di, dj = data(ti), data(tj)
-    mi, mj = access_mode(ti), access_mode(tj)
-    return _data_dependency(di, mi, dj, mj)
+    di,dj = data(ti), data(tj)
+    mi,mj = access_mode(ti), access_mode(tj)
+    _data_dependency(di,mi,dj,mj)
 end
 
-@noinline function _data_dependency(datai, modei, dataj, modej)
-    for (di, mi) in zip(datai, modei)
+@noinline function _data_dependency(datai,modei,dataj,modej)
+    for (di,mi) in zip(datai,modei)
         (di isa DataFlowTask) && continue
-        for (dj, mj) in zip(dataj, modej)
+        for (dj,mj) in zip(dataj,modej)
             (dj isa DataFlowTask) && continue
             mi == READ && mj == READ && continue
-            if memory_overlap(di, dj)
+            if memory_overlap(di,dj)
                 return true
             end
         end
@@ -151,7 +138,7 @@ A generic version is implemented returning `true` (but printing a warning).
 Users should overload this function for the specific data types used in the
 arguments to allow for appropriate inference of data dependencies.
 """
-function memory_overlap(di, dj)
+function memory_overlap(di,dj)
     (isbits(di) || isbits(dj)) && return false
     @warn "memory_overlap(::$(typeof(di)),::$(typeof(dj))) not implemented. Defaulting to `true`"
     return true
@@ -163,7 +150,7 @@ end
 If `mode` is `true`, nodes are added to the DAG in a linear fashion, i.e. the DAG
 connects node `i` to node `i+1`. This is useful for debugging purposes.
 """
-function force_linear_dag(mode = false)
+function force_linear_dag(mode=false)
     @eval _linear_dag() = $mode
 end
 
@@ -182,7 +169,7 @@ See also: [`force_linear_dag`](@ref).
 """
 function force_sequential(seq::Bool = true; static::Bool = false)
     dyn = static ? :sta : :dyn
-    par = seq ? :seq : :par
+    par = seq    ? :seq : :par
     _sequential_mode() == (dyn, par) && return (dyn, par)
 
     if static
@@ -194,12 +181,8 @@ end
 
 _sequential_mode() = (:dyn, :par)
 
-function _dtask(
-    continuation,
-    expr::Expr,
-    kwargs;
-    source = LineNumberNode(@__LINE__, @__FILE__),
-)
+
+function _dtask(continuation, expr::Expr, kwargs; source=LineNumberNode(@__LINE__, @__FILE__))
     data = []
     mode = []
 
@@ -209,7 +192,9 @@ function _dtask(
     try_register_access(expr) = nothing
     function try_register_access(expr::Expr)
         if expr.head == :macrocall
-            tags = (READ => ("@R", "@←"), WRITE => ("@W", "@→"), READWRITE => ("@RW", "@↔"))
+            tags = (READ      => ("@R",  "@←"),
+                    WRITE     => ("@W",  "@→"),
+                    READWRITE => ("@RW", "@↔"))
             for (m, t) in tags
                 if expr.args[1] ∈ Symbol.(t)
                     # Register access mode `m` for all data listed in `expr`
@@ -247,26 +232,22 @@ function _dtask(
         priority = 0,   # task priority
     )
 
-    params = foldl(kwargs; init = defaults) do params, opt
+    params = foldl(kwargs, init=defaults) do params, opt
         isnothing(try_register_access(opt)) || return params
 
         if !(opt isa Expr && opt.head == :(=))
-            @warn(
-                "Malformed DataFlowTask parameter: `$opt`",
-                _file = string(source.file),
-                _line = source.line
-            )
+            @warn("Malformed DataFlowTask parameter: `$opt`",
+                  _file = string(source.file),
+                  _line = source.line)
             return params
         end
 
         opt_name = opt.args[1]
         opt_val  = opt.args[2]
         if opt_name ∉ keys(params)
-            @warn(
-                "Unknown DataFlowTask parameter: `$opt`",
-                _file = string(source.file),
-                _line = source.line
-            )
+            @warn("Unknown DataFlowTask parameter: `$opt`",
+                  _file = string(source.file),
+                  _line = source.line)
             return params
         end
 
@@ -283,7 +264,7 @@ function _dtask(
             (dyn, par) = $_sequential_mode()
             if par == :par
                 $t = $DataFlowTask(
-                    () -> $(esc(new_expr)),
+                    ()->$(esc(new_expr)),
                     $(esc(data)),
                     $(mode),
                     $(esc(params.priority)),
@@ -297,7 +278,7 @@ function _dtask(
     elseif par == :par  # Static mode -> generate specific, parallel code
         quote
             $t = $DataFlowTask(
-                () -> $(esc(new_expr)),
+                ()->$(esc(new_expr)),
                 $(esc(data)),
                 $(mode),
                 $(esc(params.priority)),
@@ -325,5 +306,5 @@ dependencies, and a list of supported keyword arguments.
 See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
 macro dtask(expr, kwargs...)
-    return _dtask(expr, kwargs; source = __source__)
+    _dtask(expr, kwargs; source=__source__)
 end

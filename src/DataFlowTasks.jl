@@ -33,19 +33,15 @@ const Maybe{T} = Union{T,Nothing}
 include("utils.jl")
 include("logger.jl")
 include("dataflowtask.jl")
-include("arrayinterface.jl")
 include("dag.jl")
-include("scheduler.jl")
-# include("otherschedulers.jl")
-
-export @dtask, @dasync, @dspawn
+include("taskgraph.jl")
+include("arrayinterface.jl")
 
 function __init__()
     # default scheduler
     capacity = 50
-    sch      = JuliaScheduler(capacity)
-    setscheduler!(sch)
-
+    tg      = TaskGraph(capacity)
+    set_active_taskgraph!(tg)
     # no logger by default
     return _setloginfo!(nothing)
 end
