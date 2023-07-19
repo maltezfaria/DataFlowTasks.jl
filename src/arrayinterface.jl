@@ -24,7 +24,6 @@ function memory_overlap(di::Array, dj::Array)
         return true
     end
 end
-memory_overlap(A::AbstractArray, B::AbstractArray) = memory_overlap(parent(A), parent(B))
 
 function memory_overlap(di::SubArray, dj::SubArray)
     if pointer(di.parent) !== pointer(dj.parent)
@@ -33,6 +32,9 @@ function memory_overlap(di::SubArray, dj::SubArray)
         _memory_overlap(di, dj)
     end
 end
+
+memory_overlap(di::SubArray, dj::Array) = memory_overlap(di.parent, dj)
+memory_overlap(di::Array, dj::SubArray) = memory_overlap(dj, di)
 
 # for subarrays, check their indices. For now assume that the indices have the
 # same length since this simplifies the logic
@@ -51,3 +53,14 @@ end
 
 idxintersect(a, b) = !isempty(intersect(a, b))
 idxintersect(a::Number, b::Number) = a == b
+
+# methods for Adjoint, Transpose, and Triangular.
+const AdjOrTransOrTri = Union{Adjoint,Transpose,LinearAlgebra.AbstractTriangular}
+
+function memory_overlap(A::AdjOrTransOrTri, B::AbstractArray)
+    return memory_overlap(parent(A), B)
+end
+memory_overlap(A::AbstractArray, B::AdjOrTransOrTri) = memory_overlap(B, A)
+function memory_overlap(A::AdjOrTransOrTri, B::AdjOrTransOrTri)
+    return memory_overlap(parent(A), parent(B))
+end

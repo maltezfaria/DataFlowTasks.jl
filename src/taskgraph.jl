@@ -88,7 +88,7 @@ capcity(taskgraph) = taskgraph |> dag |> capacity
 
 Change the buffer size of `tg` to `sz`.
 """
-Base.resize!(tg::TaskGraph,sz) = (resize!(tg.dag,sz); tg)
+Base.resize!(tg::TaskGraph, sz) = (resize!(tg.dag, sz); tg)
 
 """
     empty!(tg::TaskGraph)

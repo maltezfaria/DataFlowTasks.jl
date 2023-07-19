@@ -21,8 +21,7 @@ import DataFlowTasks as DFT
     @testset "access tags in arguments list" begin
         t = DFT.@dtask f(@R(x), @W(y), @RW(z))
         @test t.data === (x, y, z)
-        @test t.access_mode ==
-              (DFT.READ, DFT.WRITE, DFT.READWRITE)
+        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE)
         @test t.priority == 0
         @test t.label == ""
     end
@@ -30,8 +29,7 @@ import DataFlowTasks as DFT
     @testset "arrow access tags" begin
         t = DFT.@dtask f(@←(x), @→(y), @↔(z))
         @test t.data === (x, y, z)
-        @test t.access_mode ==
-              (DFT.READ, DFT.WRITE, DFT.READWRITE)
+        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE)
     end
 
     @testset "access tags in task body" begin
@@ -47,8 +45,7 @@ import DataFlowTasks as DFT
     @testset "access tags in parameters" begin
         t = DFT.@dtask f(x', y', z') @R(x) @W(y) @RW(z)
         @test t.data === (x, y, z)
-        @test t.access_mode ==
-              (DFT.READ, DFT.WRITE, DFT.READWRITE)
+        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE)
     end
 
     @testset "optional parameters" begin

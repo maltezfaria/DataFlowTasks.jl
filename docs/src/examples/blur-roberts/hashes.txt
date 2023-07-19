@@ -1,8 +1,8 @@
-6e6cfe102719cbc724825e0bed3771fe94d8ebb5 src/DataFlowTasks.jl
+fecc34be726d7c5b53b7ccefc01e2726f59e9d9e src/DataFlowTasks.jl
 015a80e670adc2e2ce3aaeaab86033ec48b3b522 src/utils.jl
 0ae7dd8378647f504af05347d5e2892eb0ed26c4 src/logger.jl
-270fa2c9c3a6045ef734c018a85bafde2c669213 src/dataflowtask.jl
+9d84dfd96b73bc130fabfd6a012dc1ca8b6cdf9b src/dataflowtask.jl
 d3a2168336be2abe49f759cfbad1d52396a0132a src/dag.jl
-706ca2e7adc17881dcc2c7a61bd470080d2724de src/taskgraph.jl
-451b7eb6399992c619fbdd9efb228cc433402118 src/arrayinterface.jl
+46fdc7dc5375cc02cde68ca058f18fc4bb635822 src/taskgraph.jl
+91191bc9785da3ef476e11f795f2811c19491fcd src/arrayinterface.jl
 d66c3db6b748cd0f322dd29f20273f9036736850 docs/src/examples/blur-roberts/blur-roberts.jl

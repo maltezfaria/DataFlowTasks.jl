@@ -40,7 +40,7 @@ include("arrayinterface.jl")
 function __init__()
     # default scheduler
     capacity = 50
-    tg      = TaskGraph(capacity)
+    tg = TaskGraph(capacity)
     set_active_taskgraph!(tg)
     # no logger by default
     return _setloginfo!(nothing)
