@@ -34,7 +34,7 @@ end
 function blurstep!(v₂, v₁, tn, ts)
     for ti ∈ 1:tn, tj ∈ 1:tn
         (ri,rj) = checkranges(tilerange.([ti tj], ts)..., tn*ts)
-        @dspawn begin
+        @spawn begin
             @R view(v₁, ri[1]-1, rj[1]-1:ri[end]+1)    # North
             @R view(v₁, ri[end]+1, rj[1]-1:ri[end]+1)  # South
             @R view(v₁, ri, rj[1]-1)                   # West
@@ -49,7 +49,7 @@ end
 function robertstep!(v₂, v₁, tn, ts)
     for ti ∈ 1:tn, tj ∈ 1:tn
         (ri,rj) = checkranges(tilerange.([ti tj], ts)..., tn*ts)
-        @dspawn begin
+        @spawn begin
             @R view(v₁, ri[1]-1, rj[1]-1:ri[end]+1)    # North
             @R view(v₁, ri, rj[end]+1)                 # East
             @R view(v₁, ri, rj)                        # Center

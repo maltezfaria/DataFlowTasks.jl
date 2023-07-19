@@ -32,7 +32,7 @@ end
 The active `TaskGraph` being used. Nodes will be added to this `TaskGraph` by
 default.
 
-Can be changed using [`settaskgraph!`](@ref).
+Can be changed using [`set_active_taskgraph!`](@ref).
 """
 const TASKGRAPH = Ref{TaskGraph}()
 
@@ -82,6 +82,13 @@ function Base.wait(taskgraph::TaskGraph)
 end
 
 capcity(taskgraph) = taskgraph |> dag |> capacity
+
+"""
+    resize!(tg::TaskGraph, sz)
+
+Change the buffer size of `tg` to `sz`.
+"""
+Base.resize!(tg::TaskGraph,sz) = (resize!(tg.dag,sz); tg)
 
 """
     empty!(tg::TaskGraph)
@@ -165,7 +172,7 @@ end
 """
     @spawn expr [kwargs...]
 
-Spawn a [`Task`](@ref) to execute the code given by `expr`, and schedule it to
+Spawn a Julia `Task` to execute the code given by `expr`, and schedule it to
 run on any available thread.
 
 Annotate the code in `expr` with `@R`, `@W` and/or `@RW` to indicate how it
@@ -262,11 +269,11 @@ end
 """
     @dasync expr [kwargs...]
 
-Like [`@dspawn`](@ref), but schedules the task to run on the current thread.
+Like [`@spawn`](@ref), but schedules the task to run on the current thread.
 
 See also:
 
-[`@dspawn`](@ref), [`@dtask`](@ref)
+[`@spawn`](@ref), [`@dtask`](@ref)
 """
 macro dasync(expr, kwargs...)
     _dtask(expr, kwargs; source = __source__) do t

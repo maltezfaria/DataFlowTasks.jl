@@ -34,41 +34,35 @@ Pkg.activate("..")       #src
 
 # ## Basic Usage
 #
-# This package defines a `DataFlowTask` type which behaves very much like a
-# Julia native `Task`, except that it allows the user to specify explicit *data
-# dependencies*. This information is then be used to automatically infer *task
-# dependencies* by constructing and analyzing a directed acyclic graph based on
-# how tasks access the underlying data. The premise is that it is sometimes
-# simpler to specify how *tasks depend on data* than to specify how *tasks
-# depend on each other*.
-#
-# The use of a `DataFlowTask` object is intended to be as similar as possible to
-# a Julia native `Task`. The API implements three macros :
-#
-# - `@dspawn`
-# - `@dtask`
-# - `@dasync`
-#
-# which behave like their `Base` counterparts, except they take additional
-# annotations that declare how each *task* affects the *data* it accesses:
-#
+# This package defines a `@spawn` macro type which behaves very much like
+# `Threads.@spawn`, except that it allows the user to specify explicit *data
+# dependencies* for the spawned `Task`. This information is then be used to
+# automatically infer *task dependencies* by constructing and analyzing a directed
+# acyclic graph based on how tasks access the underlying data. The premise is that
+# it is sometimes simpler to specify how *tasks depend on data* than to specify
+# how *tasks depend on each other*.
+
+# When creating a `Task` using `DataFlowTasks.@spawn`, the following
+# annotations can be used to declare how the `Task` accesses the data:
+
 # - read-only: `@R` or `@READ`
 # - write-only: `@W` or `@WRITE`
 # - read-write: `@RW` or `@READWRITE`
-#
-# Anywhere in the task body, a `@R(A)` annotation for example implies that *data* `A` will be accessed in read-only mode by the *task*.
+
+# An `@R(A)` annotation for example implies that `A` will be accessed in
+# read-only mode by the *task*.
 
 #-
 
 # Let's look at a simple example:
-
 using DataFlowTasks
+using DataFlowTasks: @spawn
 A = Vector{Float64}(undef, 4)
 result = let
-    @dspawn fill!(@W(A), 0)           # task 1: accesses everything
-    @dspawn @RW(view(A, 1:2)) .+= 2   # task 2: modifies the first half
-    @dspawn @RW(view(A, 3:4)) .+= 3   # task 3: modifies the second half
-    @dspawn @R(A)                     # task 4: get the result
+    @spawn fill!(@W(A), 0)           # task 1: accesses everything
+    @spawn @RW(view(A, 1:2)) .+= 2   # task 2: modifies the first half
+    @spawn @RW(view(A, 3:4)) .+= 3   # task 3: modifies the second half
+    @spawn @R(A)                     # task 4: get the result
 end
 fetch(result)
 
@@ -79,10 +73,10 @@ fetch(result)
 # macro:
 
 log_info = DataFlowTasks.@log let
-    @dspawn fill!(@W(A), 0)             label="write whole"
-    @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
-    @dspawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
-    res = @dspawn @R(A)                 label="read whole"
+    @spawn fill!(@W(A), 0)             label="write whole"
+    @spawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
+    @spawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
+    res = @spawn @R(A)                 label="read whole"
     fetch(res)
 end
 
@@ -168,7 +162,7 @@ function cholesky_tiled!(A, ts)
     return Cholesky(A, 'U', zero(LinearAlgebra.BlasInt))
 end
 
-# Parallelizing the code with `DataFlowTasks.jl` is as easy as wrapping function calls within `@dspawn`, and adding annotations describing data access modes:
+# Parallelizing the code with `DataFlowTasks.jl` is as easy as wrapping function calls within `@spawn`, and adding annotations describing data access modes:
 
 using DataFlowTasks
 
@@ -181,24 +175,24 @@ function cholesky_dft!(A, ts)
 
     for i in 1:n
         ## Diagonal Cholesky serial factorization
-        @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
+        @spawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
 
         ## Left blocks update
         U = UpperTriangular(T[i,i])
         for j in i+1:n
-            @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
+            @spawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
         end
 
         ## Submatrix update
         for j in i+1:n
             for k in j:n
-                @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+                @spawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
             end
         end
     end
 
     ## Construct the factorized object
-    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
+    r = @spawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
     return fetch(r)
 end
 

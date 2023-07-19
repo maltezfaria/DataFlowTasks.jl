@@ -42,7 +42,7 @@ end
 function step!(Un1, Un, n, tn, ts)
     for ti ∈ 1:tn, tj ∈ 1:tn
         (i,j) = (ti-1)*ts+1, (tj-1)*ts+1
-        @dspawn steptile!(Un1, @R(Un), i, j, ts, n) label="tile ($ti,$tj)"
+        @spawn steptile!(Un1, @R(Un), i, j, ts, n) label="tile ($ti,$tj)"
     end
     DFT.sync()
 end
@@ -80,7 +80,7 @@ function main()
     # Core
     for _ ∈ 1:niter
         step!(Un1, Un, n, tn, ts)
-        @dspawn swap!(Un1,Un) label="swap"
+        @spawn swap!(Un1,Un) label="swap"
     end
 end
 main()

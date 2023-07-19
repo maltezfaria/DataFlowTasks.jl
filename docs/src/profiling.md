@@ -22,6 +22,7 @@ introduced here:
 
 ```@example profiling
 using DataFlowTasks
+using DataFlowTasks: @spawn
 DataFlowTasks.stack_weakdeps_env!() #hide
 
 # Utility functions
@@ -32,15 +33,15 @@ result(x,y) = sum(x) + sum(y)   # Read
 # Main work function
 function work(A, B)
     # Initialization
-    @dspawn init!(@W(A))               label="init A"
-    @dspawn init!(@W(B))               label="init B"
+    @spawn init!(@W(A))               label="init A"
+    @spawn init!(@W(B))               label="init B"
 
     # Mutation
-    @dspawn mutate!(@RW(A))            label="mutate A"
-    @dspawn mutate!(@RW(B))            label="mutate B"
+    @spawn mutate!(@RW(A))            label="mutate A"
+    @spawn mutate!(@RW(B))            label="mutate B"
 
     # Final read
-    res = @dspawn result(@R(A), @R(B)) label="read A,B"
+    res = @spawn result(@R(A), @R(B)) label="read A,B"
     fetch(res)
 end
 ```
@@ -102,7 +103,7 @@ DataFlowTasks.savedag("profiling-example.svg", dag)
 nothing # hide
 ```
 
-Note how the task labels (which were provided as extra arguments to `@dspawn`)
+Note how the task labels (which were provided as extra arguments to `@spawn`)
 are used in the DAG rendering and make it more readable. In the DAG
 visualization, the *critical path* is highlighted in red: it is the sequential
 path that took the longest run time during the computation.
@@ -113,11 +114,10 @@ path that took the longest run time during the computation.
     performances: no matter how many threads are available, it is not possible for
     the computation to take less time than the duration of the critical path.
 
-
 ## Scheduling and profiling information
 
 The collected scheduling & profiling information can be visualized using
-[`Makie.plot`](@ref) on the the `log_info` object (note that using the `GLMakie`
+[`Makie.plot`](@ref) on the `log_info` object (note that using the `GLMakie`
 backend brings a bit more interactivity than `CairoMakie`):
 
 ```@example profiling
