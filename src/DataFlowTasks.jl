@@ -7,7 +7,7 @@ module DataFlowTasks
 
 const PROJECT_ROOT = pkgdir(DataFlowTasks)
 
-using DataStructures
+using OrderedCollections
 using Compat
 import Pkg
 import TOML
