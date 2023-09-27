@@ -4,7 +4,7 @@
 # be "reverse iterable".
 function Base.iterate(rt::Iterators.Reverse{<:OrderedDict})
     t = rt.itr
-    t.ndel > 0 && DataStructures.OrderedCollections.rehash!(t)
+    t.ndel > 0 && OrderedCollections.rehash!(t)
     n = length(t.keys)
     n < 1 && return nothing
     return (Pair(t.keys[n], t.vals[n]), n - 1)
