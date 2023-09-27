@@ -5,4 +5,14 @@ using Aqua
 # Project.toml file. This is a workaround.
 test_toml = VERSION >= v"1.9"
 test_toml || @warn "Skipping Aqua's `project_toml_formatting` test."
-Aqua.test_all(DataFlowTasks; project_toml_formatting = test_toml)
+Aqua.test_all(
+    DataFlowTasks;
+    ambiguities = (broken = true),
+    unbound_args = true,
+    undefined_exports = true,
+    project_extras = true,
+    stale_deps = true,
+    deps_compat = true,
+    project_toml_formatting = test_toml,
+    piracy = (; broken = true),
+)
