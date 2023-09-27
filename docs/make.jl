@@ -43,7 +43,6 @@ makedocs(;
         # "Common Issues" => "issues.md",
         "References" => "references.md"
     ],
-    strict=true
 )
 
 deploydocs(;
