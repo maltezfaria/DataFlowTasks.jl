@@ -15,7 +15,7 @@ acyclic graph based on how tasks access the underlying data. The premise is that
 it is sometimes simpler to specify how *tasks depend on data* than to specify
 how *tasks depend on each other*.
 
-When creating a `Task` using [`DataFlowTasks.@spawn`], the following
+When creating a `Task` using [`DataFlowTasks.@spawn`](@ref), the following
 annotations can be used to declare how the `Task` accesses the data:
 
 - read-only: `@R` or `@READ`
@@ -43,7 +43,7 @@ end
 # reduce A
 d2 = @spawn sum(@R A)
 # The above is a shortcut for:
-#   d2 = @dspawn begin
+#   d2 = @spawn begin
 #       @R A
 #       sum(A)
 #   end
@@ -62,17 +62,14 @@ wait on `d1` because of an inferred data dependency. The outcome is thus always
 zero.
 
 !!! note
-
-    If you replace `@dspawn` by `Threads.@spawn` in the example above (and pick
+    If you replace `DataFlowTasks.@spawn` by `Threads.@spawn` in the example above (and pick
     an `n` large enough) you will see that you no longer get `0` because `d2`
     may access an element of `A` before it has been replaced by zero!
 
 !!! tip
-
     In the `d2` example above, a shortcut syntax was introduced, which
     allows putting access mode annotations directly around arguments in a
     function call. This is especially useful when the task body is a one-liner.
-    
     See [`@spawn`](@ref) for an exhaustive list of supported ways to create
     tasks and specify data dependencies.
 
@@ -83,25 +80,20 @@ consider this one last example:
 ```@example simple-example
 using DataFlowTasks: @spawn
 
-n = 100
+n = 10
 A = ones(n)
 
 d1 = @spawn begin
-    @W A
-
-    # write to A
+    @W A # write to A
     sleep(1)
     fill!(A,0)
 end
 
-d2 = @spawn begin
-    @R A
-
-    # some long computation 
-    sleep(10)
-    # reduce A
-    sum(A)
-end
+# d2 = @spawn begin
+#     @R A # read from A
+#     sleep(10)
+#     sum(A) 
+# end
 
 # another reduction on A
 d3 = @spawn sum(@R(A))
@@ -148,7 +140,7 @@ A = rand(10,10)
 B = view(A,1:10)
 C = view(A,11:20)
 
-memory_overlap(A,B),memory_overlap(A,C),memory_overlap(B,C)
+memory_overlap(A,B), memory_overlap(A,C), memory_overlap(B,C)
 ```
 
 The example above works because `memory_overlap` has been defined for some basic
@@ -159,8 +151,7 @@ back to a generic implementation that always returns `true`:
 ```@repl memory-overlap
 using DataFlowTasks: memory_overlap
 
-# a custom type
-struct CirculantMatrix
+struct CirculantMatrix # a custom type
     data::Vector{Float64}
 end
 
@@ -175,14 +166,14 @@ The warning message printed above hints at what should be done:
 ```@repl memory-overlap
 import DataFlowTasks: memory_overlap
 memory_overlap(M::CirculantMatrix,v) = memory_overlap(M.data,v) # overload
+memory_overlap(v,M::CirculantMatrix) = memory_overlap(M,v)
 memory_overlap(M,v), memory_overlap(M,copy(v))
 ```
 
 You can now `spawn` tasks with your custom type `CirculantMatrix` as a data
 dependency, and things should work as expected:
 
-```@repl memory-overlap
-using DataFlowTasks # hide
+```@example memory-overlap
 using DataFlowTasks: @spawn
 
 v  = ones(5);
@@ -200,8 +191,9 @@ d2 = @spawn sum(@R M1)
 d3 = @spawn sum(@R M2)
 
 fetch(d3) # 25
-
 fetch(d2) # 0
+
+nothing # hide
 ```
 
 ## Task graph
