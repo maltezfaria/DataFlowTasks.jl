@@ -12,7 +12,7 @@ those dependencies.
 A `DataFlowTask` behaves much like a Julia `Task`: you can call `wait(t)`,
 `schedule(t)` and `fetch(t)` on it.
 
-See also: [`@dtask`](@ref), [`@dspawn`](@ref), [`@dasync`](@ref).
+See also: [`@dtask`](@ref), [`@spawn`](@ref), [`@dasync`](@ref).
 """
 mutable struct DataFlowTask
     data::Tuple
@@ -27,7 +27,7 @@ mutable struct DataFlowTask
         mode::NTuple{N,AccessMode},
         priority = 0,
         label = "",
-        sch = getscheduler(),
+        sch = get_active_taskgraph(),
     ) where {N}
         @assert length(data) == N
         TASKCOUNTER[] += 1
@@ -41,12 +41,8 @@ mutable struct DataFlowTask
 
         deps = inneighbors(sch.dag, tj) |> copy
         tj.task = @task handle_errors() do
-            if sch isa JuliaScheduler
-                # in this case julia handles the scheduling, so we must pass the
-                # dependencies to the julia scheduler
-                for ti in deps
-                    wait(ti)
-                end
+            for ti in deps
+                wait(ti)
             end
             # run the underlying code block and time its execution for logging
             t₀ = time_ns()
@@ -153,7 +149,9 @@ arguments to allow for appropriate inference of data dependencies.
 """
 function memory_overlap(di, dj)
     (isbits(di) || isbits(dj)) && return false
-    @warn "memory_overlap(::$(typeof(di)),::$(typeof(dj))) not implemented. Defaulting to `true`"
+    @warn """using fallback `memory_overlap(::Any,::Any) = true`. Consider implementing
+    `DataFlowTasks.memory_overlap(::$(typeof(di)),::$(typeof(dj)))`.
+    """
     return true
 end
 
@@ -173,7 +171,7 @@ _linear_dag() = false
     force_sequential(mode = true)
 
 If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
-code is simply run as it appears in the sources. In effect, this makes `@dspawn`
+code is simply run as it appears in the sources. In effect, this makes `@spawn`
 a no-op.
 
 By default, sequential mode is disabled when the program starts.
@@ -319,10 +317,10 @@ Create a `DataFlowTask` to execute `expr`, where data have been tagged to
 specify how they are accessed. Note that the task is not automatically scheduled
 for execution.
 
-See [`@dspawn`](@ref) for information on how to annotate `expr` to specify data
+See [`@spawn`](@ref) for information on how to annotate `expr` to specify data
 dependencies, and a list of supported keyword arguments.
 
-See also: [`@dspawn`](@ref), [`@dasync`](@ref)
+See also: [`@spawn`](@ref), [`@dasync`](@ref)
 """
 macro dtask(expr, kwargs...)
     return _dtask(expr, kwargs; source = __source__)

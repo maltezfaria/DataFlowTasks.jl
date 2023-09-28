@@ -7,7 +7,7 @@ module DataFlowTasks
 
 const PROJECT_ROOT = pkgdir(DataFlowTasks)
 
-using DataStructures
+using OrderedCollections
 using Compat
 import Pkg
 import TOML
@@ -33,19 +33,15 @@ const Maybe{T} = Union{T,Nothing}
 include("utils.jl")
 include("logger.jl")
 include("dataflowtask.jl")
-include("arrayinterface.jl")
 include("dag.jl")
-include("scheduler.jl")
-# include("otherschedulers.jl")
-
-export @dtask, @dasync, @dspawn
+include("taskgraph.jl")
+include("arrayinterface.jl")
 
 function __init__()
     # default scheduler
     capacity = 50
-    sch      = JuliaScheduler(capacity)
-    setscheduler!(sch)
-
+    tg = TaskGraph(capacity)
+    set_active_taskgraph!(tg)
     # no logger by default
     return _setloginfo!(nothing)
 end
@@ -65,15 +61,18 @@ const WEAKDEPS_PROJ = let
 end
 
 """
-    DataFlowTasks.stack_weakdeps_env!(; verbose = false)
+    DataFlowTasks.stack_weakdeps_env!(; verbose = false, update = false)
 
 Push to the load stack an environment providing the weak dependencies of
 DataFlowTasks. During the development stage, this allows benefiting from the
 profiling / debugging features of DataFlowTasks without having to install
 `GraphViz` or `Makie` in the project environment.
 
-This can take quite some time if packages have to be installed or
-precompiled. Run in `verbose` mode to see what happens.
+This can take quite some time if packages have to be installed or precompiled.
+Run in `verbose` mode to see what happens.
+
+Additionally, set `update=true` if you want to update the `weakdeps`
+environment.
 
 !!! warning
 
@@ -85,7 +84,7 @@ DataFlowTasks.stack_weakdeps_env!()
 using GraphViz
 ```
 """
-function stack_weakdeps_env!(; verbose = false)
+function stack_weakdeps_env!(; verbose = false, update = false)
     weakdeps_env = Scratch.@get_scratch!("weakdeps-$(VERSION.major).$(VERSION.minor)")
     open(joinpath(weakdeps_env, "Project.toml"), "w") do f
         return TOML.print(f, WEAKDEPS_PROJ)
@@ -96,6 +95,7 @@ function stack_weakdeps_env!(; verbose = false)
 
     try
         Pkg.activate(weakdeps_env; io)
+        update && Pkg.update(; io)
         Pkg.resolve(; io)
         Pkg.instantiate(; io)
         Pkg.status()

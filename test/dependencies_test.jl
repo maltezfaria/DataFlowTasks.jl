@@ -16,5 +16,7 @@ using LinearAlgebra
         @test memory_overlap(A, A11) == true
         @test memory_overlap(A11, A11) == true
         @test memory_overlap(A11, A12) == false
+        @test memory_overlap(A11', A12) == false
+        @test memory_overlap(A11', A12') == false
     end
 end

@@ -111,11 +111,12 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 # ## Parallel implementation
 #
 # In order to parallelize the code with `DataFlowTasks.jl`, function calls
-# acting on tiles are wrapped within `@dspawn`, along with annotations
+# acting on tiles are wrapped within `@spawn`, along with annotations
 # describing data access modes. We also give meaningful labels to the tasks,
 # which will help debug and profile the code.
 
 using DataFlowTasks
+using DataFlowTasks: @spawn
 
 function cholesky_dft!(A, ts)
     m = size(A, 1); @assert m==size(A, 2)
@@ -126,24 +127,24 @@ function cholesky_dft!(A, ts)
 
     for i in 1:n
         ## Diagonal cholesky serial factorization
-        @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
+        @spawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
 
         ## Left tiles update
         U = UpperTriangular(T[i,i])
         for j in i+1:n
-            @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
+            @spawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
         end
 
         ## Submatrix update
         for j in i+1:n
             for k in j:n
-                @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+                @spawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
             end
         end
     end
 
     ## Construct the factorized object
-    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
+    r = @spawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
     return fetch(r)
 end
 

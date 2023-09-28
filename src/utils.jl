@@ -4,7 +4,7 @@
 # be "reverse iterable".
 function Base.iterate(rt::Iterators.Reverse{<:OrderedDict})
     t = rt.itr
-    t.ndel > 0 && DataStructures.OrderedCollections.rehash!(t)
+    t.ndel > 0 && OrderedCollections.rehash!(t)
     n = length(t.keys)
     n < 1 && return nothing
     return (Pair(t.keys[n], t.vals[n]), n - 1)
@@ -67,3 +67,69 @@ function handle_errors(body)
         body()
     end
 end
+
+"""
+    struct FinishedChannel{T} <: AbstractChannel{T}
+
+Used to store tasks which have been completed, but not yet removed from the
+underlying `DAG`. Taking from an empty `FinishedChannel` will block.
+"""
+struct FinishedChannel{T} <: AbstractChannel{T}
+    data::Vector{T}
+    cond_take::Threads.Condition
+    function FinishedChannel{T}() where {T}
+        lock = Threads.ReentrantLock()
+        cond_take = Threads.Condition(lock)
+        data = Vector{T}()
+        return new(data, cond_take)
+    end
+end
+
+Base.lock(c::FinishedChannel)   = lock(c.cond_take)
+Base.unlock(c::FinishedChannel) = unlock(c.cond_take)
+
+Base.length(c::FinishedChannel) = length(c.data)
+
+function Base.take!(c::FinishedChannel)
+    lock(c)
+    try
+        while isempty(c.data)
+            wait(c.cond_take)
+        end
+        v = popfirst!(c.data)
+        return v
+    finally
+        unlock(c)
+    end
+end
+
+function Base.put!(c::FinishedChannel{T}, t::T) where {T}
+    lock(c)
+    try
+        push!(c.data, t)
+        notify(c.cond_take)
+    finally
+        unlock(c)
+    end
+    return t
+end
+
+function Base.empty!(c::FinishedChannel)
+    lock(c)
+    try
+        empty!(c.data)
+    finally
+        unlock(c)
+    end
+    return c
+end
+
+# https://discourse.julialang.org/t/how-to-kill-thread/34236/8
+"""
+    struct Stop
+
+Singleton type used to safely interrupt a task reading from an `AbstractChannel`.
+"""
+struct Stop end
+
+const Stoppable{T} = Union{T,Stop}

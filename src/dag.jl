@@ -45,13 +45,6 @@ function Base.resize!(dag::DAG, sz)
     return dag.sz_max[] = sz
 end
 
-"""
-    const TaskGraph = DAG{DataFlowTask}
-
-A directed acyclic graph of `DataFlowTask`s.
-"""
-const TaskGraph = DAG{DataFlowTask}
-
 Base.isempty(dag::DAG)     = isempty(dag.inoutlist)
 Base.getindex(dag::DAG, i) = dag.inoutlist[i]
 

@@ -1,8 +1,9 @@
-# [Comparaison with Dagger.jl](@id dagger-section)
+# [Comparison with Dagger.jl](@id dagger-section)
 
 
 ## What's `Dagger.jl`
-Dagger is a package for parallel computing, inspired by Python's Dask library, that is meant to be `flexible` and easy to use. It's supposed to help the parallelization of a complex serial code without the need to refactor everything. It uses a `functionnal` paradigm to easily imply dependencies between tasks, so they are not to be thought by the user. An exemple from Dagger.jl's documentation :  
+
+Dagger is a package for parallel computing, inspired by Python's Dask library, that is meant to be `flexible` and easy to use. It's supposed to help the parallelization of a complex serial code without the need to refactor everything. It uses a `functionnal` paradigm to easily imply dependencies between tasks, so they are not to be thought by the user. An example from Dagger.jl's documentation :  
 
 ```@julia
 using Dagger
@@ -100,11 +101,11 @@ It can be more natural to reason on memory access, rather than on return values 
 for i in 1:m
     @dpsawn cholesky!(@RW(Aii))
     for j in i+1:m
-        @dspawn ldiv!(@R(L), @RW(Aij))
+        @spawn ldiv!(@R(L), @RW(Aij))
     end
     for j in i+1:m
         for k in j:n
-            @dspawn matmul!(@RW(Ajk), @R(Aji), @R(Aik))
+            @spawn matmul!(@RW(Ajk), @R(Aji), @R(Aik))
         end
     end
 end

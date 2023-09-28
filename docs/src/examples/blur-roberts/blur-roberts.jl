@@ -206,29 +206,30 @@ each task.
 =#
 
 using DataFlowTasks
+using DataFlowTasks: @spawn
 
 function blur_dft!(dest, src, ts; width)
     map_tiled!(dest, src, ts) do dest, src, tile
         outer = intersect.(expand.(tile, width), axes(src))
-        @dspawn begin
+        @spawn begin
             @R view(src, outer...)
             @W view(dest, tile...)
             blur!(dest, src; width, range=tile)
         end label="blur ($tile)"
     end
-    @dspawn @R(dest) label="blur (result)"
+    @spawn @R(dest) label="blur (result)"
 end
 
 function roberts_dft!(dest, src, ts)
     map_tiled!(dest, src, ts) do dest, src, tile
         outer = intersect.(expand.(tile, 1), axes(src))
-        @dspawn begin
+        @spawn begin
             @R view(src, outer...)
             @W view(dest, tile...)
             roberts!(dest, src; range=tile)
         end label="roberts ($tile)"
     end
-    @dspawn @R(dest) label="roberts (result)"
+    @spawn @R(dest) label="roberts (result)"
 end
 
 #=
@@ -248,7 +249,7 @@ of the roberts filter on this tile).
 function blur_roberts_dft!(img, ts; width, tmp=similar(img))
     blur_dft!(tmp, img, ts; width)
     roberts_dft!(img, tmp, ts)
-    @dspawn @R(img) label="result"
+    @spawn @R(img) label="result"
 end
 
 #=

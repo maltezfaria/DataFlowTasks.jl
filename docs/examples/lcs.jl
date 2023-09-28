@@ -50,7 +50,7 @@ function parallelLCS_PTM(x, y, tilesize)
 
 
     # First diagonal block
-    @dspawn begin
+    @spawn begin
         @RW Ft[1,1]
         tiledLCS!(F, x, y, 1, 1, tilesize)
     end label="1 ; 1"
@@ -58,7 +58,7 @@ function parallelLCS_PTM(x, y, tilesize)
     # First horizontal line
     # tj : tile index on the horizontal axis
     for tj ∈ 2:ntiles
-        @dspawn begin
+        @spawn begin
             @RW Ft[1,tj]
             @R  Ft[1,tj-1]
             tiledLCS!(F, x, y, 1, tj, tilesize)
@@ -68,7 +68,7 @@ function parallelLCS_PTM(x, y, tilesize)
     # First Vertical Column
     # ti : tile index on the vertical axis
     for ti ∈ 2:ntiles
-        @dspawn begin
+        @spawn begin
             @RW Ft[ti,1]
             @R  Ft[ti-1,1]
             tiledLCS!(F, x, y, ti, 1, tilesize)
@@ -79,7 +79,7 @@ function parallelLCS_PTM(x, y, tilesize)
     # ti : tile index on the vertical axis
     # tj : tile index on the horizontal axis
     for ti ∈ 2:ntiles, tj ∈ 2:ntiles
-        @dspawn begin
+        @spawn begin
             @RW Ft[ti,tj]
             @R  Ft[ti-1,tj] Ft[ti,tj-1] Ft[ti-1, tj-1]
             tiledLCS!(F, x, y, ti, tj, tilesize)
@@ -101,14 +101,14 @@ function parallelLCS(x, y, ts)
     last_tile_idx = round(Int, n/ts)
 
     # First diagonal block
-    @dspawn begin
+    @spawn begin
         @RW gettile(F, 1, 1, ts)
         tiledLCS!(F, x, y, 1, 1, ts)
     end label="1 ; 1"
 
     # First horizontal line
     for blockj ∈ 2:last_tile_idx
-        @dspawn begin
+        @spawn begin
             @RW gettile(F, 1, blockj, ts)
             @R gettile(F, 1, blockj-1, ts)
             tiledLCS!(F, x, y, 1, blockj, ts)
@@ -117,7 +117,7 @@ function parallelLCS(x, y, ts)
 
     # First Vertical Column
     for blocki ∈ 2:last_tile_idx
-        @dspawn begin
+        @spawn begin
             @RW gettile(F, blocki, 1, ts)
             @R gettile(F, blocki-1, 1, ts)
             tiledLCS!(F, x, y, blocki, 1, ts)
@@ -126,7 +126,7 @@ function parallelLCS(x, y, ts)
 
     # Others
     for blocki ∈ 2:last_tile_idx, blockj ∈ 2:last_tile_idx
-        @dspawn begin
+        @spawn begin
             @RW gettile(F, blocki, blockj, ts)
             @R gettile(F, blocki-1, blockj-1, ts)
             @R gettile(F, blocki-1, blockj, ts)

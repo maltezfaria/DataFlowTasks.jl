@@ -16,7 +16,7 @@ function assignement!(clusters, centroids, points, tn, ts)
         # To segment work in different tasks
         tiled_clusters = @view(clusters[fi:li])
         tiled_points   = @view(points[fi:li])
-        @dspawn tile_assignement!(@RW(tiled_clusters), @R(tiled_points), @R(centroids)) label="tile assignement"
+        @spawn tile_assignement!(@RW(tiled_clusters), @R(tiled_points), @R(centroids)) label="tile assignement"
     end
 end
 
@@ -70,7 +70,7 @@ function centroidsupdate!(centroids, points, clusters)
         k_cluster_pts = [i ∈ k_cluster_idx && points[i] for i ∈ eachindex(points)]
 
         # K centroid is the barycenter of all these points
-        @dspawn begin
+        @spawn begin
             @W centroids[k]
             centroids[k] = barycenter(k_cluster_pts, k_cluster_idx)
         end label="barycenter"
