@@ -150,9 +150,8 @@ end
 
 # Again, let us check the correctness of the result:
 
-@info "Testing parallel Cholesky factorization" #src
+@info "Testing parallel Cholesky factorization on $(Threads.nthreads()) threads" #src
 F = cholesky_dft!(copy(A), ts)
-GC.gc(); @time cholesky_dft!(copy(A), ts) #src
 
 ## Check results
 err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
@@ -179,10 +178,6 @@ log_info = DataFlowTasks.@log cholesky_dft!(Ac, ts)
 DataFlowTasks.stack_weakdeps_env!()
 using GraphViz
 dag = GraphViz.Graph(log_info)
-DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
-nothing #hide
-
-#md # ![](cholesky_dag.svg)
 
 # The critical path, highlighted in red, includes all cholesky factorizations of
 # diagonal tiles, as well as the required tasks in between them.
@@ -194,10 +189,6 @@ nothing #hide
 
 using CairoMakie # or GLMakie in order to have more interactivity
 trace = plot(log_info; categories=["chol", "ldiv", "schur"])
-save("cholesky_trace.svg", trace) #src
-nothing #hide
-
-#md # ![](cholesky_trace.svg)
 
 # The overhead incurred by `DataFlowTasks` seems relatively small here: the time
 # taken inserting tasks is barely measurable, and the scheduling did not lead to
