@@ -80,27 +80,30 @@ consider this one last example:
 ```@example simple-example
 using DataFlowTasks: @spawn
 
-n = 10
-A = ones(n)
+function run(A)
+    d1 = @spawn begin
+        @W A # write to A
+        sleep(1)
+        fill!(A,0)
+    end
 
-d1 = @spawn begin
-    @W A # write to A
-    sleep(1)
-    fill!(A,0)
+    # a reduction on A
+    d2 = @spawn begin
+        @R A # read from A
+        sleep(10)
+        sum(A)
+    end
+
+    # another reduction on A
+    d3 = @spawn sum(@R(A))
+
+    t = @elapsed c = fetch(d3)
+
+    @show t,c
 end
 
-# d2 = @spawn begin
-#     @R A # read from A
-#     sleep(10)
-#     sum(A) 
-# end
-
-# another reduction on A
-d3 = @spawn sum(@R(A))
-
-t = @elapsed c = fetch(d3)
-
-@show t,c 
+A = ones(10)
+run(A)
 ```
 
 We see that the elapsed time to `fetch` the result from `d3` is on the order of
