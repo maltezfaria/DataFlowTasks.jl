@@ -2,12 +2,19 @@ using DataFlowTasks
 using Documenter
 using Literate
 
+# generate examples
 for example in ["cholesky", "blur-roberts"]
     dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "src", "examples", example)
     src = joinpath(dir, "$(example).jl")
     Literate.markdown(src, dir)
     Literate.notebook(src, dir)
 end
+
+# generate readme
+dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "readme")
+src = joinpath(dir, "README.jl")
+Literate.markdown(src, dir, flavor=Literate.CommonMarkFlavor())
+Literate.notebook(src, dir)
 
 on_CI = get(ENV, "CI", "false") == "true"
 
