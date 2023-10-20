@@ -86,11 +86,11 @@ function cholesky_tiled!(A, ts)
 end
 
 # Let us build a small test case to check the correctness of the
-# factorization. Here we divide a matrix of size 4096×4096 in 8×8 tiles of size
-# 512×512:
+# factorization. Here we divide a matrix of size 4096×4096 in 16×16 tiles of size
+# 256x256:
 
 n  = 4096
-ts = 512
+ts = 256
 A = rand(n, n)
 A = (A + adjoint(A))/2
 A = A + n*I;
