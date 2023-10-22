@@ -2,15 +2,29 @@ using DataFlowTasks
 using Documenter
 using Literate
 
+# generate examples
 for example in ["cholesky", "blur-roberts"]
-    dir = joinpath(DataFlowTasks.PROJECT_ROOT,"docs","src", "examples", example)
+    dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "src", "examples", example)
     src = joinpath(dir, "$(example).jl")
     Literate.markdown(src, dir)
     Literate.notebook(src, dir)
 end
 
+# generate readme
+dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "readme")
+src = joinpath(dir, "README.jl")
+Literate.markdown(src, dir, flavor=Literate.CommonMarkFlavor())
+Literate.notebook(src, dir)
+
+on_CI = get(ENV, "CI", "false") == "true"
+
 DataFlowTasks.stack_weakdeps_env!()
-DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using CairoMakie, GraphViz, DataFlowTasks); recursive=true)
+DocMeta.setdocmeta!(
+    DataFlowTasks,
+    :DocTestSetup,
+    :(using CairoMakie, GraphViz, DataFlowTasks);
+    recursive = true,
+)
 
 modules = [DataFlowTasks]
 if isdefined(Base, :get_extension)
@@ -22,14 +36,14 @@ end
 
 makedocs(;
     modules = modules,
-    repo="https://github.com/maltezfaria/DataFlowTasks.jl/blob/{commit}{path}#{line}",
-    sitename="DataFlowTasks.jl",
-    format=Documenter.HTML(;
-        prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://maltezfaria.github.io/DataFlowTasks.jl",
-        assets=String[],
+    repo = "",
+    sitename = "DataFlowTasks.jl",
+    format = Documenter.HTML(;
+        prettyurls = on_CI,
+        canonical = "https://maltezfaria.github.io/DataFlowTasks.jl",
+        assets = String[],
     ),
-    pages=[
+    pages = [
         "Getting started" => "index.md",
         "Debugging & Profiling" => "profiling.md",
         "Examples" => [
@@ -41,11 +55,14 @@ makedocs(;
         ],
         # "Comparaison with Dagger.jl" => "dagger.md",
         # "Common Issues" => "issues.md",
-        "References" => "references.md"
+        "References" => "references.md",
     ],
+    warnonly = on_CI ? false : Documenter.except(:linkcheck_remotes),
+    pagesonly = true,
 )
 
 deploydocs(;
-    repo="github.com/maltezfaria/DataFlowTasks.jl",
-    devbranch="main"
+    repo = "github.com/maltezfaria/DataFlowTasks.jl",
+    devbranch = "main",
+    push_preview = true,
 )

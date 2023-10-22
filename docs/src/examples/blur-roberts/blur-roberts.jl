@@ -288,10 +288,6 @@ DataFlowTasks.stack_weakdeps_env!()
 using CairoMakie
 
 trace = plot(log_info, categories=["blur", "roberts"])
-save("trace.png", trace) #src
-nothing #hide #md
-
-#md # ![](trace.png)
 
 #=
 
