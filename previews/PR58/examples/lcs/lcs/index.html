@@ -25,7 +25,7 @@ function display(lengths, x, y)
                  formatters = (v, i, j) -&gt; v==-1 ? &quot;&quot; : v)
 end
 display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
-│<span class="sgr1">   </span>│<span class="sgr1"> ∅ </span>│<span class="sgr1"> A </span>│<span class="sgr1"> G </span>│<span class="sgr1"> C </span>│<span class="sgr1"> A </span>│<span class="sgr1"> T </span>│
+│   │ ∅ │ A │ G │ C │ A │ T │
 ├───┼───┼───┼───┼───┼───┼───┤
 │ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
 │ G │ 0 │   │   │   │   │   │
@@ -45,7 +45,7 @@ end
 
 fill_lengths!(lengths, x, y, 1:1)
 display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
-│<span class="sgr1">   </span>│<span class="sgr1"> ∅ </span>│<span class="sgr1"> A </span>│<span class="sgr1"> G </span>│<span class="sgr1"> C </span>│<span class="sgr1"> A </span>│<span class="sgr1"> T </span>│
+│   │ ∅ │ A │ G │ C │ A │ T │
 ├───┼───┼───┼───┼───┼───┼───┤
 │ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
 │ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
@@ -53,7 +53,7 @@ display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code 
 │ C │ 0 │   │   │   │   │   │
 └───┴───┴───┴───┴───┴───┴───┘</code></pre><pre><code class="language-julia hljs">fill_lengths!(lengths, x, y, 2:2)
 display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
-│<span class="sgr1">   </span>│<span class="sgr1"> ∅ </span>│<span class="sgr1"> A </span>│<span class="sgr1"> G </span>│<span class="sgr1"> C </span>│<span class="sgr1"> A </span>│<span class="sgr1"> T </span>│
+│   │ ∅ │ A │ G │ C │ A │ T │
 ├───┼───┼───┼───┼───┼───┼───┤
 │ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
 │ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
@@ -61,7 +61,7 @@ display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code 
 │ C │ 0 │   │   │   │   │   │
 └───┴───┴───┴───┴───┴───┴───┘</code></pre><pre><code class="language-julia hljs">fill_lengths!(lengths, x, y, 3:3)
 display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
-│<span class="sgr1">   </span>│<span class="sgr1"> ∅ </span>│<span class="sgr1"> A </span>│<span class="sgr1"> G </span>│<span class="sgr1"> C </span>│<span class="sgr1"> A </span>│<span class="sgr1"> T </span>│
+│   │ ∅ │ A │ G │ C │ A │ T │
 ├───┼───┼───┼───┼───┼───┼───┤
 │ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
 │ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
@@ -97,27 +97,27 @@ LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="nohigh
  &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
  &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)</code></pre><h2 id="Large-example"><a class="docs-heading-anchor" href="#Large-example">Large example</a><a id="Large-example-1"></a><a class="docs-heading-anchor-permalink" href="#Large-example" title="Permalink"></a></h2><h3 id="Plain-sequential-version"><a class="docs-heading-anchor" href="#Plain-sequential-version">Plain sequential version</a><a id="Plain-sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Plain-sequential-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">x = rand(&quot;ATCG&quot;, 4096);
 y = rand(&quot;ATCG&quot;, 8192);
-seq = LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3574-element Vector{Any}:
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
+seq = LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3578-element Vector{Any}:
+ &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
+ &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
+ &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
  &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
  &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
  &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
+ &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
  &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
  &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
  &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
  ⋮
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
  &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
+ &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
+ &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
+ &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
+ &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
  &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)</code></pre><h3 id="Tiled-sequential-version"><a class="docs-heading-anchor" href="#Tiled-sequential-version">Tiled sequential version</a><a id="Tiled-sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-sequential-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">function splitrange(range, nchunks)
+ &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
+ &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
+ &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)</code></pre><h3 id="Tiled-sequential-version"><a class="docs-heading-anchor" href="#Tiled-sequential-version">Tiled sequential version</a><a id="Tiled-sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-sequential-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">function splitrange(range, nchunks)
     q, r = divrem(length(range), nchunks)
     chunks = UnitRange{Int}[]
 
@@ -177,8 +177,8 @@ GC.gc(); t_par   = @elapsed LCS_par(x, y, nx, ny)
 using CairoMakie
 barplot(1:3, [t_seq, t_tiled, t_par],
         axis = (; title = &quot;Run times [s]&quot;,
-                xticks = (1:3, [&quot;sequential&quot;, &quot;tiled&quot;, &quot;parallel&quot;])))</code></pre><img src="fb85fd6c.png" alt="Example block output"/><h3 id="Profiling-of-the-parallel-version"><a class="docs-heading-anchor" href="#Profiling-of-the-parallel-version">Profiling of the parallel version</a><a id="Profiling-of-the-parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Profiling-of-the-parallel-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">resize!(DataFlowTasks.get_active_taskgraph(), 200)
+                xticks = (1:3, [&quot;sequential&quot;, &quot;tiled&quot;, &quot;parallel&quot;])))</code></pre><img src="29549431.png" alt="Example block output"/><h3 id="Profiling-of-the-parallel-version"><a class="docs-heading-anchor" href="#Profiling-of-the-parallel-version">Profiling of the parallel version</a><a id="Profiling-of-the-parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Profiling-of-the-parallel-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">resize!(DataFlowTasks.get_active_taskgraph(), 200)
 log_info = DataFlowTasks.@log LCS_par(x, y, nx, ny)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LogInfo with 97 logged tasks
-	 critical time: 0.16 seconds</code></pre><pre><code class="language-julia hljs">DataFlowTasks.stack_weakdeps_env!()
+	 critical time: 0.48 seconds</code></pre><pre><code class="language-julia hljs">DataFlowTasks.stack_weakdeps_env!()
 using GraphViz
-GraphViz.Graph(log_info)</code></pre><img src="473de292.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(log_info)</code></pre><img src="a504834f.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../blur-roberts/blur-roberts/">« Blur &amp; Roberts image filters</a><a class="docs-footer-nextpage" href="../../../references/">References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.1 on <span class="colophon-date" title="Monday 23 October 2023 16:51">Monday 23 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+GraphViz.Graph(log_info)</code></pre><img src="fb918b55.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(log_info)</code></pre><img src="fc051395.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../blur-roberts/blur-roberts/">« Blur &amp; Roberts image filters</a><a class="docs-footer-nextpage" href="../../../references/">References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Monday 23 October 2023 19:44">Monday 23 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
