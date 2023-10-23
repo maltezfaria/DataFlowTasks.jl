@@ -80,3 +80,5 @@ jobs:
             using DataFlowTasks
             DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true)
             doctest(DataFlowTasks)'
+      - name: Check README.md consistency
+        run: diff -u README.md docs/src/readme/README.md
