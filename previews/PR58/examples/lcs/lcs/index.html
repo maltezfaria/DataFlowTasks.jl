@@ -1,123 +1,95 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Longest Common Subsequence · DataFlowTasks.jl</title><meta name="title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta property="og:title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta property="twitter:title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta name="description" content="Documentation for DataFlowTasks.jl."/><meta property="og:description" content="Documentation for DataFlowTasks.jl."/><meta property="twitter:description" content="Documentation for DataFlowTasks.jl."/><meta property="og:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><meta property="twitter:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><link rel="canonical" href="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">DataFlowTasks.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Getting started</a></li><li><a class="tocitem" href="../../../profiling/">Debugging &amp; Profiling</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../cholesky/cholesky/">Tiled Cholesky Factorization</a></li><li><a class="tocitem" href="../../blur-roberts/blur-roberts/">Blur &amp; Roberts image filters</a></li><li class="is-active"><a class="tocitem" href>Longest Common Subsequence</a><ul class="internal"><li><a class="tocitem" href="#Small-example"><span>Small example</span></a></li><li><a class="tocitem" href="#Large-example"><span>Large example</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Longest Common Subsequence</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Longest Common Subsequence</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl/blob/main/docs/src/examples/lcs/lcs.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Longest-Common-Subsequence"><a class="docs-heading-anchor" href="#Longest-Common-Subsequence">Longest Common Subsequence</a><a id="Longest-Common-Subsequence-1"></a><a class="docs-heading-anchor-permalink" href="#Longest-Common-Subsequence" title="Permalink"></a></h1><p><a href="../lcs.ipynb"><img src="https://img.shields.io/badge/download-ipynb-blue" alt="ipynb"/></a> <a href="https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/gh-pages/previews/PR58/examples/lcs/lcs.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-blue.svg" alt="nbviewer"/></a></p><p><a href="https://en.wikipedia.org/wiki/Longest_common_subsequence">Longest Common Subsequence</a></p><h2 id="Small-example"><a class="docs-heading-anchor" href="#Small-example">Small example</a><a id="Small-example-1"></a><a class="docs-heading-anchor-permalink" href="#Small-example" title="Permalink"></a></h2><pre><code class="language-julia hljs">function init_lengths!(lengths, x, y)
-    lengths[1,1] = 0
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Longest Common Subsequence · DataFlowTasks.jl</title><meta name="title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta property="og:title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta property="twitter:title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta name="description" content="Documentation for DataFlowTasks.jl."/><meta property="og:description" content="Documentation for DataFlowTasks.jl."/><meta property="twitter:description" content="Documentation for DataFlowTasks.jl."/><meta property="og:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><meta property="twitter:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><link rel="canonical" href="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">DataFlowTasks.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Getting started</a></li><li><a class="tocitem" href="../../../profiling/">Debugging &amp; Profiling</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../cholesky/cholesky/">Tiled Cholesky Factorization</a></li><li><a class="tocitem" href="../../blur-roberts/blur-roberts/">Blur &amp; Roberts image filters</a></li><li class="is-active"><a class="tocitem" href>Longest Common Subsequence</a><ul class="internal"><li><a class="tocitem" href="#Small-example"><span>Small example</span></a></li><li><a class="tocitem" href="#Large-example"><span>Large example</span></a></li><li><a class="tocitem" href="#Tiled-parallel-version"><span>Tiled parallel version</span></a></li><li><a class="tocitem" href="#Performance-comparison"><span>Performance comparison</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Longest Common Subsequence</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Longest Common Subsequence</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl/blob/main/docs/src/examples/lcs/lcs.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Longest-Common-Subsequence"><a class="docs-heading-anchor" href="#Longest-Common-Subsequence">Longest Common Subsequence</a><a id="Longest-Common-Subsequence-1"></a><a class="docs-heading-anchor-permalink" href="#Longest-Common-Subsequence" title="Permalink"></a></h1><p><a href="../lcs.ipynb"><img src="https://img.shields.io/badge/download-ipynb-blue" alt="ipynb"/></a> <a href="https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/gh-pages/previews/PR58/examples/lcs/lcs.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-blue.svg" alt="nbviewer"/></a></p><p>The problem of finding the <a href="https://en.wikipedia.org/wiki/Longest_common_subsequence">Longest Common Subsequence</a> between two sequences finds numerous applications in fields as diverse as computer sciences or bioinformatics. In this example, we&#39;ll implement a parallel dynamic programming approach to solving such problems.</p><p>The idea behind this approach is that, if we denote by <span>$LCS(X,Y)$</span> the longest common subsequence of two sequences <span>$X$</span> and <span>$Y$</span>, then <span>$LCS$</span> satisfies the two following properties:</p><p class="math-container">\[\begin{align}
+&amp; LCS(X*c, Y*c) = LCS(X, Y) * c \\
+&amp; LCS(X*c_1, Y*c_2) \in \left\{ LCS(X*c_1, Y), LCS(X, Y*c_2)\right\} &amp; \text{if } c_1 \neq c_2
+\end{align}\]</p><p>where <span>$X*c$</span> denotes the concatenation of sequence <span>$X$</span> with character <span>$c$</span>. The first property above allows simplifying the Longest Common Subsequence computation of two sequences that end with the same character. When the two sequences end with different characters, the second property allows simplifying the problem to a choice between two possibilities.</p><p>If we now denote by <span>$L_{i,j}$</span> the length of the longest common subsequence between the first <span>$i$</span> characters of <span>$X$</span> and the first <span>$j$</span> characters of <span>$Y$</span>, then we now have the following property for <span>$L$</span>:</p><p class="math-container">\[L_{i,j} = \left\{
+\begin{array}{ll}
+0 &amp; \text{ if } i=0 \text{ or } j=0\\
+1 + L_{i-1, j-1} &amp; \text{ if } i\neq 0 \text{ and } j\neq 0 \text{ and } x_i = y_j\\
+\text{max}\left(L_{i-1, j}, L_{i,j-1}\right) &amp; \text{ if } i\neq 0 \text{ and } j\neq 0 \text{ and } x_i \neq y_j\\
+\end{array}
+\right.\]</p><p>where <span>$x_i$</span> represents the <span>$i$</span>-th character in sequence <span>$X$</span> and <span>$y_j$</span> the <span>$j$</span>-th character in sequence <span>$Y$</span>.</p><p>If <span>$L$</span> is stored in an array, the first condition above allows initializing its first row and first column. Then, the neighboring cells can be filled using the two other conditions, which in turn unlocks further neighboring cells until the whole <span>$L$</span> matrix is filled.</p><h2 id="Small-example"><a class="docs-heading-anchor" href="#Small-example">Small example</a><a id="Small-example-1"></a><a class="docs-heading-anchor-permalink" href="#Small-example" title="Permalink"></a></h2><p>Let us begin with a small example: we want to find a longest common subsequence between <code>GAC</code> and <code>AGCAT</code>:</p><pre><code class="language-julia hljs">x = collect(&quot;GAC&quot;);
+y = collect(&quot;AGCAT&quot;);</code></pre><p>Let&#39;s build the <span>$L$</span> array. For the sake of the example, we&#39;ll initially fill it with <span>$(-1)$</span> in order to indicate which values haven&#39;t been computed yet. The <code>init_length!</code> function fills the first row and the first column in the array. We also define a <code>display</code> helper function, which shows a pretty representation of the <span>$L$</span> array.</p><pre><code class="language-julia hljs">function init_lengths!(L, x, y)
+    L[1,1] = 0
     for i in eachindex(x)
-        lengths[i+1, 1] = 0
+        L[i+1, 1] = 0
     end
     for j in eachindex(y)
-        lengths[1, j+1] = 0
+        L[1, j+1] = 0
     end
-    lengths
 end
 
-x = collect(&quot;GAC&quot;)
-y = collect(&quot;AGCAT&quot;)
-lengths = -ones(Int, 1+length(x), 1+length(y))
-init_lengths!(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">4×6 Matrix{Int64}:
- 0   0   0   0   0   0
- 0  -1  -1  -1  -1  -1
- 0  -1  -1  -1  -1  -1
- 0  -1  -1  -1  -1  -1</code></pre><pre><code class="language-julia hljs">using PrettyTables
-function display(lengths, x, y)
-    table = hcat([&#39;∅&#39;, x...], lengths)
-    pretty_table(table;
-                 header = [&quot;&quot;, &#39;∅&#39;, y...],
-                 formatters = (v, i, j) -&gt; v==-1 ? &quot;&quot; : v)
-end
-display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
+using PrettyTables
+display(L, x, y) = pretty_table(hcat([&#39;∅&#39;, x...], L);
+                                header = [&#39; &#39;, &#39;∅&#39;, y...],
+                                formatters = (v, i, j) -&gt; v==-1 ? &quot;&quot; : v)
+
+L = -ones(Int, 1+length(x), 1+length(y))
+init_lengths!(L, x, y)
+display(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
 │   │ ∅ │ A │ G │ C │ A │ T │
 ├───┼───┼───┼───┼───┼───┼───┤
 │ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
 │ G │ 0 │   │   │   │   │   │
 │ A │ 0 │   │   │   │   │   │
 │ C │ 0 │   │   │   │   │   │
-└───┴───┴───┴───┴───┴───┴───┘</code></pre><pre><code class="language-julia hljs">function fill_lengths!(lengths, x, y, ir=eachindex(x), jr=eachindex(y))
+└───┴───┴───┴───┴───┴───┴───┘</code></pre><p>The <code>fill_lengths!</code> function then allows filling other rows. By default it will fill the entire array, but for the sake of the example we restrict it here to a subset of the rows and/or the columns.</p><pre><code class="language-julia hljs">function fill_lengths!(L, x, y, ir=eachindex(x), jr=eachindex(y))
     for j in jr
         for i in ir
-            lengths[i+1, j+1] = if x[i] == y[j]
-                lengths[i, j] + 1
+            L[i+1, j+1] = if x[i] == y[j]
+                L[i, j] + 1
             else
-                max(lengths[i+1, j], lengths[i, j+1])
+                max(L[i+1, j], L[i, j+1])
             end
         end
     end
 end
 
-fill_lengths!(lengths, x, y, 1:1)
-display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
+fill_lengths!(L, x, y, 1:1)
+display(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
 │   │ ∅ │ A │ G │ C │ A │ T │
 ├───┼───┼───┼───┼───┼───┼───┤
 │ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
 │ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
 │ A │ 0 │   │   │   │   │   │
 │ C │ 0 │   │   │   │   │   │
-└───┴───┴───┴───┴───┴───┴───┘</code></pre><pre><code class="language-julia hljs">fill_lengths!(lengths, x, y, 2:2)
-display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
-│   │ ∅ │ A │ G │ C │ A │ T │
-├───┼───┼───┼───┼───┼───┼───┤
-│ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
-│ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
-│ A │ 0 │ 1 │ 1 │ 1 │ 2 │ 2 │
-│ C │ 0 │   │   │   │   │   │
-└───┴───┴───┴───┴───┴───┴───┘</code></pre><pre><code class="language-julia hljs">fill_lengths!(lengths, x, y, 3:3)
-display(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
+└───┴───┴───┴───┴───┴───┴───┘</code></pre><p>After the first row has been filled, we see that <span>$L_{1,1} = 0$</span> because we can&#39;t extract any common subsequence from the first characters in <span>$X$</span> (<code>G</code>) and <span>$Y$</span> (<code>A</code>). However, <span>$L_{1,2}=1$</span> because the first character of <span>$X$</span> (<code>G</code>) matches the second character of <span>$Y$</span> (which is also <code>G</code>). In turn this causes all other <span>$L_{1,j}$</span> values to be equal to 1.</p><p>Now that the first row is complete, we can fill the remaining two rows in the array:</p><pre><code class="language-julia hljs">fill_lengths!(L, x, y, 2:3)
+display(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
 │   │ ∅ │ A │ G │ C │ A │ T │
 ├───┼───┼───┼───┼───┼───┼───┤
 │ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
 │ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
 │ A │ 0 │ 1 │ 1 │ 1 │ 2 │ 2 │
 │ C │ 0 │ 1 │ 1 │ 2 │ 2 │ 2 │
-└───┴───┴───┴───┴───┴───┴───┘</code></pre><pre><code class="language-julia hljs">function backtrack(lengths, x, y)
+└───┴───┴───┴───┴───┴───┴───┘</code></pre><p>We now know that the longest common subsequence between <span>$X$</span> and <span>$Y$</span> has a length of 2. In order to actually find a subsequence of this length, we can &quot;backtrack&quot; from the bottom right of the array back to the top left:</p><pre><code class="language-julia hljs">function backtrack(L, x, y)
     i = lastindex(x)
     j = lastindex(y)
-    subseq = []
-    while lengths[i+1, j+1] != 0
+    subseq = Char[]
+    while L[i+1, j+1] != 0
         if x[i] == y[j]
             pushfirst!(subseq, x[i])
             (i, j) = (i-1, j-1)
-        elseif lengths[i+1, j] &gt; lengths[i, j+1]
+        elseif L[i+1, j] &gt; L[i, j+1]
             (i, j) = (i, j-1)
         else
             (i, j) = (i-1, j)
         end
     end
-    subseq
+    String(subseq)
 end
 
-backtrack(lengths, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Any}:
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)</code></pre><pre><code class="language-julia hljs">function LCS(x, y)
-    lengths = Matrix{Int}(undef, 1+length(x), 1+length(y))
-    init_lengths!(lengths, x, y)
-    fill_lengths!(lengths, x, y)
-    backtrack(lengths, x, y)
+backtrack(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;GA&quot;</code></pre><p>Wrapping everything into a function, we get</p><pre><code class="language-julia hljs">function LCS(x, y)
+    L = Matrix{Int}(undef, 1+length(x), 1+length(y))
+    init_lengths!(L, x, y)
+    fill_lengths!(L, x, y)
+    backtrack(L, x, y)
 end
 
-LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Any}:
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)</code></pre><h2 id="Large-example"><a class="docs-heading-anchor" href="#Large-example">Large example</a><a id="Large-example-1"></a><a class="docs-heading-anchor-permalink" href="#Large-example" title="Permalink"></a></h2><h3 id="Plain-sequential-version"><a class="docs-heading-anchor" href="#Plain-sequential-version">Plain sequential version</a><a id="Plain-sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Plain-sequential-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">x = rand(&quot;ATCG&quot;, 4096);
+LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;GA&quot;</code></pre><h2 id="Large-example"><a class="docs-heading-anchor" href="#Large-example">Large example</a><a id="Large-example-1"></a><a class="docs-heading-anchor-permalink" href="#Large-example" title="Permalink"></a></h2><p>Let&#39;s test this on larger data. The results obtained with this sequential version of the algorithm will serve as reference to check the validity of more complex implementations.</p><pre><code class="language-julia hljs">import Random; Random.seed!(42)
+x = rand(&quot;ATCG&quot;, 4096);
 y = rand(&quot;ATCG&quot;, 8192);
-seq = LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3578-element Vector{Any}:
- &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
- &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
- &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
- ⋮
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;T&#39;: ASCII/Unicode U+0054 (category Lu: Letter, uppercase)
- &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
- &#39;C&#39;: ASCII/Unicode U+0043 (category Lu: Letter, uppercase)
- &#39;A&#39;: ASCII/Unicode U+0041 (category Lu: Letter, uppercase)
- &#39;G&#39;: ASCII/Unicode U+0047 (category Lu: Letter, uppercase)</code></pre><h3 id="Tiled-sequential-version"><a class="docs-heading-anchor" href="#Tiled-sequential-version">Tiled sequential version</a><a id="Tiled-sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-sequential-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">function splitrange(range, nchunks)
+seq = LCS(x, y)
+length(seq)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3575</code></pre><h3 id="Tiled-sequential-version"><a class="docs-heading-anchor" href="#Tiled-sequential-version">Tiled sequential version</a><a id="Tiled-sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-sequential-version" title="Permalink"></a></h3><p>We&#39;ll now build a tiled version of the same algorithm. The following helper function allows splitting a range of indices into a given number of chunks.</p><pre><code class="language-julia hljs">function splitrange(range, nchunks)
     q, r = divrem(length(range), nchunks)
     chunks = UnitRange{Int}[]
 
@@ -131,54 +103,56 @@ seq = LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="
     chunks
 end
 
-function LCS_tiled(x, y, nx, ny)
-    lengths = Matrix{Int}(undef, 1+length(x), 1+length(y))
-    init_lengths!(lengths, x, y)
+splitrange(1:20, 3) # split the range 1:20 into 3 chunks of equal sizes</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3-element Vector{UnitRange{Int64}}:
+ 1:7
+ 8:14
+ 15:20</code></pre><p>A tiled version of the previous algorithm is then as simple as filling the chunks one after the other (which, as we&#39;ll see later, can already be beneficial in terms of performance because it is more cache-friendly):</p><pre><code class="language-julia hljs">function LCS_tiled(x, y, nx, ny)
+    L = Matrix{Int}(undef, 1+length(x), 1+length(y))
+    init_lengths!(L, x, y)
 
     for irange in splitrange(eachindex(x), nx)
         for jrange in splitrange(eachindex(y), ny)
-            fill_lengths!(lengths, x, y, irange, jrange)
+            fill_lengths!(L, x, y, irange, jrange)
         end
     end
 
-    backtrack(lengths, x, y)
-end
-
-nx = 8
+    backtrack(L, x, y)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LCS_tiled (generic function with 1 method)</code></pre><p>Here we split the problem into <span>$8 \times 12$</span> blocks, and check that the tiled version gives the same results as the plain implementation above.</p><pre><code class="language-julia hljs">nx = 8
 ny = 12
 tiled = LCS_tiled(x, y, nx, ny)
-@assert seq == tiled</code></pre><h3 id="Tiled-parallel-version"><a class="docs-heading-anchor" href="#Tiled-parallel-version">Tiled parallel version</a><a id="Tiled-parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-parallel-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">using DataFlowTasks
+@assert seq == tiled</code></pre><h2 id="Tiled-parallel-version"><a class="docs-heading-anchor" href="#Tiled-parallel-version">Tiled parallel version</a><a id="Tiled-parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-parallel-version" title="Permalink"></a></h2><p>Parallelizing the tiled version using <code>DataFlowTasks</code> is now very straightforward: it only requires annotating the code to expose data dependencies.</p><p>In our case:</p><ul><li>the initialization task writes to the whole <code>L</code> array;</li><li>filling a tile involves reading <code>L</code> for the provided ranges of indices, and writing to a range of indices shifted by 1;</li><li>backtracking reads the whole <code>L</code> array.</li></ul><p>Note that the backtracking task needs to be fetched in order to get the result in a synchronous way and perform an apple-to-apple comparison to the previous implementations.</p><pre><code class="language-julia hljs">using DataFlowTasks
 
 function LCS_par(x, y, nx, ny)
-    lengths = Matrix{Int}(undef, 1+length(x), 1+length(y))
-    init_lengths!(lengths, x, y)
+    L = Matrix{Int}(undef, 1+length(x), 1+length(y))
+    DataFlowTasks.@spawn init_lengths!(@W(L), x, y) label=&quot;init&quot;
 
+    kx = 0
     for irange in splitrange(eachindex(x), nx)
+        kx += 1; ky = 0
         for jrange in splitrange(eachindex(y), ny)
+            ky += 1
             DataFlowTasks.@spawn begin
-                @R view(lengths, irange, jrange)
-                @W view(lengths, irange .+ 1, jrange .+ 1)
-                fill_lengths!(lengths, x, y, irange, jrange)
-            end
+                @R view(L, irange, jrange)
+                @W view(L, irange .+ 1, jrange .+ 1)
+                fill_lengths!(L, x, y, irange, jrange)
+            end label=&quot;tile ($kx, $ky)&quot;
         end
     end
 
-    barrier = DataFlowTasks.@spawn @R(lengths)
-    wait(barrier)
-
-    backtrack(lengths, x, y)
-end
-
-par = LCS_par(x, y, nx, ny)
-@assert seq == par</code></pre><h3 id="Performance-comparison"><a class="docs-heading-anchor" href="#Performance-comparison">Performance comparison</a><a id="Performance-comparison-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-comparison" title="Permalink"></a></h3><pre><code class="language-julia hljs">GC.gc(); t_seq   = @elapsed LCS(x, y)
+    bt = DataFlowTasks.@spawn backtrack(@R(L), x, y) label=&quot;backtrack&quot;
+    fetch(bt)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LCS_par (generic function with 1 method)</code></pre><p>Again, we can check that this implementation produces the same results:</p><pre><code class="language-julia hljs">par = LCS_par(x, y, nx, ny)
+@assert seq == par</code></pre><p>As an added safety measure, let&#39;s collect some more data to check the correctness of the task dependency graph:</p><pre><code class="language-julia hljs">resize!(DataFlowTasks.get_active_taskgraph(), 200)
+log_info = DataFlowTasks.@log LCS_par(x, y, nx, ny)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LogInfo with 98 logged tasks
+	 critical time: 2.6 seconds</code></pre><p>we can now confirm that the graph looks as expected:</p><pre><code class="language-julia hljs">DataFlowTasks.stack_weakdeps_env!()
+using GraphViz
+dag = GraphViz.Graph(log_info)</code></pre><img src="0361b7c4.svg" alt="Example block output"/><h2 id="Performance-comparison"><a class="docs-heading-anchor" href="#Performance-comparison">Performance comparison</a><a id="Performance-comparison-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-comparison" title="Permalink"></a></h2><p>Comparing the performances of these 3 implementations shows that the tiled version already saves some time due to cache effects.</p><pre><code class="language-julia hljs">GC.gc(); t_seq   = @elapsed LCS(x, y)
 GC.gc(); t_tiled = @elapsed LCS_tiled(x, y, nx, ny)
 GC.gc(); t_par   = @elapsed LCS_par(x, y, nx, ny)
 
 using CairoMakie
 barplot(1:3, [t_seq, t_tiled, t_par],
         axis = (; title = &quot;Run times [s]&quot;,
-                xticks = (1:3, [&quot;sequential&quot;, &quot;tiled&quot;, &quot;parallel&quot;])))</code></pre><img src="29549431.png" alt="Example block output"/><h3 id="Profiling-of-the-parallel-version"><a class="docs-heading-anchor" href="#Profiling-of-the-parallel-version">Profiling of the parallel version</a><a id="Profiling-of-the-parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Profiling-of-the-parallel-version" title="Permalink"></a></h3><pre><code class="language-julia hljs">resize!(DataFlowTasks.get_active_taskgraph(), 200)
-log_info = DataFlowTasks.@log LCS_par(x, y, nx, ny)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LogInfo with 97 logged tasks
-	 critical time: 0.48 seconds</code></pre><pre><code class="language-julia hljs">DataFlowTasks.stack_weakdeps_env!()
-using GraphViz
-GraphViz.Graph(log_info)</code></pre><img src="fb918b55.svg" alt="Example block output"/><pre><code class="language-julia hljs">plot(log_info)</code></pre><img src="fc051395.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../blur-roberts/blur-roberts/">« Blur &amp; Roberts image filters</a><a class="docs-footer-nextpage" href="../../../references/">References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Monday 23 October 2023 19:44">Monday 23 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+                xticks = (1:3, [&quot;sequential&quot;, &quot;tiled&quot;, &quot;parallel&quot;])))</code></pre><img src="db7eb4f0.png" alt="Example block output"/><p>The speed-up of the parallel version does not seem ideal, however:</p><pre><code class="language-julia hljs">speedup  = t_tiled / t_par
+nthreads = Threads.nthreads()
+(; speedup, nthreads)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(speedup = 0.16377063371420417, nthreads = 8)</code></pre><p>Let&#39;s try and understand why. The run-time data collected above can help build a profiling plot, which gives some insight about the performances of our parallel version:</p><pre><code class="language-julia hljs">plot(log_info, categories=[&quot;init&quot;, &quot;tile&quot;, &quot;backtrack&quot;])</code></pre><img src="e604749c.png" alt="Example block output"/><p>Here, we see for example that the run time is bounded by the length of the critical path. Adding more threads would not help, but perhaps dividing the problem into smaller chunks could help.</p><p>It also appears that a non-negligible fraction of the time is spent in the initialization of the array, which is mostly memory allocation time. In order to improve this, we would need a &quot;real&quot; tiled array in which blocks can be allocated independently from one another.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../blur-roberts/blur-roberts/">« Blur &amp; Roberts image filters</a><a class="docs-footer-nextpage" href="../../../references/">References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Tuesday 24 October 2023 00:50">Tuesday 24 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
