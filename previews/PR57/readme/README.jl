@@ -74,7 +74,7 @@ fetch(result)
 log_info = DataFlowTasks.@log let
     @spawn fill!(@W(A), 0)             label="write whole"
     @spawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
-    @spawn @RW(view(A, 3:4)) .+= 4     label="write 3:4"
+    @spawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
     res = @spawn @R(A)                 label="read whole"
     fetch(res)
 end
