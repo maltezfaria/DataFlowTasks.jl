@@ -48,9 +48,7 @@ jobs:
             Pkg.test(coverage=true)
           '
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v1
-        with:
-          file: lcov.info
+      - uses: codecov/codecov-action@v3
   docs:
     name: Documentation
     runs-on: self-hosted
@@ -60,25 +58,15 @@ jobs:
       contents: write
       statuses: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v1
-        with:
-          version: '1'
-      - name: Configure doc environment
-        run: |
-          julia --project=docs/ -e '
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.instantiate()'
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-docdeploy@v1
+      - name: Install dependencies
+        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+      - name: Build and deploy
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
-          julia --project=docs -e '
-            using Documenter: DocMeta, doctest
-            using DataFlowTasks
-            DocMeta.setdocmeta!(DataFlowTasks, :DocTestSetup, :(using DataFlowTasks); recursive=true)
-            doctest(DataFlowTasks)'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        run: julia --project=docs/ --code-coverage=user docs/make.jl
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v3
       - name: Check README.md consistency
         run: diff -u README.md docs/src/readme/README.md
