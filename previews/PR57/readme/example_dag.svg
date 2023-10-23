@@ -18,26 +18,26 @@
 <!-- 415 -->
 <g id="node2" class="node">
 <title>415</title>
-<ellipse fill="none" stroke="black" stroke-width="2" cx="52.65" cy="-90" rx="52.79" ry="18"/>
+<ellipse fill="none" stroke="red" stroke-width="2" cx="52.65" cy="-90" rx="52.79" ry="18"/>
 <text text-anchor="middle" x="52.65" y="-86.3" font-family="Times,serif" font-size="14.00">write 3:4</text>
 </g>
 <!-- 415&#45;&gt;416 -->
 <g id="edge1" class="edge">
 <title>415&#45;&gt;416</title>
-<path fill="none" stroke="black" stroke-width="2" d="M67.1,-72.41C74.59,-63.82 83.88,-53.16 92.18,-43.63"/>
-<polygon fill="black" stroke="black" stroke-width="2" points="94.94,-45.79 98.87,-35.96 89.66,-41.2 94.94,-45.79"/>
+<path fill="none" stroke="red" stroke-width="2" d="M67.1,-72.41C74.59,-63.82 83.88,-53.16 92.18,-43.63"/>
+<polygon fill="red" stroke="red" stroke-width="2" points="94.94,-45.79 98.87,-35.96 89.66,-41.2 94.94,-45.79"/>
 </g>
 <!-- 414 -->
 <g id="node3" class="node">
 <title>414</title>
-<ellipse fill="none" stroke="red" stroke-width="2" cx="175.65" cy="-90" rx="52.79" ry="18"/>
+<ellipse fill="none" stroke="black" stroke-width="2" cx="175.65" cy="-90" rx="52.79" ry="18"/>
 <text text-anchor="middle" x="175.65" y="-86.3" font-family="Times,serif" font-size="14.00">write 1:2</text>
 </g>
 <!-- 414&#45;&gt;416 -->
 <g id="edge2" class="edge">
 <title>414&#45;&gt;416</title>
-<path fill="none" stroke="red" stroke-width="2" d="M160.95,-72.41C153.34,-63.82 143.9,-53.16 135.46,-43.63"/>
-<polygon fill="red" stroke="red" stroke-width="2" points="137.91,-41.12 128.66,-35.96 132.67,-45.76 137.91,-41.12"/>
+<path fill="none" stroke="black" stroke-width="2" d="M160.95,-72.41C153.34,-63.82 143.9,-53.16 135.46,-43.63"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="137.91,-41.12 128.66,-35.96 132.67,-45.76 137.91,-41.12"/>
 </g>
 <!-- 413 -->
 <g id="node4" class="node">
@@ -48,14 +48,14 @@
 <!-- 413&#45;&gt;415 -->
 <g id="edge3" class="edge">
 <title>413&#45;&gt;415</title>
-<path fill="none" stroke="black" stroke-width="2" d="M99.19,-144.41C91.59,-135.69 82.14,-124.85 73.74,-115.21"/>
-<polygon fill="black" stroke="black" stroke-width="2" points="76.21,-112.71 67,-107.47 70.93,-117.31 76.21,-112.71"/>
+<path fill="none" stroke="red" stroke-width="2" d="M99.19,-144.41C91.59,-135.69 82.14,-124.85 73.74,-115.21"/>
+<polygon fill="red" stroke="red" stroke-width="2" points="76.21,-112.71 67,-107.47 70.93,-117.31 76.21,-112.71"/>
 </g>
 <!-- 413&#45;&gt;414 -->
 <g id="edge4" class="edge">
 <title>413&#45;&gt;414</title>
-<path fill="none" stroke="red" stroke-width="2" d="M128.34,-144.41C136.06,-135.69 145.67,-124.85 154.2,-115.21"/>
-<polygon fill="red" stroke="red" stroke-width="2" points="157.05,-117.28 161.06,-107.47 151.81,-112.64 157.05,-117.28"/>
+<path fill="none" stroke="black" stroke-width="2" d="M128.34,-144.41C136.06,-135.69 145.67,-124.85 154.2,-115.21"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="157.05,-117.28 161.06,-107.47 151.81,-112.64 157.05,-117.28"/>
 </g>
 </g>
 </svg>

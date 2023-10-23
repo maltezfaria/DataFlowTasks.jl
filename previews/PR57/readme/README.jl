@@ -214,16 +214,16 @@ A = (A + adjoint(A))/2
 A = A + n*I;
 
 #-
-@info "Testing sequential Cholesky factorization"          #hide
+println("Testing sequential Cholesky factorization")       #hide
 F = cholesky_tiled!(copy(A), ts)                           #hide
                                                            #hide
-## Check results                                           #hide
+## Check results                                            #hide
 err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))       #hide
 @show err                                                  #hide
 @assert err < eps(Float64)                                 #hide
 #-
 
-@info "Testing parallel Cholesky factorization" #hide
+println("Testing parallel Cholesky factorization")         #hide
 
 ## First run to trigger compilation
 F = cholesky_dft!(copy(A), ts)
