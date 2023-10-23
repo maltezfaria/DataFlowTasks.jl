@@ -81,6 +81,8 @@ function Base.wait(taskgraph::TaskGraph)
     return taskgraph
 end
 
+Base.isempty(taskgraph::TaskGraph) = isempty(taskgraph.dag)
+
 capcity(taskgraph) = taskgraph |> dag |> capacity
 
 """
