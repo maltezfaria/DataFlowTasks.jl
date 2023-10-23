@@ -29,7 +29,7 @@ println("\n*** Generating README")
     Literate.markdown(src, pwd(), flavor=Literate.CommonMarkFlavor())
     contents = read("README.md", String)
     contents = replace(contents, "![](" => "![](https://maltezfaria.github.io/DataFlowTasks.jl/dev/readme/")
-    write(joinpath("README.md"), contents)
+    write("README.md", contents)
 
     try
         run(`diff -u ../../../README.md README.md`)
