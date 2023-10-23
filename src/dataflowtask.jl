@@ -62,11 +62,11 @@ mutable struct DataFlowTask
 end
 
 """
-    const TASKCOUNTER::Ref{Int}
+    const TASKCOUNTER::Threads.Atomic{Int64}
 
 Global counter of created `DataFlowTask`s.
 """
-const TASKCOUNTER = Ref(0)
+const TASKCOUNTER = Threads.Atomic{Int64}(0)
 
 """
     data(t::DataFlowTask[,i])
