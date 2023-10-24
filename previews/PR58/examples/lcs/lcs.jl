@@ -246,12 +246,15 @@ function LCS_par(x, y, nx, ny)
     fetch(bt)
 end
 
-# Again, we can check that this implementation produces the same results. And as
-# an added safety measure, let's also check that the task dependency graph looks
-# as expected:
+# Again, we can check that this implementation produces the correct results, and
+# measure its run-time.
 
 par = LCS_par(x, y, nx, ny)
 @assert seq == par
+t_par = @belapsed LCS_par($x, $y, nx, ny)
+
+# As an added safety measure, let's also check that the task dependency graph
+# looks as expected:
 
 resize!(DataFlowTasks.get_active_taskgraph(), 200)
 GC.gc()
@@ -267,8 +270,6 @@ DataFlowTasks.savedag("lcs-dag.svg", dag) #src
 #
 # Comparing the performances of these 3 implementations shows that the tiled
 # version already saves some time due to cache effects.
-
-t_par = @belapsed LCS_par($x, $y, nx, ny)
 
 using CairoMakie
 barplot(1:3, [t_seq, t_tiled, t_par],
