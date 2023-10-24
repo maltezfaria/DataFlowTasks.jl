@@ -121,12 +121,14 @@ function with_logging!(f, l::LogInfo)
     # taskgraph must be empty before starting, or we may log dependencies on
     # tasks that are not in the logger
     tg = get_active_taskgraph()
-    _wait = !isempty(tg)
-    msg = """logging requires an empty taskgraph to start. Waiting for pending
-    tasks to be completed...
-    """
-    _wait && (@warn msg; wait(tg))
-    _wait && (@warn "done waiting.")
+    if !isempty(tg)
+        msg = """logging requires an empty taskgraph to start. Waiting for
+        pending tasks to be completed...
+        """
+        @warn msg
+        wait(tg)
+        @warn "done."
+    end
     # check if logger is already active, switch to new logger, record, and
     # switch back
     _log_mode() == true ||
