@@ -67,6 +67,7 @@ end
 
 #TODO: show more relevant information
 function Base.show(io::IO, l::LogInfo)
+    nbtasknodes(l) == 0 && return print(io, "empty LogInfo")
     nodes = topological_sort(l)
     n = length(nodes)
     cp = longest_path(l)
@@ -117,6 +118,19 @@ end
 Similar to [`with_logging`](@ref), but append events to `l`.
 """
 function with_logging!(f, l::LogInfo)
+    # taskgraph must be empty before starting, or we may log dependencies on
+    # tasks that are not in the logger
+    tg = get_active_taskgraph()
+    if !isempty(tg)
+        msg = """logging requires an empty taskgraph to start. Waiting for
+        pending tasks to be completed...
+        """
+        @warn msg
+        wait(tg)
+        @warn "done."
+    end
+    # check if logger is already active, switch to new logger, record, and
+    # switch back
     _log_mode() == true ||
         error("you must run `enable_log()` to activate the logger before profiling")
     old_logger = _getloginfo()
@@ -164,8 +178,9 @@ end
 """
     DataFlowTasks.@log expr --> LogInfo
 
-Execute `expr` and return a [`LogInfo`](@ref) instance with the recorded
-events.
+Execute `expr` and return a [`LogInfo`](@ref) instance with the recorded events.
+The `Logger` waits for the current taskgraph (see [`get_active_taskgraph`](@ref)
+to be empty before starting.
 
 !!! warning
     The returned `LogInfo` instance may be incomplete if `block` returns before all
