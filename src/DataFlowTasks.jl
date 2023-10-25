@@ -12,6 +12,7 @@ using Compat
 import Pkg
 import TOML
 import Scratch
+using Printf
 
 """
     @enum AccessMode READ WRITE READWRITE

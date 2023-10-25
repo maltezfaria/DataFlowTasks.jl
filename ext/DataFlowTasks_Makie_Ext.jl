@@ -1,7 +1,7 @@
 module DataFlowTasks_Makie_Ext
 
 using Makie
-using DataFlowTasks: LogInfo, longest_path, ExtendedLogInfo, extractloggerinfo!, Gantt
+using DataFlowTasks: LogInfo, longest_path, ExtendedLogInfo, extractloggerinfo, Gantt
 
 function __init__()
     @info "Loading DataFlowTasks general plot utilities"
@@ -183,16 +183,14 @@ See the
 [documentation](https://maltezfaria.github.io/DataFlowTasks.jl/dev/profiling/)
 for more information on how to profile and visualize `DataFlowTasks`.
 """
-function Makie.plot(log_info::LogInfo; categories = String[])
+function Makie.plot(loginfo::LogInfo; categories = String[])
     # Figure
     # ------
     fig = Figure(; backgroundcolor = RGBf(0.98, 0.98, 0.98), resolution = (1280, 720))
 
     # Extract logger informations
     # ---------------------------
-    loginfo = ExtendedLogInfo(log_info, categories, longest_path(log_info))
-    gantt = Gantt()
-    extractloggerinfo!(log_info, loginfo, gantt)
+    extloginfo, gantt = extractloggerinfo(loginfo; categories)
 
     # Layouts
     # --------------------------------------------
@@ -205,19 +203,19 @@ function Makie.plot(log_info::LogInfo; categories = String[])
 
     # Plot each part
     # --------------
-    traceplot(axtrc, log_info, gantt, loginfo)
-    activityplot(axact, loginfo)
-    boundsplot(axinf, loginfo)
-    categoriesplot(axcat, loginfo)
+    traceplot(axtrc, loginfo, gantt, extloginfo)
+    activityplot(axact, extloginfo)
+    boundsplot(axinf, extloginfo)
+    categoriesplot(axcat, extloginfo)
 
     # Events management
-    react(axtrc, log_info, gantt)
+    react(axtrc, loginfo, gantt)
 
     # Terminal Informations
     # ---------------------
-    @info "Computing    : $(loginfo.computingtime)"
-    @info "Inserting    : $(loginfo.insertingtime)"
-    @info "Other        : $(loginfo.othertime)"
+    @info "Computing    : $(extloginfo.computingtime)"
+    @info "Inserting    : $(extloginfo.insertingtime)"
+    @info "Other        : $(extloginfo.othertime)"
 
     return fig
 end

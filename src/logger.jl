@@ -264,6 +264,22 @@ mutable struct ExtendedLogInfo
     end
 end
 
+function Base.show(io::IO, extloginfo::ExtendedLogInfo)
+    # format the output below using printf style. Right align so that all
+    # numbers are aligned
+    @printf(io, "ExtendedLogInfo\n")
+    @printf(io, "|-%-20s: %s\n", "computing time", extloginfo.computingtime)
+    for i in eachindex(extloginfo.categories)
+        (title, rx) = extloginfo.categories[i]
+        @printf(io, "|--%-19s: %.2f\n", title, extloginfo.timespercat[i])
+    end
+    @printf(io, "|--%-19s: %.2f\n", "unlabeled", extloginfo.timespercat[end])
+    @printf(io, "|-%-20s: %s\n", "inserting time", extloginfo.insertingtime)
+    @printf(io, "|-%-20s: %s\n", "other time", extloginfo.othertime)
+    @printf(io, "|-%-20s: %s\n", "critical path time", extloginfo.t∞)
+    @printf(io, "|-%-20s: %s\n", "no-wait time", extloginfo.t_nowait)
+end
+
 #= Gives minimum and maximum times the logger has measured. =#
 function timelimits(logger::LogInfo)
     iter = Iterators.flatten(logger.tasklogs)
@@ -271,14 +287,21 @@ function timelimits(logger::LogInfo)
 end
 
 #= Considering a `label` and a the full list of labels `categories`,
-gives the index of the occurence of label in `categories`. =#
+gives the index of the occurence of label in `categories`. Uses
+`length(categories) + 1` when `label` is not presentin `categories`=#
 function jobid(label::String, categories)
     for i in eachindex(categories)
         (title, rx) = categories[i]
         occursin(rx, label) && return i  # find first
     end
-
     return length(categories) + 1
+end
+
+function extractloggerinfo(loginfo::LogInfo; categories = String[])
+    extloginfo = ExtendedLogInfo(loginfo, categories, longest_path(loginfo))
+    gantt = Gantt()
+    extractloggerinfo!(loginfo, extloginfo, gantt)
+    return extloginfo, gantt
 end
 
 #= Initialize gantt and loginfo structures from logger. =#
