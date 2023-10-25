@@ -210,3 +210,136 @@ end
 
 intags(t::TaskLog) = t.inneighbors
 weight(t::TaskLog) = task_duration(t) * 1e-9
+
+#= Contains data to plot the Gantt Chart (parallel trace).
+It's a Struct of Array paradigm where all the entries i
+of all the arrays tells us information about a same task. =#
+struct Gantt
+    threads::Vector{Int64}      # Thread on wich the task ran
+    jobids::Vector{Int64}       # Task type
+    starts::Vector{Float64}     # Start time
+    stops::Vector{Float64}      # End time
+
+    function Gantt()
+        threads = Vector{Int64}()
+        jobids = Vector{Int64}()
+        starts = Vector{Float64}()
+        stops = Vector{Float64}()
+        return new(threads, jobids, starts, stops)
+    end
+end
+
+#= Contains additional post-processed informations on the LogInfo =#
+mutable struct ExtendedLogInfo
+    firsttime::Float64              # First measured time
+    lasttime::Float64               # Last measured time
+    computingtime::Float64          # Cumulative time spent computing
+    insertingtime::Float64          # Cumulative time spent inserting
+    othertime::Float64              # Cumulative other time
+    t∞::Float64                     # Inf. proc time
+    t_nowait::Float64               # Time if we didn't wait at all
+    timespercat::Vector{Float64}    # timespercat[i] cumulative time for category i
+    categories::Vector{Pair{String,Regex}} # (label => regex) pairs for categories
+    path::Vector{Int64}             # Critical Path
+
+    function ExtendedLogInfo(logger::LogInfo, categories, path)
+        (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
+        othertime = (lasttime - firsttime) * length(logger.tasklogs)
+
+        normalize_category(x) = x
+        normalize_category(x::String) = (x => Regex(x))
+
+        return new(
+            firsttime,
+            lasttime,
+            0,
+            0,
+            othertime,
+            0,
+            0,
+            zeros(length(categories) + 1),
+            normalize_category.(categories),
+            path,
+        )
+    end
+end
+
+#= Gives minimum and maximum times the logger has measured. =#
+function timelimits(logger::LogInfo)
+    iter = Iterators.flatten(logger.tasklogs)
+    return minimum(t -> t.time_start, iter), maximum(t -> t.time_finish, iter)
+end
+
+#= Considering a `label` and a the full list of labels `categories`,
+gives the index of the occurence of label in `categories`. =#
+function jobid(label::String, categories)
+    for i in eachindex(categories)
+        (title, rx) = categories[i]
+        occursin(rx, label) && return i  # find first
+    end
+
+    return length(categories) + 1
+end
+
+#= Initialize gantt and loginfo structures from logger. =#
+function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Gantt)
+    # Gantt data : Initialization TASKLOGS
+    # ------------------------------------
+    for tasklog in Iterators.flatten(logger.tasklogs)
+        # Gantt data
+        # ----------
+        push!(gantt.threads, tasklog.tid)
+        push!(gantt.jobids, jobid(tasklog.label, loginfo.categories))
+        push!(gantt.starts, tasklog.time_start * 10^(-9) - loginfo.firsttime)
+        push!(gantt.stops, tasklog.time_finish * 10^(-9) - loginfo.firsttime)
+
+        # General Informations
+        # --------------------
+        task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
+        # ----
+        loginfo.othertime     -= task_duration
+        loginfo.computingtime += task_duration
+        # ----
+        loginfo.timespercat[jobid(tasklog.label, loginfo.categories)] += task_duration
+        # ----
+        tasklog.tag ∈ loginfo.path && (loginfo.t∞ += task_duration)
+        loginfo.t_nowait += task_duration
+    end
+
+    # Gantt data : Initialization INSERTIONLOGS
+    # -----------------------------------------
+    for insertionlog in Iterators.flatten(logger.insertionlogs)
+        if insertionlog.gc_time != 0
+            gc_start = insertionlog.time_start * 10^(-9) - loginfo.firsttime
+            gc_finish = gc_start + insertionlog.gc_time * 10^(-9)
+            insertion_start = gc_finish
+            insertion_finish = insertionlog.time_finish * 10^(-9) - loginfo.firsttime
+
+            # GC Task
+            push!(gantt.threads, insertionlog.tid)
+            push!(gantt.jobids, length(loginfo.categories) + 3)
+            push!(gantt.starts, gc_start)
+            push!(gantt.stops, gc_finish)
+        else
+            insertion_start = insertionlog.time_start * 10^(-9) - loginfo.firsttime
+            insertion_finish = insertionlog.time_finish * 10^(-9) - loginfo.firsttime
+        end
+
+        # Gantt data
+        # ----------
+        push!(gantt.threads, insertionlog.tid)
+        push!(gantt.jobids, length(loginfo.categories) + 2)
+        push!(gantt.starts, insertion_start)
+        push!(gantt.stops, insertion_finish)
+
+        # General Informations
+        # --------------------
+        task_duration         = (insertionlog.time_finish - insertionlog.time_start) * 10^(-9)
+        loginfo.othertime     -= task_duration
+        loginfo.insertingtime += task_duration
+    end
+
+    loginfo.t_nowait /= length(logger.tasklogs)
+
+    return gantt
+end
