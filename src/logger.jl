@@ -67,14 +67,8 @@ end
 
 #TODO: show more relevant information
 function Base.show(io::IO, l::LogInfo)
-    nbtasknodes(l) == 0 && return print(io, "empty LogInfo")
-    nodes = topological_sort(l)
-    n = length(nodes)
-    cp = longest_path(l)
-    ctasks = filter(t -> tag(t) ∈ cp, nodes)
-    ct = sum(weight(t) for t in ctasks) # critical time
-    println(io, "LogInfo with $n logged task", n == 1 ? "" : "s")
-    return print(io, "\t critical time: $(round(ct,sigdigits=2)) seconds")
+    n = nbtasknodes(l)
+    return println(io, "LogInfo with $n logged task", n == 1 ? "" : "s")
 end
 
 """
@@ -214,6 +208,17 @@ weight(t::TaskLog) = task_duration(t) * 1e-9
 #= Contains data to plot the Gantt Chart (parallel trace).
 It's a Struct of Array paradigm where all the entries i
 of all the arrays tells us information about a same task. =#
+"""
+    struct Gantt
+
+Structured used ton produce a [`Gantt
+chart`](https://en.wikipedia.org/wiki/Gantt_chart) of the parallel traces of the
+tasks recorded in a [`LogInfo`](@ref) instance. This structure is used when
+plotting the parallel trace with `Makie.plot`.
+
+See [`extractloggerinfo`](@ref) for more information on how to create an `Gantt`
+instance.
+"""
 struct Gantt
     threads::Vector{Int64}      # Thread on wich the task ran
     jobids::Vector{Int64}       # Task type
@@ -230,6 +235,15 @@ struct Gantt
 end
 
 #= Contains additional post-processed informations on the LogInfo =#
+"""
+    struct ExtendedLogInfo
+
+Appends informations to [`LogInfo`](@ref) to make it easier to visualize and
+exctract useful information.
+
+See [`extractloggerinfo`](@ref) for more information on how to create an
+`ExtendedLogInfo` instance.
+"""
 mutable struct ExtendedLogInfo
     firsttime::Float64              # First measured time
     lasttime::Float64               # Last measured time
@@ -297,6 +311,16 @@ function jobid(label::String, categories)
     return length(categories) + 1
 end
 
+"""
+    extractloggerinfo(loginfo::LogInfo; categories = String[]) -->
+    ExtendedLogInfo, Gantt
+
+Analyses the information contained in `loginfo` and returns an
+[`ExtendedLogInfo`](@ref) instance and a [`Gantt`](@ref) instance. Passing a
+`categories` argument allows to group tasks by category. The `categories` can be
+a vector of `String`s or a vector of `String => Regex` pairs, which will be
+matched against the tasks' labels.
+"""
 function extractloggerinfo(loginfo::LogInfo; categories = String[])
     extloginfo = ExtendedLogInfo(loginfo, categories, longest_path(loginfo))
     gantt = Gantt()
