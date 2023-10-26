@@ -65,13 +65,8 @@ y = collect("AGCAT");
 # representation of the $L$ array.
 
 function init_lengths!(L, x, y)
-    @inbounds L[1,1] = 0
-    @inbounds for i in eachindex(x)
-        L[i+1, 1] = 0
-    end
-    @inbounds for j in eachindex(y)
-        L[1, j+1] = 0
-    end
+    @inbounds L[:, 1] .= 0
+    @inbounds L[1, :] .= 0
 end
 
 using PrettyTables
@@ -88,14 +83,8 @@ display(L, x, y)
 # here to a subset of the rows and/or the columns.
 
 function fill_lengths!(L, x, y, ir=eachindex(x), jr=eachindex(y))
-    @inbounds for j in jr
-        for i in ir
-            L[i+1, j+1] = if x[i] == y[j]
-                L[i, j] + 1
-            else
-                max(L[i+1, j], L[i, j+1])
-            end
-        end
+    @inbounds for j in jr, i in ir
+        L[i+1, j+1] = (x[i] == y[j]) ? L[i, j] + 1 : max(L[i+1, j], L[i, j+1])
     end
 end
 
@@ -187,8 +176,8 @@ function LCS_tiled(x, y, nx, ny)
     L = Matrix{Int}(undef, 1+length(x), 1+length(y))
     init_lengths!(L, x, y)
 
-    for irange in SplitAxis(eachindex(x), nx)
-        for jrange in SplitAxis(eachindex(y), ny)
+    for jrange in SplitAxis(eachindex(y), ny)
+        for irange in SplitAxis(eachindex(x), nx)
             fill_lengths!(L, x, y, irange, jrange)
         end
     end
@@ -196,12 +185,13 @@ function LCS_tiled(x, y, nx, ny)
     backtrack(L, x, y)
 end
 
-# Here we split the problem into $15 \times 15$ blocks, and check that the tiled
+# Here we split the problem into $10 \times 10$ blocks, and check that the tiled
 # version gives the same results as the plain implementation above. Even without
-# parallelization, tiling can already be beneficial in terms of performance
-# because it is more cache-friendly:
+# parallelization, and depending on the characteristics of the system, tiling
+# may already be beneficial in terms of performance because it is more
+# cache-friendly:
 
-nx = ny = 15
+nx = ny = 10
 tiled = LCS_tiled(x, y, nx, ny)
 @assert seq == tiled
 
@@ -209,13 +199,15 @@ t_tiled = @belapsed LCS_tiled($x, $y, nx, ny)
 
 # ## Tiled parallel version
 #
-# Parallelizing the tiled version using `DataFlowTasks` is now very
+# Parallelizing the tiled version using `DataFlowTasks` is now relatively
 # straightforward: it only requires annotating the code to expose data
 # dependencies.
 #
 # In our case:
 #
-# - the initialization task writes to the whole `L` array;
+# - the initialization task writes to the first row and first column of the
+#   array (note that in this parallel implementation, initialization has been
+#   split into tasks per tile);
 #
 # - filling a tile involves reading `L` for the provided ranges of indices, and
 #   writing to a range of indices shifted by 1;
@@ -230,10 +222,23 @@ using DataFlowTasks
 
 function LCS_par(x, y, nx, ny)
     L = Matrix{Int}(undef, 1+length(x), 1+length(y))
-    DataFlowTasks.@spawn init_lengths!(@W(L), x, y) label="init"
 
+    DataFlowTasks.@spawn begin
+        @W(view(L, 1, 1)) .= 0
+    end label="init (1,1)"
     for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
-        for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
+        DataFlowTasks.@spawn begin
+            @W(view(L, irange.+1, 1)) .= 0
+        end label="init ($(kx+1), 1)"
+    end
+    for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
+        DataFlowTasks.@spawn begin
+            @W(view(L, 1, jrange.+1)) .= 0
+        end label="init (1, $(ky+1))"
+    end
+
+    for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
+        for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
             DataFlowTasks.@spawn begin
                 @R view(L, irange, jrange)
                 @W view(L, irange .+ 1, jrange .+ 1)
@@ -256,7 +261,7 @@ t_par = @belapsed LCS_par($x, $y, nx, ny)
 # As an added safety measure, let's also check that the task dependency graph
 # looks as expected:
 
-resize!(DataFlowTasks.get_active_taskgraph(), 200)
+resize!(DataFlowTasks.get_active_taskgraph(), 300)
 GC.gc()
 log_info = DataFlowTasks.@log LCS_par(x, y, nx, ny)
 
@@ -267,39 +272,26 @@ DataFlowTasks.savedag("lcs-dag.svg", dag) #src
 
 
 # ## Performance comparison
-#
-# Comparing the performances of these 3 implementations shows that the tiled
-# version already saves some time due to cache effects.
 
 using CairoMakie
 barplot(1:3, [t_seq, t_tiled, t_par],
         axis = (; title = "Run times [s]",
                 xticks = (1:3, ["sequential", "tiled", "parallel"])))
 
-# The speed-up of the parallel version does not seem ideal, however:
+# Comparing the performances of these 3 implementations, the tiled version may,
+# depending on the system, already saves some time due to cache effects. The the
+# parallel version does show some speedup, but not as much as one might expect:
 
 (;
  nthreads = Threads.nthreads(),
- speedup  = t_tiled / t_par)
+ speedup  = t_seq / t_par)
 
-#  Let's try and understand why. The run-time data collected above can help build
+# Let's try and understand why. The run-time data collected above can help build
 # a profiling plot, which gives some insight about the performances of our
 # parallel version:
 
 plot(log_info, categories=["init", "tile", "backtrack"])
 
 # Here, we see for example that the run time is bounded by the length of the
-# critical path. Adding more threads would not help, and dividing the problem
-# into smaller chunks probably would not help much, either.
-#
-# Indeed, it appears that a non-negligible fraction of the time is spent in the
-# initialization of the array, which is mostly the memory allocation time for
-# the array `L`. This is a limitation of the current implementation, in which
-# tiles are only views on a greater array, which needs to be allocated at once.
-# It is also a good illustration of [Amdahl's
-# law](https://en.wikipedia.org/wiki/Amdahl%27s_law): even though the
-# initialization itself only represents a small fraction of the total run-time,
-# it greatly limits the achievable speedup.
-#
-# In order to improve this, we would need a "real" tiled array in which blocks
-# can be allocated independently from one another.
+# critical path. Adding more threads would not help, but maybe dividing the problem
+# into smaller chunks could improve the performance.

@@ -120,7 +120,7 @@ blur_roberts!(mat1; width, tmp)
 mat2img(PixelType, mat1)
 
 # The elapsed time in this sequential version will serve as reference to
-# evaluate the performance of other implementations
+# evaluate the performance of other implementations:
 
 using BenchmarkTools
 t_seq = @belapsed blur_roberts!(x, width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1
@@ -133,7 +133,7 @@ t_seq = @belapsed blur_roberts!(x, width=$width, tmp=$tmp) setup=(x=copy(mat)) e
 #
 # The `map_tiled!` higher-order function automates the application of a filter
 # `fun!` on all pixels of an image `src` decomposed with a tilesize `ts`. This
-# higher-order function is then used to defined tiled versions of the blur and
+# higher-order function is then used to define tiled versions of the blur and
 # roberts filters.
 
 using TiledIteration
