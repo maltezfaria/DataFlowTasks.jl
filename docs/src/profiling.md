@@ -75,10 +75,8 @@ DataFlowTasks.ExtendedLogInfo) object using the [`extractloggerinfo`](@ref
 DataFlowTasks.extractloggerinfo) function, as illustrated next:
 
 ```@example profiling
-
 extloginfo, _ = DataFlowTasks.extractloggerinfo(log_info; categories=["init", "mutate", "read"])
 extloginfo
-
 ```
 
 More powerful visualization capabilities, such as displaying the underlying
@@ -137,10 +135,7 @@ backend brings a bit more interactivity than `CairoMakie`):
 ```@example profiling
 using CairoMakie # or GLMakie to benefit from more interactivity
 plot(log_info; categories=["init", "mutate", "read"])
-nothing # hide
 ```
-
-![ProfilingExampleTrace](profiling_example.png)
 
 The `categories` keyword argument allows grouping tasks in categories according
 to their labels. In the example above, all tasks containing `"mutate"` in their
