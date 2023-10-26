@@ -55,7 +55,6 @@ profiling the compilation time, it is often advisable to perform a "dry run" of
 the code first, as done in the example below:
 
 ```@example profiling
-
 # Context
 A = ones(2000, 2000)
 B = ones(3000, 3000)
@@ -69,14 +68,12 @@ log_info = DataFlowTasks.@log work(A, B)
 
 The `log_info` object above, of [`LogInfo`](@ref DataFlowTasks.LogInfo) type,
 contains information that can be used to reconstruct both the inferred task
-dependencies, and the parallel execution traces of the `DataFlowTask`s. This
-information can be extracted by creating a [`ExtendedLogInfo`](@ref
-DataFlowTasks.ExtendedLogInfo) object using the [`extractloggerinfo`](@ref
-DataFlowTasks.extractloggerinfo) function, as illustrated next:
+dependencies, and the parallel execution traces of the `DataFlowTask`s. A
+summary of this information can be displayed using [`DataFlowTasks.describe`](@ref), as
+illustrated next:
 
 ```@example profiling
-extloginfo, _ = DataFlowTasks.extractloggerinfo(log_info; categories=["init", "mutate", "read"])
-extloginfo
+DataFlowTasks.describe(log_info; categories=["init", "mutate", "read"])
 ```
 
 More powerful visualization capabilities, such as displaying the underlying
