@@ -156,8 +156,8 @@ LCS(x, y)
 
 import Random;
 Random.seed!(42);
-x = rand("ATCG", 8192);
-y = rand("ATCG", 16384);
+x = rand("ATCG", 4096);
+y = rand("ATCG", 8192);
 seq = LCS(x, y)
 length(seq)
 
@@ -194,25 +194,27 @@ function LCS_tiled!(L, x, y, nx, ny)
 end
 LCS_tiled(x, y, nx, ny) = LCS_tiled!(init_buffer(x, y), x, y, nx, ny)
 
-# Here we split the problem into $16 \times 16$ blocks, and check that the tiled
+# Here we split the problem into $10 \times 10$ blocks, and check that the tiled
 # version gives the same results as the plain implementation above. Even without
 # parallelization, and depending on the characteristics of the system, tiling
 # may already be beneficial in terms of performance because it is more
 # cache-friendly:
 
-nx = ny = 16
+nx = ny = 10
 tiled = LCS_tiled(x, y, nx, ny)
 @assert seq == tiled
 
 t_tiled = @belapsed LCS_tiled!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y))
 
-# !!! note "Tiling and cache effects"
-#   The tiled version of the algorithm above is not exactly equivalent to the
-#   sequential version, because the array if visited in a different way when
-#   the tiles are used. This can have an impact on the performance, depending
-#   on the characteristics of the system and the probelm size. In particular,
-#   the tiled version may be more cache-friendly, which can lead to better
-#   performance even in the absence of parallelization.
+#=
+!!! note "Tiling and cache effects"
+    The tiled version of the algorithm above is not exactly equivalent to the
+    sequential version, because the array if visited in a different way when
+    the tiles are used. This can have an impact on the performance, depending
+    on the characteristics of the system and the probelm size. In particular,
+    the tiled version may be more cache-friendly, which can lead to better
+    performance even in the absence of parallelization.
+=#
 
 # ## Tiled parallel version
 #
