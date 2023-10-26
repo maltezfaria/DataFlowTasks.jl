@@ -21,18 +21,15 @@ url = "https://upload.wikimedia.org/wikipedia/commons/c/c3/Equus_zebra_hartmanna
 ispath("test-image.jpg") || download(url, "test-image.jpg")
 img = Gray.(load("test-image.jpg"))
 
-#=
-
-We start by defining a few helper functions:
-
-- the `contract` and `expand` functions manipulate ranges of indices in order to respectively contract or expand them by a few pixels;
-
-- the `img2mat` and `mat2img` convert between a Gray-scale image and a matrix of
-  floating-point pixel intensities. The filters will work on this latter
-  representation, which may need a renormalization to be converted back to a
-  Gray-scale image.
-
-=#
+# We start by defining a few helper functions:
+#
+# - the `contract` and `expand` functions manipulate ranges of indices in order
+#   to respectively contract or expand them by a few pixels;
+#
+# - the `img2mat` and `mat2img` convert between a Gray-scale image and a matrix
+#   of floating-point pixel intensities. The filters will work on this latter
+#   representation, which may need a renormalization to be converted back to a
+#   Gray-scale image.
 
 contract(range,n) = range[begin+n:end-n]
 expand(range,n)   = range[begin]-n:range[end]-n
@@ -50,20 +47,17 @@ end
 
 PixelType, mat = img2mat(img);
 
-#=
-
-## Filters implementation
-
-The `blur!` function averages the value of each pixel with the values of all
-pixels less than `width` pixels away in manhattan distance. In order to simplify
-the implementation, the filter is applied only to pixels that are sufficiently
-far from the boundary to have all their neighbors correctly defined.
-
-Results are written in-place in a pre-allocated `dest` array. Unless otherwise
-specified, the filter is applied to the whole image, but can be reduced to a
-tile if a smaller `range` argument is provided.
-
-=#
+# ## Filters implementation
+#
+# The `blur!` function averages the value of each pixel with the values of all
+# pixels less than `width` pixels away in manhattan distance. In order to
+# simplify the implementation, the filter is applied only to pixels that are
+# sufficiently far from the boundary to have all their neighbors correctly
+# defined.
+#
+# Results are written in-place in a pre-allocated `dest` array. Unless otherwise
+# specified, the filter is applied to the whole image, but can be reduced to a
+# tile if a smaller `range` argument is provided.
 
 function blur!(dest, src; range=axes(src), width)
     ri, rj = intersect.(range, contract.(axes(src), width))
@@ -72,18 +66,14 @@ function blur!(dest, src; range=axes(src), width)
     @inbounds for i in ri, j in rj
         dest[i,j] = 0
         for δi in -width:width, δj in -width:width
-            dest[i,j] += src[i+δi, j+δi]
+            dest[i,j] += src[i+δi, j+δj]
         end
         dest[i,j] *= weight
     end
 end
 
-#=
-
-In the following, we'll use a filter width of 5 pixels, which produces the
-following results on the test image:
-
-=#
+# In the following, we'll use a filter width of 5 pixels, which produces the
+# following results on the test image:
 
 width = 5
 blurred = similar(mat)
@@ -92,14 +82,10 @@ blur!(blurred, mat; width)
 
 mat2img(PixelType, blurred)
 
-#=
-
-The `roberts!` function applies the Roberts cross operator to the provided
-image. Like above, it operates by default on all pixels in the image (provided
-they are sufficiently far from the boundaries), but can be restricted to work on
-a tile if the `range` argument is provided.
-
-=#
+#  The `roberts!` function applies the Roberts cross operator to the provided
+#  image. Like above, it operates by default on all pixels in the image
+#  (provided they are sufficiently far from the boundaries), but can be
+#  restricted to work on a tile if the `range` argument is provided.
 
 function roberts!(dest, src; range=axes(src))
     ri, rj = intersect.(range, contract.(axes(src), 1))
@@ -112,22 +98,15 @@ function roberts!(dest, src; range=axes(src))
     end
 end
 
-#=
-
-Applying this edge detection filter on the original image produces the following results:
-
-=#
+# Applying this edge detection filter on the original image produces the
+# following results:
 
 contour = similar(mat)
 roberts!(contour, mat)
 
 mat2img(PixelType, contour)
 
-#=
-
-Chaining the blur and roberts filters may make edge detection less noisy:
-
-=#
+# Chaining the blur and roberts filters may make edge detection less noisy:
 
 function blur_roberts!(img; width, tmp=similar(img))
     blur!(tmp, img; width)
@@ -140,22 +119,22 @@ tmp  = similar(mat)
 blur_roberts!(mat1; width, tmp)
 mat2img(PixelType, mat1)
 
-@btime blur_roberts!(x, width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1 #src
+# The elapsed time in this sequential version will serve as reference to
+# evaluate the performance of other implementations
 
-#=
+using BenchmarkTools
+t_seq = @belapsed blur_roberts!(x, width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1
 
-## Tiled filter application
-
-The [`TiledIteration.jl`](https://github.com/JuliaArrays/TiledIteration.jl)
-package implements various tools allowing to define and iterate over disjoint
-tiles of a larger array. We'll use it to apply the filters tile by tile.
-
-The `map_tiled!` higher-order function automates the application of a filter
-`fun!` on all pixels of an image `src` decomposed with a tilesize `ts`. This
-higher-order function is then used to defined tiled versions of the blur and
-roberts filters.
-
-=#
+# ## Tiled filter application
+#
+# The [`TiledIteration.jl`](https://github.com/JuliaArrays/TiledIteration.jl)
+# package implements various tools allowing to define and iterate over disjoint
+# tiles of a larger array. We'll use it to apply the filters tile by tile.
+#
+# The `map_tiled!` higher-order function automates the application of a filter
+# `fun!` on all pixels of an image `src` decomposed with a tilesize `ts`. This
+# higher-order function is then used to defined tiled versions of the blur and
+# roberts filters.
 
 using TiledIteration
 
@@ -178,13 +157,9 @@ function blur_roberts_tiled!(img, ts; width, tmp=similar(img))
     roberts_tiled!(img, tmp, ts)
 end
 
-#=
-
-Decomposing the original image in tiles of size $512\times 512$, the tiled
-application of the filters yields the same result as above, in a more
-cache-efficient way:
-
-=#
+# Decomposing the original image in tiles of size $512\times 512$, the tiled
+# application of the filters yields the same result as above, in a more
+# cache-efficient way:
 
 ts = 512
 
@@ -193,17 +168,15 @@ blur_roberts_tiled!(mat1, ts; width, tmp)
 
 mat2img(PixelType, mat1)
 
-@btime blur_roberts_tiled!(x, ts; width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1 #src
+#-
 
-#=
+t_tiled = @belapsed blur_roberts_tiled!(x, ts; width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1
 
-## Parallel filter application
+# ## Parallel filter application
 
-Parallelizing the tiled filter application is relatively straightforward using
-`DataFlowTasks.jl`. As usual, it involves specifying which data is accessed by
-each task.
-
-=#
+# Parallelizing the tiled filter application is relatively straightforward using
+# `DataFlowTasks.jl`. As usual, it involves specifying which data is accessed by
+# each task.
 
 using DataFlowTasks
 using DataFlowTasks: @spawn
@@ -232,19 +205,15 @@ function roberts_dft!(dest, src, ts)
     @spawn @R(dest) label="roberts (result)"
 end
 
-#=
-
-Note how each filter spawns one task for each tile, and an extra task to get the
-results in the end. This allows applying a given filter independently of the
-other.
-
-However, the filters remain composable: when applying both filters one after the
-other, no implicit synchronization is enforced at the end of the blurring stage,
-and the runtime may decide to intersperse blurring and roberts tasks (as long as
-the blurring of a tile and all its neighbors is performed before the application
-of the roberts filter on this tile).
-
-=#
+# Note how each filter spawns one task for each tile, and an extra task to get
+# the results in the end. This allows applying a given filter independently of
+# the other.
+#
+# However, the filters remain composable: when applying both filters one after
+# the other, no implicit synchronization is enforced at the end of the blurring
+# stage, and the runtime may decide to intersperse blurring and roberts tasks
+# (as long as the blurring of a tile and all its neighbors is performed before
+# the application of the roberts filter on this tile).
 
 function blur_roberts_dft!(img, ts; width, tmp=similar(img))
     blur_dft!(tmp, img, ts; width)
@@ -252,47 +221,44 @@ function blur_roberts_dft!(img, ts; width, tmp=similar(img))
     @spawn @R(img) label="result"
 end
 
-#=
-
-Again this yields the same results on the test image:
-
-=#
+# Again this yields the same results on the test image:
 
 mat1 .= mat;
 blur_roberts_dft!(mat1, ts; width, tmp) |> wait
 
 mat2img(PixelType, mat1)
 
-@btime wait(blur_roberts_dft!(x, ts; width=$width, tmp=$tmp)) setup=(x = copy(mat)) evals=1 #src
+#-
 
-#=
+t_dft = @belapsed wait(blur_roberts_dft!(x, ts; width=$width, tmp=$tmp)) setup=(x = copy(mat)) evals=1
 
-## Profiling the parallel version
+# ## Performance analysis
 
-As usual, profiling data should be collected in a context that is as clean as possible.
+DataFlowTasks.stack_weakdeps_env!()
+using CairoMakie
 
-=#
+barplot([t_seq, t_tiled, t_dft],
+        axis = (; title = "Elapsed time [s]",
+                xticks=(1:3, ["sequential", "tiled", "DataFlowTasks"])))
+
+# A comparison of the performances of all implementations shows that the
+# DataFlowTasks-based implementation produces a good speedup:
+
+(;
+ nthreads = Threads.nthreads(),
+ speedup = t_seq / t_dft)
+
+# We can gain more insight by collecting profiling data:
 
 GC.gc()
 
 mat1 .= mat;
 log_info = DataFlowTasks.@log wait(blur_roberts_dft!(mat1, ts; width, tmp))
 
-#=
-
-The parallel trace shows how blur and roberts tasks are interspersed in the time line:
-
-=#
-
-DataFlowTasks.stack_weakdeps_env!()
-using CairoMakie
+# The parallel trace shows how blur and roberts tasks are interspersed in the time line:
 
 trace = plot(log_info, categories=["blur", "roberts"])
 
-#=
-
-In terms of performance, elapsed time seems to be bounded in this case by the
-total computing time of all threads. Re-running the same computation with more
-threads may help reduce the overall wall-clock time.
-
-=#
+# In terms of performance, elapsed time seems to be bounded in this case by the
+# total computing time of all threads. Re-running the same computation with more
+# threads may help reduce the overall wall-clock time.
