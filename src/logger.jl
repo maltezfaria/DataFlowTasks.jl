@@ -278,20 +278,28 @@ mutable struct ExtendedLogInfo
     end
 end
 
-function Base.show(io::IO, extloginfo::ExtendedLogInfo)
+function Base.show(io::IO, ::MIME"text/plain", extloginfo::ExtendedLogInfo)
+    println(io, "ExtendedLogInfo")
+    get(io, :compact, false) && return
+
     # format the output below using printf style. Right align so that all
     # numbers are aligned
-    @printf(io, "ExtendedLogInfo\n")
-    @printf(io, "|-%-20s: %s\n", "computing time", extloginfo.computingtime)
+    elapsed = extloginfo.lasttime - extloginfo.firsttime
+    @printf(io, "• Elapsed time %-10s: %.3f\n", "", elapsed)
+    @printf(io, "  ├─ %-20s: %.3f\n", "Critical path", extloginfo.t∞)
+    @printf(io, "  ╰─ %-20s: %.3f\n", "No-wait", extloginfo.t_nowait)
+    @printf(io, "\n")
+
+    runtime = extloginfo.computingtime + extloginfo.insertingtime + extloginfo.othertime
+    @printf(io, "• Run time %-14s: %.3f\n", "", runtime)
+    @printf(io, "  ├─ %-20s:   %.3f\n", "Computing", extloginfo.computingtime)
     for i in eachindex(extloginfo.categories)
-        (title, rx) = extloginfo.categories[i]
-        @printf(io, "|--%-19s: %.2f\n", title, extloginfo.timespercat[i])
+        (title, _) = extloginfo.categories[i]
+        @printf(io, "  │  ├─ %-17s:     %.3f\n", title, extloginfo.timespercat[i])
     end
-    @printf(io, "|--%-19s: %.2f\n", "unlabeled", extloginfo.timespercat[end])
-    @printf(io, "|-%-20s: %s\n", "inserting time", extloginfo.insertingtime)
-    @printf(io, "|-%-20s: %s\n", "other time", extloginfo.othertime)
-    @printf(io, "|-%-20s: %s\n", "critical path time", extloginfo.t∞)
-    @printf(io, "|-%-20s: %s\n", "no-wait time", extloginfo.t_nowait)
+    @printf(io, "  │  ╰─ %-17s:     %.3f\n", "unlabeled", extloginfo.timespercat[end])
+    @printf(io, "  ├─ %-20s:   %.3f\n", "Task insertion", extloginfo.insertingtime)
+    @printf(io, "  ╰─ %-20s:   %.3f", "Other (waiting)", extloginfo.othertime)
 end
 
 #= Gives minimum and maximum times the logger has measured. =#
