@@ -65,11 +65,11 @@ y = collect("AGCAT");
 # representation of the $L$ array.
 
 function init_lengths!(L, x, y)
-    L[1,1] = 0
-    for i in eachindex(x)
+    @inbounds L[1,1] = 0
+    @inbounds for i in eachindex(x)
         L[i+1, 1] = 0
     end
-    for j in eachindex(y)
+    @inbounds for j in eachindex(y)
         L[1, j+1] = 0
     end
 end
@@ -88,7 +88,7 @@ display(L, x, y)
 # here to a subset of the rows and/or the columns.
 
 function fill_lengths!(L, x, y, ir=eachindex(x), jr=eachindex(y))
-    for j in jr
+    @inbounds for j in jr
         for i in ir
             L[i+1, j+1] = if x[i] == y[j]
                 L[i, j] + 1
@@ -160,37 +160,35 @@ y = rand("ATCG", 8192);
 seq = LCS(x, y)
 length(seq)
 
+# We can also measure the elapsed time for this implementation, which will serve
+# as a base line to assess the performance of other implementations described
+# below.
+
+using BenchmarkTools
+BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1
+t_seq = @belapsed LCS($x, $y)
+
+
 # ### Tiled sequential version
 #
-# We'll now build a tiled version of the same algorithm. The following helper
-# function allows splitting a range of indices into a given number of chunks.
+# We'll now build a tiled version of the same algorithm. The
+# [`TiledIteration.jl`](https://github.com/JuliaArrays/TiledIteration.jl)
+# package implements various tools allowing to define and iterate over disjoint
+# tiles of a larger array. Among these, the `SplitAxis` function allows
+# splitting a range of indices into a given number of chunks:
 
-function splitrange(range, nchunks)
-    q, r = divrem(length(range), nchunks)
-    chunks = UnitRange{Int}[]
-
-    i₁ = first(range)
-    for k in 1:nchunks
-        n = k <= r ? q+1 : q
-        i₂ = i₁ + n
-        push!(chunks, i₁:i₂-1)
-        i₁ = i₂
-    end
-    chunks
-end
-
-splitrange(1:20, 3) # split the range 1:20 into 3 chunks of equal sizes
+using TiledIteration
+SplitAxis(1:20, 3)  # split the range 1:20 into 3 chunks of approximately equal sizes
 
 # A tiled version of the previous algorithm is then as simple as filling the
-# chunks one after the other (which, as we'll see later, can already be
-# beneficial in terms of performance because it is more cache-friendly):
+# chunks one after the other:
 
 function LCS_tiled(x, y, nx, ny)
     L = Matrix{Int}(undef, 1+length(x), 1+length(y))
     init_lengths!(L, x, y)
 
-    for irange in splitrange(eachindex(x), nx)
-        for jrange in splitrange(eachindex(y), ny)
+    for irange in SplitAxis(eachindex(x), nx)
+        for jrange in SplitAxis(eachindex(y), ny)
             fill_lengths!(L, x, y, irange, jrange)
         end
     end
@@ -198,13 +196,16 @@ function LCS_tiled(x, y, nx, ny)
     backtrack(L, x, y)
 end
 
-# Here we split the problem into $8 \times 12$ blocks, and check that the tiled
-# version gives the same results as the plain implementation above.
+# Here we split the problem into $15 \times 15$ blocks, and check that the tiled
+# version gives the same results as the plain implementation above. Even without
+# parallelization, tiling can already be beneficial in terms of performance
+# because it is more cache-friendly:
 
-nx = 8
-ny = 12
+nx = ny = 15
 tiled = LCS_tiled(x, y, nx, ny)
 @assert seq == tiled
+
+t_tiled = @belapsed LCS_tiled($x, $y, nx, ny)
 
 # ## Tiled parallel version
 #
@@ -213,9 +214,12 @@ tiled = LCS_tiled(x, y, nx, ny)
 # dependencies.
 #
 # In our case:
+#
 # - the initialization task writes to the whole `L` array;
-# - filling a tile involves reading `L` for the provided ranges of indices, and writing to a
-#   range of indices shifted by 1;
+#
+# - filling a tile involves reading `L` for the provided ranges of indices, and
+#   writing to a range of indices shifted by 1;
+#
 # - backtracking reads the whole `L` array.
 #
 # Note that the backtracking task needs to be fetched in order to get the result
@@ -228,11 +232,8 @@ function LCS_par(x, y, nx, ny)
     L = Matrix{Int}(undef, 1+length(x), 1+length(y))
     DataFlowTasks.@spawn init_lengths!(@W(L), x, y) label="init"
 
-    kx = 0
-    for irange in splitrange(eachindex(x), nx)
-        kx += 1; ky = 0
-        for jrange in splitrange(eachindex(y), ny)
-            ky += 1
+    for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
+        for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
             DataFlowTasks.@spawn begin
                 @R view(L, irange, jrange)
                 @W view(L, irange .+ 1, jrange .+ 1)
@@ -245,17 +246,19 @@ function LCS_par(x, y, nx, ny)
     fetch(bt)
 end
 
-# Again, we can check that this implementation produces the same results:
+# Again, we can check that this implementation produces the correct results, and
+# measure its run-time.
 
 par = LCS_par(x, y, nx, ny)
 @assert seq == par
+t_par = @belapsed LCS_par($x, $y, nx, ny)
 
-# As an added safety measure, let's collect some more data to check the correctness of the task dependency graph:
+# As an added safety measure, let's also check that the task dependency graph
+# looks as expected:
 
 resize!(DataFlowTasks.get_active_taskgraph(), 200)
+GC.gc()
 log_info = DataFlowTasks.@log LCS_par(x, y, nx, ny)
-
-# we can now confirm that the graph looks as expected:
 
 DataFlowTasks.stack_weakdeps_env!()
 using GraphViz
@@ -268,10 +271,6 @@ DataFlowTasks.savedag("lcs-dag.svg", dag) #src
 # Comparing the performances of these 3 implementations shows that the tiled
 # version already saves some time due to cache effects.
 
-GC.gc(); t_seq   = @elapsed LCS(x, y)
-GC.gc(); t_tiled = @elapsed LCS_tiled(x, y, nx, ny)
-GC.gc(); t_par   = @elapsed LCS_par(x, y, nx, ny)
-
 using CairoMakie
 barplot(1:3, [t_seq, t_tiled, t_par],
         axis = (; title = "Run times [s]",
@@ -279,9 +278,9 @@ barplot(1:3, [t_seq, t_tiled, t_par],
 
 # The speed-up of the parallel version does not seem ideal, however:
 
-speedup  = t_tiled / t_par
-nthreads = Threads.nthreads()
-(; speedup, nthreads)
+(;
+ nthreads = Threads.nthreads(),
+ speedup  = t_tiled / t_par)
 
 #  Let's try and understand why. The run-time data collected above can help build
 # a profiling plot, which gives some insight about the performances of our
@@ -290,10 +289,17 @@ nthreads = Threads.nthreads()
 plot(log_info, categories=["init", "tile", "backtrack"])
 
 # Here, we see for example that the run time is bounded by the length of the
-# critical path. Adding more threads would not help, but perhaps dividing the
-# problem into smaller chunks could help.
+# critical path. Adding more threads would not help, and dividing the problem
+# into smaller chunks probably would not help much, either.
 #
-# It also appears that a non-negligible fraction of the time is spent in the
-# initialization of the array, which is mostly memory allocation time. In order
-# to improve this, we would need a "real" tiled array in which blocks can be
-# allocated independently from one another.
+# Indeed, it appears that a non-negligible fraction of the time is spent in the
+# initialization of the array, which is mostly the memory allocation time for
+# the array `L`. This is a limitation of the current implementation, in which
+# tiles are only views on a greater array, which needs to be allocated at once.
+# It is also a good illustration of [Amdahl's
+# law](https://en.wikipedia.org/wiki/Amdahl%27s_law): even though the
+# initialization itself only represents a small fraction of the total run-time,
+# it greatly limits the achievable speedup.
+#
+# In order to improve this, we would need a "real" tiled array in which blocks
+# can be allocated independently from one another.
