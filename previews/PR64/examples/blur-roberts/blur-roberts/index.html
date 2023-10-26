@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Blur &amp; Roberts image filters · DataFlowTasks.jl</title><meta name="title" content="Blur &amp; Roberts image filters · DataFlowTasks.jl"/><meta property="og:title" content="Blur &amp; Roberts image filters · DataFlowTasks.jl"/><meta property="twitter:title" content="Blur &amp; Roberts image filters · DataFlowTasks.jl"/><meta name="description" content="Documentation for DataFlowTasks.jl."/><meta property="og:description" content="Documentation for DataFlowTasks.jl."/><meta property="twitter:description" content="Documentation for DataFlowTasks.jl."/><meta property="og:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/blur-roberts/blur-roberts/"/><meta property="twitter:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/blur-roberts/blur-roberts/"/><link rel="canonical" href="https://maltezfaria.github.io/DataFlowTasks.jl/examples/blur-roberts/blur-roberts/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">DataFlowTasks.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Getting started</a></li><li><a class="tocitem" href="../../../profiling/">Debugging &amp; Profiling</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../cholesky/cholesky/">Tiled Cholesky Factorization</a></li><li class="is-active"><a class="tocitem" href>Blur &amp; Roberts image filters</a><ul class="internal"><li><a class="tocitem" href="#Filters-implementation"><span>Filters implementation</span></a></li><li><a class="tocitem" href="#Tiled-filter-application"><span>Tiled filter application</span></a></li><li><a class="tocitem" href="#Parallel-filter-application"><span>Parallel filter application</span></a></li><li><a class="tocitem" href="#Profiling-the-parallel-version"><span>Profiling the parallel version</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Blur &amp; Roberts image filters</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Blur &amp; Roberts image filters</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl/blob/main/docs/src/examples/blur-roberts/blur-roberts.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Blur-and-Roberts-image-filters"><a class="docs-heading-anchor" href="#Blur-and-Roberts-image-filters">Blur &amp; Roberts image filters</a><a id="Blur-and-Roberts-image-filters-1"></a><a class="docs-heading-anchor-permalink" href="#Blur-and-Roberts-image-filters" title="Permalink"></a></h1><p><a href="../blur-roberts.ipynb"><img src="https://img.shields.io/badge/download-ipynb-blue" alt="ipynb"/></a> <a href="https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/gh-pages/previews/PR64/examples/blur-roberts/blur-roberts.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-blue.svg" alt="nbviewer"/></a></p><p>This example illustrate the use of <code>DataFlowTasks.jl</code> to parallelize the tiled application of two kernels used in image processing. The application first applies a blur filter on each pixel of the image; in a second step, the <a href="https://en.wikipedia.org/wiki/Roberts_cross">Roberts cross operator</a> is applied to detect edges in the image.</p><p>Let us first load a test image:</p><pre><code class="language-julia hljs">using Images
+url = &quot;https://upload.wikimedia.org/wikipedia/commons/c/c3/Equus_zebra_hartmannae_-_Etosha_2015.jpg&quot;
+ispath(&quot;test-image.jpg&quot;) || download(url, &quot;test-image.jpg&quot;)
+img = Gray.(load(&quot;test-image.jpg&quot;))</code></pre><img src="45e748c0.png" alt="Example block output"/><p>We start by defining a few helper functions:</p><ul><li><p>the <code>contract</code> and <code>expand</code> functions manipulate ranges of indices in order to respectively contract or expand them by a few pixels;</p></li><li><p>the <code>img2mat</code> and <code>mat2img</code> convert between a Gray-scale image and a matrix of floating-point pixel intensities. The filters will work on this latter representation, which may need a renormalization to be converted back to a Gray-scale image.</p></li></ul><pre><code class="language-julia hljs">contract(range,n) = range[begin+n:end-n]
+expand(range,n)   = range[begin]-n:range[end]-n
+
+function img2mat(img)
+    PixelType = eltype(img)
+    mat = Float64.(img)
+    return (PixelType, mat)
+end
+
+function mat2img(PixelType, mat)
+    m1, m2 = extrema(mat)
+    PixelType.((mat .- m1) ./ (m2-m1))
+end
+
+PixelType, mat = img2mat(img);</code></pre><h2 id="Filters-implementation"><a class="docs-heading-anchor" href="#Filters-implementation">Filters implementation</a><a id="Filters-implementation-1"></a><a class="docs-heading-anchor-permalink" href="#Filters-implementation" title="Permalink"></a></h2><p>The <code>blur!</code> function averages the value of each pixel with the values of all pixels less than <code>width</code> pixels away in manhattan distance. In order to simplify the implementation, the filter is applied only to pixels that are sufficiently far from the boundary to have all their neighbors correctly defined.</p><p>Results are written in-place in a pre-allocated <code>dest</code> array. Unless otherwise specified, the filter is applied to the whole image, but can be reduced to a tile if a smaller <code>range</code> argument is provided.</p><pre><code class="language-julia hljs">function blur!(dest, src; range=axes(src), width)
+    ri, rj = intersect.(range, contract.(axes(src), width))
+
+    weight = 1/(2*width+1)^2
+    @inbounds for i in ri, j in rj
+        dest[i,j] = 0
+        for δi in -width:width, δj in -width:width
+            dest[i,j] += src[i+δi, j+δi]
+        end
+        dest[i,j] *= weight
+    end
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">blur! (generic function with 1 method)</code></pre><p>In the following, we&#39;ll use a filter width of 5 pixels, which produces the following results on the test image:</p><pre><code class="language-julia hljs">width = 5
+blurred = similar(mat)
+
+blur!(blurred, mat; width)
+
+mat2img(PixelType, blurred)</code></pre><img src="ac474d17.png" alt="Example block output"/><p>The <code>roberts!</code> function applies the Roberts cross operator to the provided image. Like above, it operates by default on all pixels in the image (provided they are sufficiently far from the boundaries), but can be restricted to work on a tile if the <code>range</code> argument is provided.</p><pre><code class="language-julia hljs">function roberts!(dest, src; range=axes(src))
+    ri, rj = intersect.(range, contract.(axes(src), 1))
+
+    for i in ri, j in rj
+        dest[i,j] = (
+            + (sqrt(src[i,  j]) - sqrt(src[i+1,j+1]))^2
+            + (sqrt(src[i+1,j]) - sqrt(src[i  ,j+1]))^2
+        )^(0.25)
+    end
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">roberts! (generic function with 1 method)</code></pre><p>Applying this edge detection filter on the original image produces the following results:</p><pre><code class="language-julia hljs">contour = similar(mat)
+roberts!(contour, mat)
+
+mat2img(PixelType, contour)</code></pre><img src="49c7be4a.png" alt="Example block output"/><p>Chaining the blur and roberts filters may make edge detection less noisy:</p><pre><code class="language-julia hljs">function blur_roberts!(img; width, tmp=similar(img))
+    blur!(tmp, img; width)
+    roberts!(img, tmp)
+end
+
+mat1 = copy(mat)
+tmp  = similar(mat)
+
+blur_roberts!(mat1; width, tmp)
+mat2img(PixelType, mat1)</code></pre><img src="0491922e.png" alt="Example block output"/><h2 id="Tiled-filter-application"><a class="docs-heading-anchor" href="#Tiled-filter-application">Tiled filter application</a><a id="Tiled-filter-application-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-filter-application" title="Permalink"></a></h2><p>The <a href="https://github.com/JuliaArrays/TiledIteration.jl"><code>TiledIteration.jl</code></a> package implements various tools allowing to define and iterate over disjoint tiles of a larger array. We&#39;ll use it to apply the filters tile by tile.</p><p>The <code>map_tiled!</code> higher-order function automates the application of a filter <code>fun!</code> on all pixels of an image <code>src</code> decomposed with a tilesize <code>ts</code>. This higher-order function is then used to defined tiled versions of the blur and roberts filters.</p><pre><code class="language-julia hljs">using TiledIteration
+
+function map_tiled!(fun!, dest, src, ts)
+    for tile in TileIterator(axes(src), (ts, ts))
+        fun!(dest, src, tile)
+    end
+end
+
+blur_tiled!(dest, src, ts; width) = map_tiled!(dest, src, ts) do dest, src, tile
+    blur!(dest, src; width, range=tile)
+end
+
+roberts_tiled!(dest, src, ts) = map_tiled!(dest, src, ts) do dest, src, tile
+    roberts!(dest, src; range=tile)
+end
+
+function blur_roberts_tiled!(img, ts; width, tmp=similar(img))
+    blur_tiled!(tmp, img, ts; width)
+    roberts_tiled!(img, tmp, ts)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">blur_roberts_tiled! (generic function with 1 method)</code></pre><p>Decomposing the original image in tiles of size <span>$512\times 512$</span>, the tiled application of the filters yields the same result as above, in a more cache-efficient way:</p><pre><code class="language-julia hljs">ts = 512
+
+mat1 .= mat
+blur_roberts_tiled!(mat1, ts; width, tmp)
+
+mat2img(PixelType, mat1)</code></pre><img src="0491922e-001.png" alt="Example block output"/><h2 id="Parallel-filter-application"><a class="docs-heading-anchor" href="#Parallel-filter-application">Parallel filter application</a><a id="Parallel-filter-application-1"></a><a class="docs-heading-anchor-permalink" href="#Parallel-filter-application" title="Permalink"></a></h2><p>Parallelizing the tiled filter application is relatively straightforward using <code>DataFlowTasks.jl</code>. As usual, it involves specifying which data is accessed by each task.</p><pre><code class="language-julia hljs">using DataFlowTasks
+using DataFlowTasks: @spawn
+
+function blur_dft!(dest, src, ts; width)
+    map_tiled!(dest, src, ts) do dest, src, tile
+        outer = intersect.(expand.(tile, width), axes(src))
+        @spawn begin
+            @R view(src, outer...)
+            @W view(dest, tile...)
+            blur!(dest, src; width, range=tile)
+        end label=&quot;blur ($tile)&quot;
+    end
+    @spawn @R(dest) label=&quot;blur (result)&quot;
+end
+
+function roberts_dft!(dest, src, ts)
+    map_tiled!(dest, src, ts) do dest, src, tile
+        outer = intersect.(expand.(tile, 1), axes(src))
+        @spawn begin
+            @R view(src, outer...)
+            @W view(dest, tile...)
+            roberts!(dest, src; range=tile)
+        end label=&quot;roberts ($tile)&quot;
+    end
+    @spawn @R(dest) label=&quot;roberts (result)&quot;
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">roberts_dft! (generic function with 1 method)</code></pre><p>Note how each filter spawns one task for each tile, and an extra task to get the results in the end. This allows applying a given filter independently of the other.</p><p>However, the filters remain composable: when applying both filters one after the other, no implicit synchronization is enforced at the end of the blurring stage, and the runtime may decide to intersperse blurring and roberts tasks (as long as the blurring of a tile and all its neighbors is performed before the application of the roberts filter on this tile).</p><pre><code class="language-julia hljs">function blur_roberts_dft!(img, ts; width, tmp=similar(img))
+    blur_dft!(tmp, img, ts; width)
+    roberts_dft!(img, tmp, ts)
+    @spawn @R(img) label=&quot;result&quot;
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">blur_roberts_dft! (generic function with 1 method)</code></pre><p>Again this yields the same results on the test image:</p><pre><code class="language-julia hljs">mat1 .= mat;
+blur_roberts_dft!(mat1, ts; width, tmp) |&gt; wait
+
+mat2img(PixelType, mat1)</code></pre><img src="0491922e-002.png" alt="Example block output"/><h2 id="Profiling-the-parallel-version"><a class="docs-heading-anchor" href="#Profiling-the-parallel-version">Profiling the parallel version</a><a id="Profiling-the-parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Profiling-the-parallel-version" title="Permalink"></a></h2><p>As usual, profiling data should be collected in a context that is as clean as possible.</p><pre><code class="language-julia hljs">GC.gc()
+
+mat1 .= mat;
+log_info = DataFlowTasks.@log wait(blur_roberts_dft!(mat1, ts; width, tmp))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LogInfo with 82 logged tasks
+</code></pre><p>The parallel trace shows how blur and roberts tasks are interspersed in the time line:</p><pre><code class="language-julia hljs">DataFlowTasks.stack_weakdeps_env!()
+using CairoMakie
+
+trace = plot(log_info, categories=[&quot;blur&quot;, &quot;roberts&quot;])</code></pre><img src="f013de85.png" alt="Example block output"/><p>In terms of performance, elapsed time seems to be bounded in this case by the total computing time of all threads. Re-running the same computation with more threads may help reduce the overall wall-clock time.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../cholesky/cholesky/">« Tiled Cholesky Factorization</a><a class="docs-footer-nextpage" href="../../../references/">References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Thursday 26 October 2023 23:16">Thursday 26 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
