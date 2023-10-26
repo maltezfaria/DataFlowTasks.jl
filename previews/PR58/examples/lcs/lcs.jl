@@ -302,5 +302,6 @@ barplot(
 plot(log_info; categories = ["init", "tile", "backtrack"])
 
 # Here, we see for example that the run time is bounded by the length of the
-# critical path. Adding more threads would not help, but maybe dividing the problem
-# into smaller chunks could improve the performance.
+# critical path, which means that adding more threads would not help much. One way
+# to try and improve the performance is to expose more parallelism by dividing the
+# problem into smaller chunks. Give it a try and see what you get!
