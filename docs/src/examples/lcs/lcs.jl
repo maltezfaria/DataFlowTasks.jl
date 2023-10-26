@@ -61,9 +61,9 @@ y = collect("AGCAT");
 # Let's build the $L$ array. For the sake of the example, we'll initially fill
 # it with $(-1)$ in order to indicate which values haven't been computed yet.
 # The `init_buffer(x,y)` function simply initiaizes a buffer matrix `L` of the
-# appropriate size, while the `init_length!(L)` takes a matrix and fills its the
-# first row and first column with zeros. We also define a `display` helper
-# function, which shows a pretty representation of the $L$ array.
+# appropriate size, while `init_length!(L)` takes a matrix and fills its first
+# row and first column with zeros. We also define a `display` helper function,
+# which shows a pretty representation of the $L$ array.
 
 init_buffer(x, y) = Matrix{Int}(undef, 1 + length(x), 1 + length(y))
 
@@ -209,9 +209,9 @@ t_tiled = @belapsed LCS_tiled!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y)
 #=
 !!! note "Tiling and cache effects"
     The tiled version of the algorithm above is not exactly equivalent to the
-    sequential version, because the array if visited in a different way when
+    sequential version, because the array is visited in a different way when
     the tiles are used. This can have an impact on the performance, depending
-    on the characteristics of the system and the probelm size. In particular,
+    on the characteristics of the system and the problem size. In particular,
     the tiled version may be more cache-friendly, which can lead to better
     performance even in the absence of parallelization.
 =#
@@ -225,8 +225,8 @@ t_tiled = @belapsed LCS_tiled!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y)
 # In our case:
 #
 # - the initialization task writes to the first row and first column of the
-#   array. In this parallel implementation, initialization has been
-#   will be done tile-by-tile as well usig the `fill!` on a `view` of `L`;
+#   array. In this parallel implementation, initialization will be done
+#   tile-by-tile as well using `fill!` on a `view` of `L`;
 #
 # - filling a tile involves reading `L` for the provided ranges of indices, and
 #   writing to a range of indices shifted by 1;
@@ -242,12 +242,13 @@ import DataFlowTasks as DFT
 init_lengths!(L, ir, jr) = fill!(view(L, ir, jr), 0)
 
 function LCS_par!(L, x, y, nx, ny)
+    L[1,1] = 0
     for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
-        L1j = view(L, 1, jrange)
-        DFT.@spawn fill!(@W(L1j), 0) label = "init (1, $ky)"
+        L1j = view(L, 1, jrange .+ 1)
+        DFT.@spawn fill!(@W(L1j), 0) label = "init (1, $(ky+1))"
         for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
-            Lx1 = view(L, irange, 1)
-            ky == 1 && DFT.@spawn fill!(@W(Lx1), 0) label = "init ($kx, 1)"
+            Lx1 = view(L, irange .+ 1, 1)
+            ky == 1 && DFT.@spawn fill!(@W(Lx1), 0) label = "init ($(kx+1), 1)"
             DFT.@spawn begin
                 @R view(L, irange, jrange)
                 @W view(L, irange .+ 1, jrange .+ 1)
