@@ -20,7 +20,7 @@ function memory_overlap(di::Array, dj::Array)
     if isbitstype(eltype(di)) && isbitstype(eltype(dj))
         return pointer(di) === pointer(dj)
     else
-        warn("memory of Arrays of non-bitstype elements are assumed to overlap by default")
+        @warn("memory of Arrays of non-bitstype elements are assumed to overlap by default")
         return true
     end
 end
