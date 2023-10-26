@@ -67,10 +67,22 @@ work(copy(A),copy(B))
 log_info = DataFlowTasks.@log work(A, B)
 ```
 
-The `log_info` object above, of [`LogInfo`](@ref DataFlowTasks.LogInfo) type, stores
-various information that can be used to reconstruct both the inferred
-dependencies and the parallel execution traces of the `DataFlowTask`s, as
-illustrated next.
+The `log_info` object above, of [`LogInfo`](@ref DataFlowTasks.LogInfo) type,
+contains information that can be used to reconstruct both the inferred task
+dependencies, and the parallel execution traces of the `DataFlowTask`s. This
+information can be extracted by creating a [`ExtendedLogInfo`](@ref
+DataFlowTasks.ExtendedLogInfo) object using the [`extractloggerinfo`](@ref
+DataFlowTasks.extractloggerinfo) function, as illustrated next:
+
+```@example profiling
+extloginfo, _ = DataFlowTasks.extractloggerinfo(log_info; categories=["init", "mutate", "read"])
+extloginfo
+```
+
+More powerful visualization capabilities, such as displaying the underlying
+`DAG` or showing the parallel trace of the tasks executed, are available upon
+loading additional packages such as `GraphViz` or `Makie`. These are discussed
+in the following sections.
 
 !!! warning
     When using `@log`, you typically want the block of code being benchmarked
@@ -123,10 +135,7 @@ backend brings a bit more interactivity than `CairoMakie`):
 ```@example profiling
 using CairoMakie # or GLMakie to benefit from more interactivity
 plot(log_info; categories=["init", "mutate", "read"])
-nothing # hide
 ```
-
-![ProfilingExampleTrace](profiling_example.png)
 
 The `categories` keyword argument allows grouping tasks in categories according
 to their labels. In the example above, all tasks containing `"mutate"` in their
