@@ -59,14 +59,17 @@ x = collect("GAC");
 y = collect("AGCAT");
 
 # Let's build the $L$ array. For the sake of the example, we'll initially fill
-# it with $(-1)$ in order to indicate which values haven't been computed yet. The
-# `init_length!` function fills the first row and the first column in the
-# array. We also define a `display` helper function, which shows a pretty
-# representation of the $L$ array.
+# it with $(-1)$ in order to indicate which values haven't been computed yet.
+# The `init_buffer(x,y)` function simply initiaizes a buffer matrix `L` of the
+# appropriate size, while the `init_length!(L)` takes a matrix and fills its the
+# first row and first column with zeros. We also define a `display` helper
+# function, which shows a pretty representation of the $L$ array.
 
-function init_lengths!(L, x, y)
-    @inbounds L[:, 1] .= 0
-    @inbounds L[1, :] .= 0
+init_buffer(x, y) = Matrix{Int}(undef, 1+length(x), 1+length(y))
+
+function init_lengths!(L)
+    L[:, 1] .= 0
+    L[1, :] .= 0
 end
 
 using PrettyTables
@@ -74,8 +77,8 @@ display(L, x, y) = pretty_table(hcat(['∅', x...], L);
                                 header = [' ', '∅', y...],
                                 formatters = (v, i, j) -> v==-1 ? "" : v)
 
-L = -ones(Int, 1+length(x), 1+length(y))
-init_lengths!(L, x, y)
+L = fill!(init_buffer(x, y),-1)
+init_lengths!(L)
 display(L, x, y)
 
 # The `fill_lengths!` function then allows filling other rows. By default it
@@ -128,14 +131,18 @@ backtrack(L, x, y)
 
 # Wrapping everything into a function, we get
 
-function LCS(x, y)
-    L = Matrix{Int}(undef, 1+length(x), 1+length(y))
-    init_lengths!(L, x, y)
+function LCS!(L, x, y)
+    init_lengths!(L)
     fill_lengths!(L, x, y)
     backtrack(L, x, y)
 end
+LCS(x, y) = LCS!(init_buffer(x, y), x, y)
 
 LCS(x, y)
+
+# Note that we define both an in-place version of the algorithm, which takes a
+# pre-allocated array as input, and another version which allocates the array
+# internally.
 
 # ## Large example
 #
@@ -144,8 +151,8 @@ LCS(x, y)
 # complex implementations.
 
 import Random; Random.seed!(42)
-x = rand("ATCG", 4096);
-y = rand("ATCG", 8192);
+x = rand("ATCG", 8192);
+y = rand("ATCG", 16384);
 seq = LCS(x, y)
 length(seq)
 
@@ -155,7 +162,7 @@ length(seq)
 
 using BenchmarkTools
 BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1
-t_seq = @belapsed LCS($x, $y)
+t_seq = @belapsed LCS!(L, $x, $y) setup=(L = Matrix{Int}(undef, 1+length(x), 1+length(y)))
 
 
 # ### Tiled sequential version
@@ -167,23 +174,21 @@ t_seq = @belapsed LCS($x, $y)
 # splitting a range of indices into a given number of chunks:
 
 using TiledIteration
-SplitAxis(1:20, 3)  # split the range 1:20 into 3 chunks of approximately equal sizes
+SplitAxis(1:20, 5)  # split the range 1:20 into 3 chunks of approximately equal sizes
 
 # A tiled version of the previous algorithm is then as simple as filling the
 # chunks one after the other:
 
-function LCS_tiled(x, y, nx, ny)
-    L = Matrix{Int}(undef, 1+length(x), 1+length(y))
-    init_lengths!(L, x, y)
-
+function LCS_tiled!(L, x, y, nx, ny)
+    init_lengths!(L)
     for jrange in SplitAxis(eachindex(y), ny)
         for irange in SplitAxis(eachindex(x), nx)
             fill_lengths!(L, x, y, irange, jrange)
         end
     end
-
     backtrack(L, x, y)
 end
+LCS_tiled(x, y, nx, ny) = LCS_tiled!(init_buffer(x, y), x, y, nx, ny)
 
 # Here we split the problem into $10 \times 10$ blocks, and check that the tiled
 # version gives the same results as the plain implementation above. Even without
@@ -195,7 +200,15 @@ nx = ny = 10
 tiled = LCS_tiled(x, y, nx, ny)
 @assert seq == tiled
 
-t_tiled = @belapsed LCS_tiled($x, $y, nx, ny)
+t_tiled = @belapsed LCS_tiled!(L, $x, $y, nx, ny) setup=(L = init_buffer(x, y))
+
+# !!! note "Tiling and cache effects"
+#    The tiled version of the algorithm above is not exactly equivalent to the
+#    sequential version, because the array if visited in a different way when
+#    the tiles are used. This can have an impact on the performance, depending
+#    on the characteristics of the system and the probelm size. In particular,
+#    the tiled version may be more cache-friendly, which can lead to better
+#    performance even in the absence of parallelization.
 
 # ## Tiled parallel version
 #
@@ -206,8 +219,8 @@ t_tiled = @belapsed LCS_tiled($x, $y, nx, ny)
 # In our case:
 #
 # - the initialization task writes to the first row and first column of the
-#   array (note that in this parallel implementation, initialization has been
-#   split into tasks per tile);
+#   array. In this parallel implementation, initialization has been
+#   will be done tile-by-tile as well usig the `fill!` on a `view` of `L`;
 #
 # - filling a tile involves reading `L` for the provided ranges of indices, and
 #   writing to a range of indices shifted by 1;
@@ -218,28 +231,18 @@ t_tiled = @belapsed LCS_tiled($x, $y, nx, ny)
 # in a synchronous way and perform an apple-to-apple comparison to the previous
 # implementations.
 
-using DataFlowTasks
+import DataFlowTasks as DFT
 
-function LCS_par(x, y, nx, ny)
-    L = Matrix{Int}(undef, 1+length(x), 1+length(y))
+init_lengths!(L, ir, jr) = fill!(view(L, ir, jr), 0)
 
-    DataFlowTasks.@spawn begin
-        @W(view(L, 1, 1)) .= 0
-    end label="init (1,1)"
-    for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
-        DataFlowTasks.@spawn begin
-            @W(view(L, irange.+1, 1)) .= 0
-        end label="init ($(kx+1), 1)"
-    end
+function LCS_par!(L, x, y, nx, ny)
     for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
-        DataFlowTasks.@spawn begin
-            @W(view(L, 1, jrange.+1)) .= 0
-        end label="init (1, $(ky+1))"
-    end
-
-    for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
+        L1j = view(L,1,jrange)
+        DFT.@spawn fill!(@W(L1j),0) label="init (1, $ky)"
         for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
-            DataFlowTasks.@spawn begin
+            Lx1 = view(L,irange,1)
+            ky == 1 && DFT.@spawn fill!(@W(Lx1), 0) label="init ($kx, 1)"
+            DFT.@spawn begin
                 @R view(L, irange, jrange)
                 @W view(L, irange .+ 1, jrange .+ 1)
                 fill_lengths!(L, x, y, irange, jrange)
@@ -247,28 +250,29 @@ function LCS_par(x, y, nx, ny)
         end
     end
 
-    bt = DataFlowTasks.@spawn backtrack(@R(L), x, y) label="backtrack"
+    bt = DFT.@spawn backtrack(@R(L), x, y) label="backtrack"
     fetch(bt)
 end
+LCS_par(x, y, nx, ny) = LCS_par!(init_buffer(x, y), x, y, nx, ny)
 
 # Again, we can check that this implementation produces the correct results, and
 # measure its run-time.
 
 par = LCS_par(x, y, nx, ny)
 @assert seq == par
-t_par = @belapsed LCS_par($x, $y, nx, ny)
+t_par = @belapsed LCS_par!(L, $x, $y, nx, ny) setup=(L = init_buffer(x, y))
 
 # As an added safety measure, let's also check that the task dependency graph
 # looks as expected:
 
-resize!(DataFlowTasks.get_active_taskgraph(), 300)
+resize!(DFT.get_active_taskgraph(), 300)
 GC.gc()
-log_info = DataFlowTasks.@log LCS_par(x, y, nx, ny)
+log_info = DFT.@log LCS_par(x, y, nx, ny)
 
-DataFlowTasks.stack_weakdeps_env!()
+DFT.stack_weakdeps_env!()
 using GraphViz
 dag = GraphViz.Graph(log_info)
-DataFlowTasks.savedag("lcs-dag.svg", dag) #src
+DFT.savedag("lcs-dag.svg", dag) #src
 
 
 # ## Performance comparison
