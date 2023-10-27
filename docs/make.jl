@@ -3,7 +3,7 @@ using Documenter
 using Literate
 
 # generate examples
-for example in ["cholesky", "blur-roberts"]
+for example in ["cholesky", "blur-roberts", "lcs"]
     println("\n*** Generating $example example")
     @time begin
         dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "src", "examples", example)
@@ -73,6 +73,7 @@ makedocs(;
         "Examples" => [
             "examples/cholesky/cholesky.md",
             "examples/blur-roberts/blur-roberts.md",
+            "examples/lcs/lcs.md",
             # "examples/stencil/stencil.md",
             # "examples/lu/lu.md",
             # "examples/hmat/hmat.md",

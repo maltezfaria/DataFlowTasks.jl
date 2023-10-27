@@ -38,8 +38,10 @@ jobs:
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
-      - run: git clone https://github.com/maltezfaria/TiledFactorization
-      - run: |
+      - name: Install TiledFactorization.jl
+        run: git clone https://github.com/maltezfaria/TiledFactorization
+      - name: Test TiledFactorization.jl
+        run: |
           julia --project="TiledFactorization" -e '
             VERSION >= v"1.9" || exit()
             import Pkg
@@ -63,9 +65,11 @@ jobs:
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy
+        run: julia --project=docs/ docs/make.jl
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
-        run: julia --project=docs/ --code-coverage=user docs/make.jl
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run examples
+        run: julia --project=docs --code-coverage=user docs/run_examples.jl
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v3
       - name: Check README.md consistency
