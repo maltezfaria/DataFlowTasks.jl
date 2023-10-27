@@ -184,19 +184,23 @@ dag = GraphViz.Graph(log_info)
 
 #-
 
-# The parallel trace plot gives us more details about the
-# performance limiting factors:
+# We can also readily get more details about the performance limiting factors:
+
+DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
+
+# and, at the price of loading `Makie`, display these in a more convenient
+# profile plot:
 
 using CairoMakie # or GLMakie in order to have more interactivity
 trace = plot(log_info; categories=["chol", "ldiv", "schur"])
 
 # The overhead incurred by `DataFlowTasks` seems relatively small here: the time
 # taken inserting tasks is barely measurable, and the scheduling did not lead to
-# threads waiting idly for too long. This is confirmed by the "Time Bounds"
-# plot, showing a measured wall clock time not too much longer than the lower
-# bound obtained when suppressing idle time.
+# threads waiting idly for too long. This is confirmed by the bottom middle plot,
+# showing a measured wall clock time not too much longer than the lower bound
+# obtained when suppressing idle time.
 #
-# The "Times per Category" plot seems to indicate that the matrix
+# The computing time breakdown by category seems to indicate that the matrix
 # multiplications performed in the "Schur" tasks account for the majority of the
 # computing time. Trying to optimize these would be a priority to increase the
 # sequential performance of the factorization.

@@ -79,7 +79,7 @@ end
 function activityplot(ax, loginfo::ExtendedLogInfo)
     # Axis attributes
     # ---------------
-    ax.xticks = (1:3, ["Computing", "Inserting", "Other"])
+    ax.xticks = (1:3, ["Computing", "Task\nInsertion", "Other\n(idle)"])
     ax.ylabel = "Time (s)"
 
     # Barplot
@@ -96,7 +96,7 @@ end
 function boundsplot(ax, loginfo::ExtendedLogInfo)
     # Axis attributes
     # ---------------
-    ax.xticks = (1:3, ["Critical\nPath", "Without\nWaiting", "Real"])
+    ax.xticks = (1:3, ["Critical\nPath", "No-Wait", "Elapsed"])
     ax.ylabel = "Time (s)"
 
     # Barplot
@@ -195,9 +195,9 @@ function Makie.plot(loginfo::LogInfo; categories = String[])
     # Layouts
     # --------------------------------------------
     axtrc = Axis(fig[1, 1]; title = "Parallel Trace\n Task Label")
-    axact = Axis(fig[2, 1][1, 1]; title = "Activity")
-    axinf = Axis(fig[2, 1][1, 2]; title = "Time Bounds")
-    axcat = Axis(fig[2, 1][1, 3]; title = "Times per Category")
+    axact = Axis(fig[2, 1][1, 1]; title = "Run time: breakdown by activity")
+    axinf = Axis(fig[2, 1][1, 2]; title = "Elapsed time & bounds")
+    axcat = Axis(fig[2, 1][1, 3]; title = "Computing time: breakdown by category")
     # -------
     rowsize!(fig.layout, 1, Relative(2 / 3))
 

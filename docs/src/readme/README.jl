@@ -264,10 +264,17 @@ DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
 
 #md # ![](cholesky_dag.svg)
 
-# The parallel trace plot shows a timeline of the tasks' execution on available
-# threads. It helps in understanding how tasks were scheduled. The same window also
-# carries other general information allowing to better understand the
-# performance limiting factors:
+# The `LogInfo` object also contains all the data needed to profile the parallel
+# application. A summary of the profiling information can be displayed in the
+# REPL using the `DataFlowTasks.describe` function:
+
+DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
+
+# but it is often more convenient to see this information in a graphical
+# way. The parallel trace plot shows a timeline of the tasks execution on
+# available threads. It helps in understanding how tasks were scheduled. The
+# same window also carries other general information allowing to better
+# understand the performance limiting factors:
 
 using CairoMakie # or GLMakie in order to have more interactivity
 trace = plot(log_info; categories=["chol", "ldiv", "schur"])

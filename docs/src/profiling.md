@@ -79,7 +79,8 @@ DataFlowTasks.describe(log_info; categories=["init", "mutate", "read"])
 More powerful visualization capabilities, such as displaying the underlying
 `DAG` or showing the parallel trace of the tasks executed, are available upon
 loading additional packages such as `GraphViz` or `Makie`. These are discussed
-in the following sections.
+in the following sections, where we also explain in more detail the meaning of
+the numbers output by [`DataFlowTasks.describe`](@ref).
 
 !!! warning
     When using `@log`, you typically want the block of code being benchmarked
@@ -165,38 +166,39 @@ Also note that inserting tasks into the graph involves memory allocations, and
 may thus trigger garbage collector sweeps. When this happens, the time spent in
 the garbage collector is also shown in the plot.
 
-### Activity plot
+### Run time: breakdown by activity
 
-The "activity" barplot (in the bottom left corner of the window) gives us
-information on the break-down of parallel computing times (summed over all threads):
+A barplot in the bottom left corner of the window gives us information on the
+break-down of parallel run times (summed over all threads):
 
 * `Computing` represents the total time spent in the tasks bodies (i.e. "useful"
   work);
-* `Inserting` represents the total time spent inserting nodes in the DAG
+* `Task Insertion` represents the total time spent inserting nodes in the DAG
   (i.e. overhead induced by `DataFlowTasks`), possibly including any time spent
   in the GC if it is triggered by a memory allocation in the task insertion process;
-* `Other` represents the total idle time on all threads (which may be due to bad
+* `Other (idle)` represents the total idle time on all threads (which may be due to bad
   scheduling, or simply arise by lack of enough exposed parallelism in the
   algorithm).
 
-### Time Bounds plot
+### Elapsed time & bounds
 
-The "Time Bounds" barplot (in the bottom center of the window) tries to present
-insightful information about the performance limiting factors in the computation:
+A barplot in the bottom center of the window tries to present insightful
+information about the elapsed (wall-clock) time of the computation, and its
+limiting factors:
 
-- `critical path` represents the time spent in the longest sequential path in
+- `Elapsed` represents the measured "wall clock time" of the computation; it
+  should be larger than both of the bounds described below;
+
+- `Critical Path` represents the time spent in the longest sequential path in
   the DAG (shown in red in the DAG visualization). As said above, it bounds the
   performance in that even infinitely many threads would still have to compute
   this path sequentially;
   
-- `without waiting` represents the duration of a hypothetical computation in
+- `No-Wait` represents the duration of a hypothetical computation in
   which all computing time would be evenly distributed among threads (i.e. no
   thread would ever have to wait). This also bounds the total time because it
   does not account for dependencies between tasks.
-  
-- `Real` represents the measured "wall clock time" of the computation; it should
-  be larger than both of the aforementioned bounds.
-  
+
 When looking for faster response times, this graph may suggest sensible ways to
 explore. If the measured time is close to the critical path duration, then
 adding more threads will be of no help, but decomposing the work in smaller
@@ -204,11 +206,11 @@ tasks may be useful. On the other hand, if the measured time is close to the
 "without waiting" bound, then adding more workers may reduce the wall clock time
 and scale relatively well.
 
-### Times per Category plot
+### Computing time: breakdown by category
 
-The "Times per Category" barplot (in the bottom right of the window) displays
-the total time spent on all threads while performing user-defined tasks (grouped
-by category as explained above).
+A barplot in the bottom right of the window displays a break-down of the total
+computing time (*i.e.* the total time spent on all threads while performing
+user-defined tasks), grouped by user-provided category as explained above.
 
 When trying to optimize the sequential performance of the algorithm, this is
 where one can get data about what actually takes time (and therefore could

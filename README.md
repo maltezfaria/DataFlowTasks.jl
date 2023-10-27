@@ -250,10 +250,19 @@ dag = GraphViz.Graph(log_info)
 
 ![](https://maltezfaria.github.io/DataFlowTasks.jl/dev/readme/cholesky_dag.svg)
 
-The parallel trace plot shows a timeline of the tasks' execution on available
-threads. It helps in understanding how tasks were scheduled. The same window also
-carries other general information allowing to better understand the
-performance limiting factors:
+The `LogInfo` object also contains all the data needed to profile the parallel
+application. A summary of the profiling information can be displayed in the
+REPL using the `DataFlowTasks.describe` function:
+
+````julia
+DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
+````
+
+but it is often more convenient to see this information in a graphical
+way. The parallel trace plot shows a timeline of the tasks execution on
+available threads. It helps in understanding how tasks were scheduled. The
+same window also carries other general information allowing to better
+understand the performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
