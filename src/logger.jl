@@ -208,17 +208,17 @@ weight(t::TaskLog) = task_duration(t) * 1e-9
 #= Contains data to plot the Gantt Chart (parallel trace).
 It's a Struct of Array paradigm where all the entries i
 of all the arrays tells us information about a same task. =#
-"""
-    struct Gantt
+# """
+#     struct Gantt
 
-Structured used ton produce a [`Gantt
-chart`](https://en.wikipedia.org/wiki/Gantt_chart) of the parallel traces of the
-tasks recorded in a [`LogInfo`](@ref) instance. This structure is used when
-plotting the parallel trace with `Makie.plot`.
+# Structured used ton produce a [`Gantt
+# chart`](https://en.wikipedia.org/wiki/Gantt_chart) of the parallel traces of the
+# tasks recorded in a [`LogInfo`](@ref) instance. This structure is used when
+# plotting the parallel trace with `Makie.plot`.
 
-See [`extractloggerinfo`](@ref) for more information on how to create an `Gantt`
-instance.
-"""
+# See [`extractloggerinfo`](@ref) for more information on how to create an `Gantt`
+# instance.
+# """
 struct Gantt
     threads::Vector{Int64}      # Thread on wich the task ran
     jobids::Vector{Int64}       # Task type
@@ -235,15 +235,15 @@ struct Gantt
 end
 
 #= Contains additional post-processed informations on the LogInfo =#
-"""
-    struct ExtendedLogInfo
+# """
+#     struct ExtendedLogInfo
 
-Appends informations to [`LogInfo`](@ref) to make it easier to visualize and
-exctract useful information.
+# Appends informations to [`LogInfo`](@ref) to make it easier to visualize and
+# exctract useful information.
 
-See [`extractloggerinfo`](@ref) for more information on how to create an
-`ExtendedLogInfo` instance.
-"""
+# See [`extractloggerinfo`](@ref) for more information on how to create an
+# `ExtendedLogInfo` instance.
+# """
 mutable struct ExtendedLogInfo
     firsttime::Float64              # First measured time
     lasttime::Float64               # Last measured time
@@ -278,9 +278,21 @@ mutable struct ExtendedLogInfo
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", extloginfo::ExtendedLogInfo)
-    println(io, "ExtendedLogInfo")
-    get(io, :compact, false) && return
+"""
+    describe(loginfo::LogInfo; categories = String[])
+    describe(io, loginfo::LogInfo; categories = String[])
+
+Analyses the information contained in `loginfo` and displays a summary on `io` (`stdout` by default).
+
+Passing a `categories` argument allows grouping tasks by category. The
+`categories` can be a vector of `String`s or a vector of `String => Regex`
+pairs, which will be matched against the tasks' labels.
+"""
+describe(loginfo::LogInfo; categories = String[]) =
+    describe(stdout, loginfo; categories = categories)
+
+function describe(io::IO, loginfo::LogInfo; categories = String[])
+    extloginfo, _ = extractloggerinfo(loginfo; categories = categories)
 
     # format the output below using printf style. Right align so that all
     # numbers are aligned
@@ -319,16 +331,6 @@ function jobid(label::String, categories)
     return length(categories) + 1
 end
 
-"""
-    extractloggerinfo(loginfo::LogInfo; categories = String[]) -->
-    ExtendedLogInfo, Gantt
-
-Analyses the information contained in `loginfo` and returns an
-[`ExtendedLogInfo`](@ref) instance and a [`Gantt`](@ref) instance. Passing a
-`categories` argument allows to group tasks by category. The `categories` can be
-a vector of `String`s or a vector of `String => Regex` pairs, which will be
-matched against the tasks' labels.
-"""
 function extractloggerinfo(loginfo::LogInfo; categories = String[])
     extloginfo = ExtendedLogInfo(loginfo, categories, longest_path(loginfo))
     gantt = Gantt()
