@@ -1,6 +1,6 @@
 # # Merge sort
 
-# This implements a parallel merge sort using `DataFlowTasks`
+# This implements a parallel [merge sort](https://en.wikipedia.org/wiki/Merge_sort) using `DataFlowTasks`
 
 # ## Sequential version
 
@@ -23,32 +23,35 @@ barplot(v; color=ceil.(Int, eachindex(v)./8), colormap=:Set1_4)
 # block. And do the same for the 3rd and 4th 8-element blocks. We'll need an
 # auxilliary array `w` to store the results:
 
-function merge!(dest, src, i0, i1, i2)
+function merge!(dest, src₁, src₂)
     ## pre-condition:
-    ##   src[i₀:i₁-1] is sorted
-    ##   src[i₁:i₂]   is sorted
-    ## post-condition
-    ##   dest[i₀:i₂]  is sorted
+    ##   src₁ is sorted
+    ##   src₂ is sorted
+    ##   length(src₁) + length(src₂) == length(dest)
+    ## post-condition:
+    ##   dest is sorted
 
-    (i, j) = (i0, i1)
-    @inbounds for k in i0:i2
-        if i < i1 && (j > i2 || src[i] < src[j])
-            dest[k] = src[i]; i+=1
+    (i₁, i₂) = (1, 1)
+    (n₁, n₂) = (length(src₁), length(src₂))
+    @inbounds for j in eachindex(dest)
+        if i₁ <= n₁ && (i₂ > n₂ || src₁[i₁] < src₂[i₂])
+            dest[j] = src₁[i₁]; i₁ += 1
         else
-            dest[k] = src[j]; j+=1
+            dest[j] = src₂[i₂]; i₂+=1
         end
     end
+
 end
 
 w = similar(v)
-merge!(w, v, 1, 9, 16)
-merge!(w, v, 17, 25, 32)
+@views merge!(w[1:16],  v[1:8],   v[9:16])
+@views merge!(w[17:32], v[17:24], v[25:32])
 barplot(w; color=ceil.(Int, eachindex(v)./16), colormap=:Set1_3)
 
 # Now `w` is sorted in two blocks, which we can merge to get the entire sorted
 # array. Instead of using a new buffer to store the results, let's re-use the
 # original array `v`:
-merge!(v, w, 1, 17, 32)
+@views merge!(v, w[1:16], w[17:32])
 barplot(v)
 
 
@@ -87,12 +90,12 @@ function mergesort!(v, buf=similar(v), bs=64)
         while i < N
             i1 = i+bs;    i1>N && break
             i2 = i+2bs-1; i2 = min(i2, N)
-            merge!(b, a, i, i1, i2)
+            @views merge!(b[i:i2], a[i:i1-1], a[i1:i2])
 
             i = i2+1
         end
         if i <= N
-            @inbounds for k in i:N ; b[k] = a[k] ; end
+            @inbounds b[i:N] .= a[i:N]
         end
 
         bs *= 2
@@ -134,41 +137,37 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
         DataFlowTasks.@spawn mergesort!(@RW(view(v, i:j))) label="sort\n$i:$j"
     end
 
-    ## WARNING: (a, b) are not local to each task; swapping them may affect
-    ## tasks that have already been spawned but havn't started
-    (a, b) = (v, buf)
+    ## WARNING: (from, to) are not local to each task
+    (from, to) = (v, buf)
 
     while bs < N
         i = 1  # WARNING: i is not local to each task
         while i < N
             i1 = i+bs;    i1>N && break
             i2 = i+2bs-1; i2 = min(i2, N)
-            (i0, from, to) = (i, a, b)  # WARNING: need to define new local variables here
-            DataFlowTasks.@spawn begin
-                @R(view(from, i0:i2))
-                @W(view(to, i0:i2))
-                merge!(to, from, i0, i1, i2)
-            end label="merge\n$i0:$i2"
-
+            let
+                src₁ = @view from[i:i1-1]
+                src₂ = @view from[i1:i2]
+                dest = @view to[i:i2]
+                DataFlowTasks.@spawn merge!(@W(dest), @R(src₁), @R(src₂)) label="merge\n$i:$i2"
+            end
             i = i2+1
         end
         if i <= N
-            let (i0, from, to) = (i, a, b) # WARNING: need to define new local variables here
-                DataFlowTasks.@spawn begin
-                    @R view(from, i0:N)
-                    @W view(to,   i0:N)
-                    @inbounds for k in i0:N ; to[k] = from[k] ; end
-                end label="copy\n$i0:$N"
+            let
+                src  = @view from[i:N]
+                dest = @view to[i:N]
+                DataFlowTasks.@spawn @W(dest) .= @R(src) label="copy\n$i:$N"
             end
         end
 
         bs *= 2
-        (a, b) = (b, a)
+        (from, to) = (to, from)
     end
 
-    final_task = DataFlowTasks.@spawn @R(a) label="result"
+    final_task = DataFlowTasks.@spawn @R(from) label="result"
     fetch(final_task)
-    v === a || copy!(v, a)
+    v === from || copy!(v, from)
     v
 end
 
@@ -190,11 +189,17 @@ v = rand(N);
 buf = similar(v);
 
 using BenchmarkTools
-@benchmark mergesort!(x, $buf) setup=(x=copy(v)) evals=1
+bench_seq = @benchmark mergesort!(x, $buf) setup=(x=copy(v)) evals=1
 
 #-
 
-@benchmark mergesort_dft!(x, $buf) setup=(x=copy(v)) evals=1
+bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(v)) evals=1
+
+#-
+
+(;
+ nthreads = Threads.nthreads(),
+ speedup = time(minimum(bench_seq)) / time(minimum(bench_dft)))
 
 #-
 
