@@ -23,24 +23,24 @@ barplot(v; color=ceil.(Int, eachindex(v)./8), colormap=:Set1_4)
 # block. And do the same for the 3rd and 4th 8-element blocks. We'll need an
 # auxilliary array `w` to store the results:
 
-function merge!(dest, src₁, src₂)
+function merge!(dest, left, right)
     ## pre-condition:
-    ##   src₁ is sorted
-    ##   src₂ is sorted
-    ##   length(src₁) + length(src₂) == length(dest)
+    ##   `left`  is sorted
+    ##   `right` is sorted
+    ##   length(left) + length(right) == length(dest)
     ## post-condition:
     ##   dest is sorted
 
-    (i₁, i₂) = (1, 1)
-    (n₁, n₂) = (length(src₁), length(src₂))
-    @inbounds for j in eachindex(dest)
-        if i₁ <= n₁ && (i₂ > n₂ || src₁[i₁] < src₂[i₂])
-            dest[j] = src₁[i₁]; i₁ += 1
+    (i, j) = (1, 1)
+    (I, J) = (length(left), length(right))
+    @assert I + J == length(dest)
+    @inbounds for k in eachindex(dest)
+        if i <= I && (j > J || left[i] < right[j])
+            dest[k] = left[i]; i += 1
         else
-            dest[j] = src₂[i₂]; i₂+=1
+            dest[k] = right[j]; j+=1
         end
     end
-
 end
 
 w = similar(v)
@@ -78,31 +78,31 @@ barplot(v)
 function mergesort!(v, buf=similar(v), bs=64)
     N = length(v)
 
-    for i in 1:bs:N
-        j = min(i+bs-1, N)
-        sort!(view(v, i:j), alg=InsertionSort)
+    for i₀ in 1:bs:N
+        i₁ = min(i₀+bs-1, N)
+        sort!(view(v, i₀:i₁), alg=InsertionSort)
     end
 
-    (a, b) = (v, buf)
+    (from, to) = (v, buf)
 
     while bs < length(v)
-        i = 1
-        while i < N
-            i1 = i+bs;    i1>N && break
-            i2 = i+2bs-1; i2 = min(i2, N)
-            @views merge!(b[i:i2], a[i:i1-1], a[i1:i2])
+        i₀ = 1
+        while i₀ < N
+            i₁ = i₀+bs; i₁>N && break
+            i₂ = min(i₀+2bs-1, N)
+            @views merge!(to[i₀:i₂], from[i₀:i₁-1], from[i₁:i₂])
 
-            i = i2+1
+            i₀ = i₂+1
         end
-        if i <= N
-            @inbounds b[i:N] .= a[i:N]
+        if i₀ <= N
+            @inbounds @views to[i₀:N] .= from[i₀:N]
         end
 
         bs *= 2
-        (a, b) = (b, a)
+        (from, to) = (to, from)
     end
 
-    v === a || copy!(v, a)
+    v === from || copy!(v, from)
     v
 end
 
@@ -132,32 +132,32 @@ using DataFlowTasks
 function mergesort_dft!(v, buf=similar(v), bs=16384)
     N = length(v)
 
-    for i in 1:bs:N
-        j = min(i+bs-1, N)
-        DataFlowTasks.@spawn mergesort!(@RW(view(v, i:j))) label="sort\n$i:$j"
+    for i₀ in 1:bs:N
+        i₁ = min(i₀+bs-1, N)
+        DataFlowTasks.@spawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
     end
 
     ## WARNING: (from, to) are not local to each task
     (from, to) = (v, buf)
 
     while bs < N
-        i = 1  # WARNING: i is not local to each task
-        while i < N
-            i1 = i+bs;    i1>N && break
-            i2 = i+2bs-1; i2 = min(i2, N)
+        i₀ = 1  # WARNING: i is not local to each task
+        while i₀ < N
+            i₁ = i₀+bs; i₁>N && break
+            i₂ = min(i₀+2bs-1, N)
             let
-                src₁ = @view from[i:i1-1]
-                src₂ = @view from[i1:i2]
-                dest = @view to[i:i2]
-                DataFlowTasks.@spawn merge!(@W(dest), @R(src₁), @R(src₂)) label="merge\n$i:$i2"
+                left  = @view from[i₀:i₁-1]
+                right = @view from[i₁:i₂]
+                dest  = @view to[i₀:i₂]
+                DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$i₀:$i₂"
             end
-            i = i2+1
+            i₀ = i₂+1
         end
-        if i <= N
+        if i₀ <= N
             let
-                src  = @view from[i:N]
-                dest = @view to[i:N]
-                DataFlowTasks.@spawn @W(dest) .= @R(src) label="copy\n$i:$N"
+                src  = @view from[i₀:N]
+                dest = @view to[i₀:N]
+                DataFlowTasks.@spawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
             end
         end
 
@@ -209,4 +209,131 @@ DataFlowTasks.describe(log_info, categories=["sort", "merge", "copy", "result"])
 #-
 
 using CairoMakie
+plot(log_info, categories=["sort", "merge", "copy", "result"])
+
+#-
+
+function tiled_merge!(dest, left, right)
+    function split_indices(dest, left, right)
+        (I, J, K) = length(left), length(right), length(dest)
+        @assert I+J == K
+
+        i = 1 + I ÷ 2
+        pivot = left[i-1]
+        j = findfirst(>(pivot), right)
+        k = i + j - 1
+
+        [(1:i-1, 1:j-1, 1:k-1),
+         (i:I,   j:J,   k:K)]
+    end
+
+    (rᵢ, rⱼ, rₖ) = split_indices(dest, left, right)[1]
+    @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+
+    (rᵢ, rⱼ, rₖ) = split_indices(dest, left, right)[2]
+    @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+end
+
+
+function split_indices(N, dest, left, right)
+    (I, J, K) = length(left), length(right), length(dest)
+    @assert I+J == K
+
+    i = ones(Int, N+1)
+    j = ones(Int, N+1)
+    k = ones(Int, N+1)
+    for p in 2:N
+        i[p] = 1 + ((p-1)*I) ÷ N
+        j[p] = findfirst(>(left[i[p]-1]), right)
+        k[p] = k[p-1] + i[p]-i[p-1] + j[p]-j[p-1]
+    end
+    i[N+1] = I+1; j[N+1] = J+1; k[N+1] = K+1
+
+    map(1:N) do p
+        (i[p]:i[p+1]-1, j[p]:j[p+1]-1, k[p]:k[p+1]-1)
+    end
+end
+
+function tiled_merge_dft!(dest, left, right; label="")
+    if length(dest) < 100_000
+        DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label=label
+        return
+    end
+
+    N = 4
+
+    k = round.(Int, LinRange(1, length(dest)+1, N+1))
+    for p in 1:N
+        piece = 'A' + p -1
+        destₚ = @view dest[k[p]:k[p+1]-1]
+
+        DataFlowTasks.@spawn let
+            @R left
+            @R right
+            @W destₚ
+
+            (rᵢ, rⱼ, rₖ) = split_indices(N, dest, left, right)[p]
+            @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+        end label="$label $piece"
+    end
+end
+
+
+function mergesort_dft_tiled!(v, buf=similar(v), bs=16384)
+    N = length(v)
+
+    for i₀ in 1:bs:N
+        i₁ = min(i₀+bs-1, N)
+        DataFlowTasks.@spawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
+    end
+
+    (from, to) = (v, buf)
+
+    while bs < N
+        i₀ = 1
+        while i₀ < N
+            i₁ = i₀+bs; i₁>N && break
+            i₂ = min(i₀+2bs-1, N)
+            let
+                left  = @view from[i₀:i₁-1]
+                right = @view from[i₁:i₂]
+                dest  = @view to[i₀:i₂]
+                tiled_merge_dft!(dest, left, right, label="merge\n$i₀:$i₂")
+            end
+            i₀ = i₂+1
+        end
+        if i₀ <= N
+            let
+                src  = @view from[i₀:N]
+                dest = @view to[i₀:N]
+                DataFlowTasks.@spawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
+            end
+        end
+
+        bs *= 2
+        (from, to) = (to, from)
+    end
+
+    final_task = DataFlowTasks.@spawn @R(from) label="result"
+    fetch(final_task)
+    v === from || copy!(v, from)
+    v
+end
+
+@assert mergesort_dft_tiled!(copy(v), buf) == sort(v)
+bench_dft2 = @benchmark mergesort_dft_tiled!(x, $buf) setup=(x=copy(v)) evals=1
+
+#-
+
+(;
+ nthreads = Threads.nthreads(),
+ speedup = time(minimum(bench_seq)) / time(minimum(bench_dft2)))
+
+#-
+
+log_info = DataFlowTasks.@log mergesort_dft_tiled!(copy(v), buf)
+DataFlowTasks.describe(log_info, categories=["sort", "merge", "copy", "result"])
+
+#-
+
 plot(log_info, categories=["sort", "merge", "copy", "result"])
