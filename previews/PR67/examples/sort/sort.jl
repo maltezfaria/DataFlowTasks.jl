@@ -319,7 +319,7 @@ split_indices(2, dest, left, right)
 function parallel_merge_dft!(dest, left, right, N; label="")
     ## Simple sequential merge for small blocks
     if length(dest) < 80_000
-        DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label=label
+        DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge $label"
         return
     end
 
