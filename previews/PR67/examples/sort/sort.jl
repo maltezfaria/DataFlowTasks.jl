@@ -1,13 +1,14 @@
 # # Merge sort
 
-# This implements a parallel [merge sort](https://en.wikipedia.org/wiki/Merge_sort) using `DataFlowTasks`
+# This example illustrates the use of `DataFlowTasks` to implement a parallel
+# [merge sort](https://en.wikipedia.org/wiki/Merge_sort) algorithm.
 
 # ## Sequential version
 
 # We'll use a "bottom-up" implementation of the merge sort algorithm. To explain
 # how it works, let's consider a small vector of 32 elements:
 
-using Random, CairoMakie, CairoMakie.Colors
+using Random, CairoMakie
 v = randperm(32)
 barplot(v)
 
@@ -29,7 +30,7 @@ function merge!(dest, left, right)
     ##   `right` is sorted
     ##   length(left) + length(right) == length(dest)
     ## post-condition:
-    ##   dest is sorted
+    ##   `dest` is sorted
 
     (i, j) = (1, 1)
     (I, J) = (length(left), length(right))
@@ -51,6 +52,7 @@ barplot(w; color=ceil.(Int, eachindex(v)./16), colormap=:Set1_3)
 # Now `w` is sorted in two blocks, which we can merge to get the entire sorted
 # array. Instead of using a new buffer to store the results, let's re-use the
 # original array `v`:
+
 @views merge!(v, w[1:16], w[17:32])
 barplot(v)
 
@@ -110,7 +112,7 @@ N = 100_000
 v = rand(N)
 buf = similar(v)
 
-@assert mergesort!(copy(v), buf) == sort(v)
+@assert issorted(mergesort!(copy(v), buf))
 
 # ## Parallel version
 
@@ -121,8 +123,8 @@ buf = similar(v)
 #   it. The block size is larger here, to avoid spawning tasks for too small
 #   chunks. Each such task modifies its own block in-place.
 #
-# - Merging two blocks (or copying a lone block) reads part of the source array, and writes to (the same)
-#   part of the destination array.
+# - Merging two blocks (or copying a lone block) reads part of the source array,
+#   and writes to (the same) part of the destination array.
 #
 # - A final task reads the whole array to act as a barrier: we can fetch it to
 #   synchronize all other tasks and get the result.
@@ -171,9 +173,9 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
     v
 end
 
-@assert mergesort_dft!(copy(v), buf) == sort(v)
+@assert issorted(mergesort_dft!(copy(v), buf))
 
-# Task graph
+# As expected, the task graph looks like a (mostly binary) tree:
 
 resize!(DataFlowTasks.get_active_taskgraph(), 2000)
 log_info = DataFlowTasks.@log mergesort_dft!(copy(v))
@@ -184,56 +186,102 @@ DataFlowTasks.savedag("sort_dag.svg", dag) #src
 
 # ## Performance
 
+# Let's use bigger data to assess the performance of our implementations:
+
 N = 1_000_000
-v = rand(N);
-buf = similar(v);
+data = rand(N);
+buf  = similar(data);
 
 using BenchmarkTools
-bench_seq = @benchmark mergesort!(x, $buf) setup=(x=copy(v)) evals=1
+bench_seq = @benchmark mergesort!(x, $buf) setup=(x=copy(data)) evals=1
 
 #-
 
-bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(v)) evals=1
+bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
 
-#-
+# The parallel version does exhibit some speed-up, but not as much as one would
+# hope for given the number of threads used in the computation:
 
 (;
  nthreads = Threads.nthreads(),
  speedup = time(minimum(bench_seq)) / time(minimum(bench_dft)))
 
-#-
+# The parallel profile explains it all: at the beginning of the computation,
+# sorting the small blocks and merging them involves a large number of small
+# tasks. There is a lot of expressed parallelism to be taken advantage of at
+# this stage, and `DataFlowTasks` seems to do a good job. But as the algorithm
+# advances, fewer and fewer blocks have to be merged, which are larger and
+# larger... until the last merge of the whole array (which is performed
+# sequentially) accounts for as much as 25% of the whole computation time!
 
-log_info = DataFlowTasks.@log mergesort_dft!(copy(v))
-DataFlowTasks.describe(log_info, categories=["sort", "merge", "copy", "result"])
-
-#-
+log_info = DataFlowTasks.@log mergesort_dft!(copy(data))
 
 using CairoMakie
 plot(log_info, categories=["sort", "merge", "copy", "result"])
 
-#-
+# ## Parallel merge
 
-function tiled_merge!(dest, left, right)
-    function split_indices(dest, left, right)
-        (I, J, K) = length(left), length(right), length(dest)
-        @assert I+J == K
+# In order to express more parallelism in the algorithm, it is therefore
+# important to perform large merges in parallel. Here we describe a relatively
+# naive parallel binary merge algorithm. There exist [more elaborate
+# versions](https://en.wikipedia.org/wiki/Merge_algorithm).
 
-        i = 1 + I ÷ 2
-        pivot = left[i-1]
-        j = findfirst(>(pivot), right)
-        k = i + j - 1
+## Assuming we want to sort `v`, and its `left` and `right` halves have already
+## been sorted, we merge them into `dest`:
+v = randperm(64)
+left  = @views v[1:32]; sort!(left)
+right = @views v[33:64]; sort!(right)
+dest = similar(v)
 
-        [(1:i-1, 1:j-1, 1:k-1),
-         (i:I,   j:J,   k:K)]
-    end
+(I, J, K) = length(left), length(right), length(dest)
+@assert I+J == K
 
-    (rᵢ, rⱼ, rₖ) = split_indices(dest, left, right)[1]
-    @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+## First we find a pivot value, which splits `left` in two halves:
+i = 1 + I ÷ 2
+pivot = left[i-1]
 
-    (rᵢ, rⱼ, rₖ) = split_indices(dest, left, right)[2]
-    @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
-end
+## Next we split `right` into two parts: indices associated to values lower than
+## the pivot, and indices associated to values larger than the pivot. Since the
+## data is sorted, an efficient binary search algorithm can be used:
+j = searchsortedfirst(right, pivot)
 
+## We now have both `left` and `right` decomposed into two (hopefully nearly
+## equal) parts:
+fig, ax, _ = barplot(v, color=map(>(pivot), v), colormap=:Set1_3);
+linesegments!(ax,
+              [0, K+1, i-0.5, i-0.5, I+0.5, I+0.5, I+j-0.5, I+j-0.5],
+              [pivot, pivot, -2, K+1, -2, K+1, -2, K+1],
+              linestyle=:dash, color=:black)
+text!(ax, (i/2, -1), text="1:$(i-1)", align=(:center, :top))
+text!(ax, ((I+i)/2, -1), text="$i:$I", align=(:center, :top))
+text!(ax, (I+j/2, -1), text="1:$(j-1)", align=(:center, :top))
+text!(ax, (I+(J+j)/2, -1), text="$j:$J", align=(:center, :top))
+fig
+
+# Between them, the first part of `left` and the first part of `right` contain
+# all values lower than or equal to `pivot`: they can be merged together in the
+# first part of the destination array, which will also contain all values lower
+# than or equal to `pivot`.
+#
+# The same is true of the second parts of `left` and `right`, which contain all values larger than pivot and can be
+# merged into the second part of the destination array.
+
+## Find the index which splits `dest` into two parts, according to the number of
+## elements in the first parts of `left` and `right`
+k = i + j - 1
+
+## Merge the first parts
+(rᵢ, rⱼ, rₖ) = (1:i-1, 1:j-1, 1:k-1)
+@views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+
+## Merge the second parts
+(rᵢ, rⱼ, rₖ) = (i:I,   j:J,   k:K)
+@views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+
+## We now have a fully sorted array
+@assert issorted(dest)
+
+# The following function automates the splitting of the arrays into parts:
 
 function split_indices(N, dest, left, right)
     (I, J, K) = length(left), length(right), length(dest)
@@ -244,7 +292,7 @@ function split_indices(N, dest, left, right)
     k = ones(Int, N+1)
     for p in 2:N
         i[p] = 1 + ((p-1)*I) ÷ N
-        j[p] = findfirst(>(left[i[p]-1]), right)
+        j[p] = searchsortedfirst(right, left[i[p]-1])
         k[p] = k[p-1] + i[p]-i[p-1] + j[p]-j[p-1]
     end
     i[N+1] = I+1; j[N+1] = J+1; k[N+1] = K+1
@@ -254,14 +302,23 @@ function split_indices(N, dest, left, right)
     end
 end
 
-function tiled_merge_dft!(dest, left, right; label="")
-    if length(dest) < 100_000
+## Check that this decomposes `left` and `right` into the same ranges as shown
+## in the figure above:
+split_indices(2, dest, left, right)
+
+# This can serve as a building block for a tiled, parallel merge and new tiled
+# version of the parallel merge sort:
+
+function tiled_merge_dft!(dest, left, right, N; label="")
+    ## Simple sequential merge for small blocks
+    if length(dest) < 80_000
         DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label=label
         return
     end
 
-    N = 4
+    ## N: number of parts in which larger blocks will be split
 
+    ## Spawn one task per part
     k = round.(Int, LinRange(1, length(dest)+1, N+1))
     for p in 1:N
         piece = 'A' + p -1
@@ -272,6 +329,9 @@ function tiled_merge_dft!(dest, left, right; label="")
             @R right
             @W destₚ
 
+            ## Note that the actual splitting has to be delayed until the tasks
+            ## actually run, because it depends on data inside the arrays, which
+            ## won't be up-to-date until previous tasks have completed
             (rᵢ, rⱼ, rₖ) = split_indices(N, dest, left, right)[p]
             @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
         end label="$label $piece"
@@ -279,7 +339,7 @@ function tiled_merge_dft!(dest, left, right; label="")
 end
 
 
-function mergesort_dft_tiled!(v, buf=similar(v), bs=16384)
+function mergesort_dft_tiled!(v, buf=similar(v); bs=16384, Nmerge=8)
     N = length(v)
 
     for i₀ in 1:bs:N
@@ -298,7 +358,7 @@ function mergesort_dft_tiled!(v, buf=similar(v), bs=16384)
                 left  = @view from[i₀:i₁-1]
                 right = @view from[i₁:i₂]
                 dest  = @view to[i₀:i₂]
-                tiled_merge_dft!(dest, left, right, label="merge\n$i₀:$i₂")
+                tiled_merge_dft!(dest, left, right, Nmerge, label="merge\n$i₀:$i₂")
             end
             i₀ = i₂+1
         end
@@ -320,20 +380,42 @@ function mergesort_dft_tiled!(v, buf=similar(v), bs=16384)
     v
 end
 
-@assert mergesort_dft_tiled!(copy(v), buf) == sort(v)
-bench_dft2 = @benchmark mergesort_dft_tiled!(x, $buf) setup=(x=copy(v)) evals=1
+N = 100_000
+v = rand(N)
+buf = similar(v)
+
+@assert issorted(mergesort_dft_tiled!(copy(v), buf))
+
+# The task graph is now a bit more complicated. Here we see for example that the
+# last level of merge has been split into 4 parts (labelled "A", "B", "C" and "D"):
+
+log_info = DataFlowTasks.@log mergesort_dft_tiled!(copy(v), Nmerge=4)
+
+using GraphViz
+dag = GraphViz.Graph(log_info)
+DataFlowTasks.savedag("sort_dag.svg", dag) #src
+
+# Since it expresses more parallelism, this new version performs better:
+
+buf = similar(data)
+bench_dft_tiled = @benchmark mergesort_dft_tiled!(x, $buf) setup=(x=copy(data)) evals=1
 
 #-
 
 (;
  nthreads = Threads.nthreads(),
- speedup = time(minimum(bench_seq)) / time(minimum(bench_dft2)))
+ speedup = time(minimum(bench_seq)) / time(minimum(bench_dft_tiled)))
 
-#-
+# The profile plot also shows how merge tasks remain parallel until the very end:
 
-log_info = DataFlowTasks.@log mergesort_dft_tiled!(copy(v), buf)
-DataFlowTasks.describe(log_info, categories=["sort", "merge", "copy", "result"])
-
-#-
-
+log_info = DataFlowTasks.@log mergesort_dft_tiled!(copy(data))
 plot(log_info, categories=["sort", "merge", "copy", "result"])
+
+
+# Here, the performance limiting factor is the extra work performed by the parallel merge algorithm (essentially: finding pivots). Compare for example the sequential elapsed time:
+
+bench_seq
+
+# to the cumulated run time of the tasks (shown as "Computing" in the `log_info` description):
+
+DataFlowTasks.describe(log_info)
