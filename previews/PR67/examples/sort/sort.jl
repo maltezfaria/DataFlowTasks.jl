@@ -1,5 +1,8 @@
 # # Merge sort
-
+#
+#md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](sort.ipynb)
+#md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/sort/sort.ipynb)
+#
 # This example illustrates the use of `DataFlowTasks` to implement a parallel
 # [merge sort](https://en.wikipedia.org/wiki/Merge_sort) algorithm.
 
@@ -9,6 +12,8 @@
 # how it works, let's consider a small vector of 32 elements:
 
 using Random, CairoMakie
+Random.seed!(42)
+
 v = randperm(32)
 barplot(v)
 
@@ -212,7 +217,8 @@ bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
 # this stage, and `DataFlowTasks` seems to do a good job. But as the algorithm
 # advances, fewer and fewer blocks have to be merged, which are larger and
 # larger... until the last merge of the whole array (which is performed
-# sequentially) accounts for as much as 25% of the whole computation time!
+# sequentially) seemingly accounts for as much as 25% of the whole computation
+# time!
 
 log_info = DataFlowTasks.@log mergesort_dft!(copy(data))
 
@@ -222,9 +228,10 @@ plot(log_info, categories=["sort", "merge", "copy", "result"])
 # ## Parallel merge
 
 # In order to express more parallelism in the algorithm, it is therefore
-# important to perform large merges in parallel. Here we describe a relatively
-# naive parallel binary merge algorithm. There exist [more elaborate
-# versions](https://en.wikipedia.org/wiki/Merge_algorithm).
+# important to perform large merges in parallel. There exist many elaborate
+# [parallel binary merge
+# algorithms](https://en.wikipedia.org/wiki/Merge_algorithm); here we describe a
+# relatively naive one:
 
 ## Assuming we want to sort `v`, and its `left` and `right` halves have already
 ## been sorted, we merge them into `dest`:
@@ -306,10 +313,10 @@ end
 ## in the figure above:
 split_indices(2, dest, left, right)
 
-# This can serve as a building block for a tiled, parallel merge and new tiled
-# version of the parallel merge sort:
+# This can serve as a building block for a parallel merge and new version of the
+# parallel merge sort:
 
-function tiled_merge_dft!(dest, left, right, N; label="")
+function parallel_merge_dft!(dest, left, right, N; label="")
     ## Simple sequential merge for small blocks
     if length(dest) < 80_000
         DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label=label
@@ -318,28 +325,29 @@ function tiled_merge_dft!(dest, left, right, N; label="")
 
     ## N: number of parts in which larger blocks will be split
 
-    ## Spawn one task per part
+    ## These are the bounds of a "fake" splitting of `dest` into even blocks,
+    ## only used to express data dependencies at "task spawn time"
     k = round.(Int, LinRange(1, length(dest)+1, N+1))
+
+    ## Spawn one task per part
     for p in 1:N
         piece = 'A' + p -1
-        destₚ = @view dest[k[p]:k[p+1]-1]
 
         DataFlowTasks.@spawn let
             @R left
             @R right
-            @W destₚ
+            @W view(dest, k[p]:k[p+1]-1)
 
-            ## Note that the actual splitting has to be delayed until the tasks
-            ## actually run, because it depends on data inside the arrays, which
-            ## won't be up-to-date until previous tasks have completed
+            ## The actual splitting has to be delayed until the tasks actually
+            ## run, because it depends on data inside the arrays, which won't be
+            ## up-to-date until previous tasks have completed
             (rᵢ, rⱼ, rₖ) = split_indices(N, dest, left, right)[p]
             @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
-        end label="$label $piece"
+        end label="merge $piece\n$label"
     end
 end
 
-
-function mergesort_dft_tiled!(v, buf=similar(v); bs=16384, Nmerge=8)
+function parallel_mergesort_dft!(v, buf=similar(v); bs=16384, Nmerge=8)
     N = length(v)
 
     for i₀ in 1:bs:N
@@ -358,7 +366,7 @@ function mergesort_dft_tiled!(v, buf=similar(v); bs=16384, Nmerge=8)
                 left  = @view from[i₀:i₁-1]
                 right = @view from[i₁:i₂]
                 dest  = @view to[i₀:i₂]
-                tiled_merge_dft!(dest, left, right, Nmerge, label="merge\n$i₀:$i₂")
+                parallel_merge_dft!(dest, left, right, Nmerge, label="$i₀:$i₂")
             end
             i₀ = i₂+1
         end
@@ -382,14 +390,12 @@ end
 
 N = 100_000
 v = rand(N)
-buf = similar(v)
-
-@assert issorted(mergesort_dft_tiled!(copy(v), buf))
+@assert issorted(parallel_mergesort_dft!(copy(v)))
 
 # The task graph is now a bit more complicated. Here we see for example that the
 # last level of merge has been split into 4 parts (labelled "A", "B", "C" and "D"):
 
-log_info = DataFlowTasks.@log mergesort_dft_tiled!(copy(v), Nmerge=4)
+log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(v), Nmerge=4)
 
 using GraphViz
 dag = GraphViz.Graph(log_info)
@@ -398,7 +404,7 @@ DataFlowTasks.savedag("sort_dag.svg", dag) #src
 # Since it expresses more parallelism, this new version performs better:
 
 buf = similar(data)
-bench_dft_tiled = @benchmark mergesort_dft_tiled!(x, $buf) setup=(x=copy(data)) evals=1
+bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
 
 #-
 
@@ -408,14 +414,17 @@ bench_dft_tiled = @benchmark mergesort_dft_tiled!(x, $buf) setup=(x=copy(data)) 
 
 # The profile plot also shows how merge tasks remain parallel until the very end:
 
-log_info = DataFlowTasks.@log mergesort_dft_tiled!(copy(data))
+log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
 plot(log_info, categories=["sort", "merge", "copy", "result"])
 
 
-# Here, the performance limiting factor is the extra work performed by the parallel merge algorithm (essentially: finding pivots). Compare for example the sequential elapsed time:
+# Here, one extra performance limiting factor is the additional work performed
+# by the parallel merge algorithm (*e.g.* finding pivots). Compare for example
+# the sequential elapsed time:
 
 bench_seq
 
-# to the cumulated run time of the tasks (shown as "Computing" in the `log_info` description):
+# to the cumulated run time of the tasks (shown as "Computing" in the `log_info`
+# description):
 
 DataFlowTasks.describe(log_info)
