@@ -14,7 +14,8 @@ using Test
         @testset "$script" begin
             @test begin
                 cd(dir) do
-                    include(joinpath(dir, script))
+                    # Include script into an isolated module
+                    Base.include(Module(), joinpath(dir, script))
                     true
                 end
             end
