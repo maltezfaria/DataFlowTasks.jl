@@ -1,4 +1,4 @@
-# # Merge sort
+# # [Merge sort](@id example-sort)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](sort.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/sort/sort.ipynb)
@@ -23,7 +23,7 @@ sort!(view(v, 1:8))
 sort!(view(v, 9:16))
 sort!(view(v, 17:24))
 sort!(view(v, 25:32))
-barplot(v; color=ceil.(Int, eachindex(v)./8), colormap=:Set1_4)
+barplot(v; color=ceil.(Int, eachindex(v)./8), colormap=:Paired_4, colorrange=(1,4))
 
 # Now we can merge the first two 8-element blocks into a sorted 16-element
 # block. And do the same for the 3rd and 4th 8-element blocks. We'll need an
@@ -52,7 +52,7 @@ end
 w = similar(v)
 @views merge!(w[1:16],  v[1:8],   v[9:16])
 @views merge!(w[17:32], v[17:24], v[25:32])
-barplot(w; color=ceil.(Int, eachindex(v)./16), colormap=:Set1_3)
+barplot(w; color=ceil.(Int, eachindex(v)./16), colormap=:Paired_4, colorrange=(1,4))
 
 # Now `w` is sorted in two blocks, which we can merge to get the entire sorted
 # array. Instead of using a new buffer to store the results, let's re-use the
@@ -144,15 +144,16 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
         DataFlowTasks.@spawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
     end
 
-    ## WARNING: (from, to) are not local to each task
+    ## WARNING: (from, to) are not local to each task but will later be re-bound
+    ## => avoid capturing them
     (from, to) = (v, buf)
 
     while bs < N
-        i₀ = 1  # WARNING: i is not local to each task
+        i₀ = 1  # WARNING: i₀ is not local to each task; avoid capturing it
         while i₀ < N
             i₁ = i₀+bs; i₁>N && break
             i₂ = min(i₀+2bs-1, N)
-            let
+            let # Create new bindings which will be captured in the task body
                 left  = @view from[i₀:i₁-1]
                 right = @view from[i₁:i₂]
                 dest  = @view to[i₀:i₂]
@@ -161,7 +162,7 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
             i₀ = i₂+1
         end
         if i₀ <= N
-            let
+            let # Create new bindings which will be captured in the task body
                 src  = @view from[i₀:N]
                 dest = @view to[i₀:N]
                 DataFlowTasks.@spawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
@@ -179,6 +180,21 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
 end
 
 @assert issorted(mergesort_dft!(copy(v), buf))
+
+#=
+
+!!! note "Captured bindings"
+
+    The swapping of variables `from` and `to` could cause hard-to-debug issues
+    if these bindings were captured into the task bodies. The same is true of
+    variable `i₀`, which is repeatedly re-bound in the `while`-loop (as opposed
+    to what classically happens with a `for` loop, which creates a new binding
+    at each iteration).
+
+    This is a real-world occurrence of the situation described in more details
+    in the [troubleshooting page](@ref troubleshooting-captures).
+
+=#
 
 # As expected, the task graph looks like a (mostly binary) tree:
 
@@ -254,15 +270,19 @@ j = searchsortedfirst(right, pivot)
 
 ## We now have both `left` and `right` decomposed into two (hopefully nearly
 ## equal) parts:
-fig, ax, _ = barplot(v, color=map(>(pivot), v), colormap=:Set1_3);
+colors = map(i->(1+(i>I)+2*(v[i]>pivot)), eachindex(v))
+fig, ax, _ = barplot(v, color=colors, colormap=:Paired_4, colorrange=(1,4));
 linesegments!(ax,
               [0, K+1, i-0.5, i-0.5, I+0.5, I+0.5, I+j-0.5, I+j-0.5],
-              [pivot, pivot, -2, K+1, -2, K+1, -2, K+1],
+              [pivot, pivot, -2, pivot+10, -2, K+1, -2, pivot+10],
               linestyle=:dash, color=:black)
 text!(ax, (i/2, -1), text="1:$(i-1)", align=(:center, :top))
 text!(ax, ((I+i)/2, -1), text="$i:$I", align=(:center, :top))
 text!(ax, (I+j/2, -1), text="1:$(j-1)", align=(:center, :top))
 text!(ax, (I+(J+j)/2, -1), text="$j:$J", align=(:center, :top))
+text!(ax, (0, pivot), text="pivot", align=(:left, :bottom))
+text!(ax, ((I+1)/2, K), text="left", align=(:center, :top), fontsize=24)
+text!(ax, (I+(J+1)/2, K), text="right", align=(:center, :top), fontsize=24)
 fig
 
 # Between them, the first part of `left` and the first part of `right` contain
@@ -270,8 +290,9 @@ fig
 # first part of the destination array, which will also contain all values lower
 # than or equal to `pivot`.
 #
-# The same is true of the second parts of `left` and `right`, which contain all values larger than pivot and can be
-# merged into the second part of the destination array.
+# The same is true of the second parts of `left` and `right`, which contain all
+# values larger than `pivot` and can be merged into the second part of the
+# destination array.
 
 ## Find the index which splits `dest` into two parts, according to the number of
 ## elements in the first parts of `left` and `right`

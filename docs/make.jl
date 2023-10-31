@@ -81,6 +81,7 @@ makedocs(;
         ],
         # "Comparaison with Dagger.jl" => "dagger.md",
         # "Common Issues" => "issues.md",
+        "Troubleshooting" => "troubleshooting.md",
         "References" => "references.md",
     ],
     warnonly = on_CI ? false : Documenter.except(:linkcheck_remotes),
