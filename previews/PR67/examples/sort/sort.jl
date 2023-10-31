@@ -316,14 +316,15 @@ split_indices(2, dest, left, right)
 # This can serve as a building block for a parallel merge and new version of the
 # parallel merge sort:
 
-function parallel_merge_dft!(dest, left, right, N; label="")
-    ## Simple sequential merge for small blocks
-    if length(dest) < 80_000
-        DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge $label"
+function parallel_merge_dft!(dest, left, right; label="")
+    ## Number of parts in which large blocks will be split
+    N = min(8, ceil(Int, length(dest)/65_536))
+
+    ## Simple sequential merge for small cases
+    if N <= 1
+        DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$label"
         return
     end
-
-    ## N: number of parts in which larger blocks will be split
 
     ## These are the bounds of a "fake" splitting of `dest` into even blocks,
     ## only used to express data dependencies at "task spawn time"
@@ -347,7 +348,7 @@ function parallel_merge_dft!(dest, left, right, N; label="")
     end
 end
 
-function parallel_mergesort_dft!(v, buf=similar(v); bs=16384, Nmerge=8)
+function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
     N = length(v)
 
     for i₀ in 1:bs:N
@@ -366,7 +367,7 @@ function parallel_mergesort_dft!(v, buf=similar(v); bs=16384, Nmerge=8)
                 left  = @view from[i₀:i₁-1]
                 right = @view from[i₁:i₂]
                 dest  = @view to[i₀:i₂]
-                parallel_merge_dft!(dest, left, right, Nmerge, label="$i₀:$i₂")
+                parallel_merge_dft!(dest, left, right, label="$i₀:$i₂")
             end
             i₀ = i₂+1
         end
@@ -393,9 +394,9 @@ v = rand(N)
 @assert issorted(parallel_mergesort_dft!(copy(v)))
 
 # The task graph is now a bit more complicated. Here we see for example that the
-# last level of merge has been split into 4 parts (labelled "A", "B", "C" and "D"):
+# last level of merge has been split into 2 parts (labelled "merge A" and "merge B"):
 
-log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(v), Nmerge=4)
+log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(v))
 
 using GraphViz
 dag = GraphViz.Graph(log_info)
