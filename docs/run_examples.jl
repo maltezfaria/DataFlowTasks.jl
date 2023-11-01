@@ -15,7 +15,10 @@ using Test
             @test begin
                 cd(dir) do
                     # Include script into an isolated module
-                    Base.include(Module(), joinpath(dir, script))
+                    @eval Module() begin
+                        include(f) = Base.include(@__MODULE__, f)
+                        include($(joinpath(dir, script)))
+                    end
                     true
                 end
             end
