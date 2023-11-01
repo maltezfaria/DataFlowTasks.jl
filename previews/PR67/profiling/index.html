@@ -29,18 +29,18 @@ work(copy(A),copy(B))
 
 # activate logging of events
 log_info = DataFlowTasks.@log work(A, B)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LogInfo with 5 logged tasks
-</code></pre><p>The <code>log_info</code> object above, of <a href="../references/#DataFlowTasks.LogInfo"><code>LogInfo</code></a> type, contains information that can be used to reconstruct both the inferred task dependencies, and the parallel execution traces of the <code>DataFlowTask</code>s. A summary of this information can be displayed using <a href="../references/#DataFlowTasks.describe-Tuple{DataFlowTasks.LogInfo}"><code>DataFlowTasks.describe</code></a>, as illustrated next:</p><pre><code class="language-julia hljs">DataFlowTasks.describe(log_info; categories=[&quot;init&quot;, &quot;mutate&quot;, &quot;read&quot;])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">• Elapsed time           : 0.095
-  ├─ Critical path       : 0.095
+</code></pre><p>The <code>log_info</code> object above, of <a href="../references/#DataFlowTasks.LogInfo"><code>LogInfo</code></a> type, contains information that can be used to reconstruct both the inferred task dependencies, and the parallel execution traces of the <code>DataFlowTask</code>s. A summary of this information can be displayed using <a href="../references/#DataFlowTasks.describe-Tuple{DataFlowTasks.LogInfo}"><code>DataFlowTasks.describe</code></a>, as illustrated next:</p><pre><code class="language-julia hljs">DataFlowTasks.describe(log_info; categories=[&quot;init&quot;, &quot;mutate&quot;, &quot;read&quot;])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">• Elapsed time           : 0.094
+  ├─ Critical path       : 0.094
   ╰─ No-wait             : 0.017
 
-• Run time               : 0.762
-  ├─ Computing           :   0.139
-  │  ├─ init             :     0.027
-  │  ├─ mutate           :     0.095
-  │  ├─ read             :     0.017
+• Run time               : 0.751
+  ├─ Computing           :   0.137
+  │  ├─ init             :     0.025
+  │  ├─ mutate           :     0.098
+  │  ├─ read             :     0.013
   │  ╰─ unlabeled        :     0.000
   ├─ Task insertion      :   0.000
-  ╰─ Other (waiting)     :   0.623</code></pre><p>More powerful visualization capabilities, such as displaying the underlying <code>DAG</code> or showing the parallel trace of the tasks executed, are available upon loading additional packages such as <code>GraphViz</code> or <code>Makie</code>. These are discussed in the following sections.</p><div class="admonition is-warning"><header class="admonition-header">Warning</header><div class="admonition-body"><p>When using <code>@log</code>, you typically want the block of code being benchmarked to wait for the completion of its <code>DataFlowTask</code>s before returning (otherwise the <code>LogInfo</code> object that is returned may lack information regarding the <code>DataFlowTask</code>s that have not been completed). In the example above, that was achieved through the use of <code>fetch</code> in the last line of the <code>work</code> function.</p></div></div><h2 id="DAG-visualization"><a class="docs-heading-anchor" href="#DAG-visualization">DAG visualization</a><a id="DAG-visualization-1"></a><a class="docs-heading-anchor-permalink" href="#DAG-visualization" title="Permalink"></a></h2><p>In order to better understand what this example does, and check that <em>data dependencies</em> were suitably annotated, it can be useful to look at the Directed Acyclic Graph (DAG) representing <em>task dependencies</em> as they were inferred by <code>DataFlowTasks</code>. The DAG can be visualized by creating a <a href="../references/#GraphViz.Graph-Tuple{DataFlowTasks.LogInfo}"><code>GraphViz.Graph</code></a> out of it:</p><pre><code class="language-julia hljs">using GraphViz
+  ╰─ Other (waiting)     :   0.615</code></pre><p>More powerful visualization capabilities, such as displaying the underlying <code>DAG</code> or showing the parallel trace of the tasks executed, are available upon loading additional packages such as <code>GraphViz</code> or <code>Makie</code>. These are discussed in the following sections.</p><div class="admonition is-warning"><header class="admonition-header">Warning</header><div class="admonition-body"><p>When using <code>@log</code>, you typically want the block of code being benchmarked to wait for the completion of its <code>DataFlowTask</code>s before returning (otherwise the <code>LogInfo</code> object that is returned may lack information regarding the <code>DataFlowTask</code>s that have not been completed). In the example above, that was achieved through the use of <code>fetch</code> in the last line of the <code>work</code> function.</p></div></div><h2 id="DAG-visualization"><a class="docs-heading-anchor" href="#DAG-visualization">DAG visualization</a><a id="DAG-visualization-1"></a><a class="docs-heading-anchor-permalink" href="#DAG-visualization" title="Permalink"></a></h2><p>In order to better understand what this example does, and check that <em>data dependencies</em> were suitably annotated, it can be useful to look at the Directed Acyclic Graph (DAG) representing <em>task dependencies</em> as they were inferred by <code>DataFlowTasks</code>. The DAG can be visualized by creating a <a href="../references/#GraphViz.Graph-Tuple{DataFlowTasks.LogInfo}"><code>GraphViz.Graph</code></a> out of it:</p><pre><code class="language-julia hljs">using GraphViz
 GraphViz.Graph(log_info)</code></pre><img src='data:image/svg+xml;utf-8,<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -52,62 +52,62 @@ GraphViz.Graph(log_info)</code></pre><img src='data:image/svg+xml;utf-8,<?xml ve
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 184)">
 <title>dag</title>
 <polygon fill="white" stroke="transparent" points="-4,4 -4,-184 236.24,-184 236.24,4 -4,4"/>
-<!-- 29381 -->
+<!-- 27468 -->
 <g id="node1" class="node">
-<title>29381</title>
-<ellipse fill="none" stroke="black" stroke-width="2" cx="53.3" cy="-162" rx="36" ry="18"/>
-<text text-anchor="middle" x="53.3" y="-158.3" font-family="Times,serif" font-size="14.00">init A</text>
+<title>27468</title>
+<ellipse fill="none" stroke="red" stroke-width="2" cx="115.95" cy="-18" rx="50.89" ry="18"/>
+<text text-anchor="middle" x="115.95" y="-14.3" font-family="Times,serif" font-size="14.00">read A,B</text>
 </g>
-<!-- 29383 -->
+<!-- 27467 -->
 <g id="node2" class="node">
-<title>29383</title>
-<ellipse fill="none" stroke="black" stroke-width="2" cx="53.3" cy="-90" rx="53.09" ry="18"/>
-<text text-anchor="middle" x="53.3" y="-86.3" font-family="Times,serif" font-size="14.00">mutate A</text>
+<title>27467</title>
+<ellipse fill="none" stroke="red" stroke-width="2" cx="53.95" cy="-90" rx="53.89" ry="18"/>
+<text text-anchor="middle" x="53.95" y="-86.3" font-family="Times,serif" font-size="14.00">mutate B</text>
 </g>
-<!-- 29381&%2345;&gt;29383 -->
+<!-- 27467&%2345;&gt;27468 -->
 <g id="edge1" class="edge">
-<title>29381&%2345;&gt;29383</title>
-<path fill="none" stroke="black" stroke-width="2" d="M53.3,-143.7C53.3,-135.98 53.3,-126.71 53.3,-118.11"/>
-<polygon fill="black" stroke="black" stroke-width="2" points="56.8,-118.1 53.3,-108.1 49.8,-118.1 56.8,-118.1"/>
+<title>27467&%2345;&gt;27468</title>
+<path fill="none" stroke="red" stroke-width="2" d="M68.64,-72.41C76.36,-63.69 85.97,-52.85 94.5,-43.21"/>
+<polygon fill="red" stroke="red" stroke-width="2" points="97.35,-45.28 101.36,-35.47 92.11,-40.64 97.35,-45.28"/>
 </g>
-<!-- 29385 -->
-<g id="node5" class="node">
-<title>29385</title>
-<ellipse fill="none" stroke="red" stroke-width="2" cx="115.3" cy="-18" rx="50.89" ry="18"/>
-<text text-anchor="middle" x="115.3" y="-14.3" font-family="Times,serif" font-size="14.00">read A,B</text>
-</g>
-<!-- 29383&%2345;&gt;29385 -->
-<g id="edge4" class="edge">
-<title>29383&%2345;&gt;29385</title>
-<path fill="none" stroke="black" stroke-width="2" d="M67.99,-72.41C75.71,-63.69 85.32,-52.85 93.85,-43.21"/>
-<polygon fill="black" stroke="black" stroke-width="2" points="96.7,-45.28 100.71,-35.47 91.46,-40.64 96.7,-45.28"/>
-</g>
-<!-- 29384 -->
+<!-- 27466 -->
 <g id="node3" class="node">
-<title>29384</title>
-<ellipse fill="none" stroke="red" stroke-width="2" cx="178.3" cy="-90" rx="53.89" ry="18"/>
-<text text-anchor="middle" x="178.3" y="-86.3" font-family="Times,serif" font-size="14.00">mutate B</text>
+<title>27466</title>
+<ellipse fill="none" stroke="black" stroke-width="2" cx="178.95" cy="-90" rx="53.09" ry="18"/>
+<text text-anchor="middle" x="178.95" y="-86.3" font-family="Times,serif" font-size="14.00">mutate A</text>
 </g>
-<!-- 29384&%2345;&gt;29385 -->
-<g id="edge3" class="edge">
-<title>29384&%2345;&gt;29385</title>
-<path fill="none" stroke="red" stroke-width="2" d="M163.37,-72.41C155.44,-63.61 145.56,-52.63 136.82,-42.92"/>
-<polygon fill="red" stroke="red" stroke-width="2" points="139.41,-40.56 130.12,-35.47 134.21,-45.24 139.41,-40.56"/>
-</g>
-<!-- 29382 -->
-<g id="node4" class="node">
-<title>29382</title>
-<ellipse fill="none" stroke="red" stroke-width="2" cx="178.3" cy="-162" rx="36.29" ry="18"/>
-<text text-anchor="middle" x="178.3" y="-158.3" font-family="Times,serif" font-size="14.00">init B</text>
-</g>
-<!-- 29382&%2345;&gt;29384 -->
+<!-- 27466&%2345;&gt;27468 -->
 <g id="edge2" class="edge">
-<title>29382&%2345;&gt;29384</title>
-<path fill="none" stroke="red" stroke-width="2" d="M178.3,-143.7C178.3,-135.98 178.3,-126.71 178.3,-118.11"/>
-<polygon fill="red" stroke="red" stroke-width="2" points="181.8,-118.1 178.3,-108.1 174.8,-118.1 181.8,-118.1"/>
+<title>27466&%2345;&gt;27468</title>
+<path fill="none" stroke="black" stroke-width="2" d="M164.02,-72.41C156.09,-63.61 146.21,-52.63 137.47,-42.92"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="140.06,-40.56 130.77,-35.47 134.86,-45.24 140.06,-40.56"/>
+</g>
+<!-- 27464 -->
+<g id="node4" class="node">
+<title>27464</title>
+<ellipse fill="none" stroke="black" stroke-width="2" cx="178.95" cy="-162" rx="36" ry="18"/>
+<text text-anchor="middle" x="178.95" y="-158.3" font-family="Times,serif" font-size="14.00">init A</text>
+</g>
+<!-- 27464&%2345;&gt;27466 -->
+<g id="edge3" class="edge">
+<title>27464&%2345;&gt;27466</title>
+<path fill="none" stroke="black" stroke-width="2" d="M178.95,-143.7C178.95,-135.98 178.95,-126.71 178.95,-118.11"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="182.45,-118.1 178.95,-108.1 175.45,-118.1 182.45,-118.1"/>
+</g>
+<!-- 27465 -->
+<g id="node5" class="node">
+<title>27465</title>
+<ellipse fill="none" stroke="red" stroke-width="2" cx="53.95" cy="-162" rx="36.29" ry="18"/>
+<text text-anchor="middle" x="53.95" y="-158.3" font-family="Times,serif" font-size="14.00">init B</text>
+</g>
+<!-- 27465&%2345;&gt;27467 -->
+<g id="edge4" class="edge">
+<title>27465&%2345;&gt;27467</title>
+<path fill="none" stroke="red" stroke-width="2" d="M53.95,-143.7C53.95,-135.98 53.95,-126.71 53.95,-118.11"/>
+<polygon fill="red" stroke="red" stroke-width="2" points="57.45,-118.1 53.95,-108.1 50.45,-118.1 57.45,-118.1"/>
 </g>
 </g>
 </svg>
 '/><p>When the working environment supports rich media, the DAG will be displayed automatically. In other cases, it is possible to export it to an image using <a href="../references/#DataFlowTasks.savedag"><code>DataFlowTasks.savedag</code></a>:</p><pre><code class="language-julia hljs">dag = GraphViz.Graph(log_info)
 DataFlowTasks.savedag(&quot;profiling-example.svg&quot;, dag)</code></pre><p>Note how the task labels (which were provided as extra arguments to <code>@spawn</code>) are used in the DAG rendering and make it more readable. In the DAG visualization, the <em>critical path</em> is highlighted in red: it is the sequential path that took the longest run time during the computation.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The run time of this critical path imposes a hard bound on parallel performances: no matter how many threads are available, it is not possible for the computation to take less time than the duration of the critical path.</p></div></div><h2 id="Scheduling-and-profiling-information"><a class="docs-heading-anchor" href="#Scheduling-and-profiling-information">Scheduling and profiling information</a><a id="Scheduling-and-profiling-information-1"></a><a class="docs-heading-anchor-permalink" href="#Scheduling-and-profiling-information" title="Permalink"></a></h2><p>The collected scheduling &amp; profiling information can be visualized using <a href="../references/#MakieCore.plot-Tuple{DataFlowTasks.LogInfo}"><code>Makie.plot</code></a> on the <code>log_info</code> object (note that using the <code>GLMakie</code> backend brings a bit more interactivity than <code>CairoMakie</code>):</p><pre><code class="language-julia hljs">using CairoMakie # or GLMakie to benefit from more interactivity
-plot(log_info; categories=[&quot;init&quot;, &quot;mutate&quot;, &quot;read&quot;])</code></pre><img src="50109d50.png" alt="Example block output"/><p>The <code>categories</code> keyword argument allows grouping tasks in categories according to their labels. In the example above, all tasks containing <code>&quot;mutate&quot;</code> in their label will be grouped in the same category.</p><p>Note : be careful with giving similar labels. If tasks have &quot;R&quot; and &quot;RW&quot; labels, and the substrings given to the plot&#39;s argument are also &quot;R&quot;, and &quot;RW&quot;, then all tasks will be in the category &quot;R&quot; (because &quot;R&quot; can be found in &quot;RW&quot;). Regular expressions can be given instead of substrings in order to avoid such issues.</p><p>Let us explore the various parts of this graph.</p><h3 id="Parallel-Trace"><a class="docs-heading-anchor" href="#Parallel-Trace">Parallel Trace</a><a id="Parallel-Trace-1"></a><a class="docs-heading-anchor-permalink" href="#Parallel-Trace" title="Permalink"></a></h3><p>The main plot (at the top) is the parallel trace visualization. In this example there were two threads; we can see on which thread the task was run, and the time it took.</p><p>Even though tasks are grouped in categories by considering substrings in their labels, the full label is shown when hovering over a task in the interactive visualization (i.e. when using <code>GLMakie</code> instead of <code>CairoMakie</code>).</p><p>The plot also shows the time spent inserting nodes in the graph (which is part of the overhead incurred by the use of <code>DataFlowTasks</code>): these insertion times are visualized as red tasks. They are not visible for such a small example, but the interactive visualization allows zooming on the plot to search for those small tasks.</p><p>Also note that inserting tasks into the graph involves memory allocations, and may thus trigger garbage collector sweeps. When this happens, the time spent in the garbage collector is also shown in the plot.</p><h3 id="Activity-plot"><a class="docs-heading-anchor" href="#Activity-plot">Activity plot</a><a id="Activity-plot-1"></a><a class="docs-heading-anchor-permalink" href="#Activity-plot" title="Permalink"></a></h3><p>The &quot;activity&quot; barplot (in the bottom left corner of the window) gives us information on the break-down of parallel computing times (summed over all threads):</p><ul><li><code>Computing</code> represents the total time spent in the tasks bodies (i.e. &quot;useful&quot; work);</li><li><code>Inserting</code> represents the total time spent inserting nodes in the DAG (i.e. overhead induced by <code>DataFlowTasks</code>), possibly including any time spent in the GC if it is triggered by a memory allocation in the task insertion process;</li><li><code>Other</code> represents the total idle time on all threads (which may be due to bad scheduling, or simply arise by lack of enough exposed parallelism in the algorithm).</li></ul><h3 id="Time-Bounds-plot"><a class="docs-heading-anchor" href="#Time-Bounds-plot">Time Bounds plot</a><a id="Time-Bounds-plot-1"></a><a class="docs-heading-anchor-permalink" href="#Time-Bounds-plot" title="Permalink"></a></h3><p>The &quot;Time Bounds&quot; barplot (in the bottom center of the window) tries to present insightful information about the performance limiting factors in the computation:</p><ul><li><code>critical path</code> represents the time spent in the longest sequential path in the DAG (shown in red in the DAG visualization). As said above, it bounds the performance in that even infinitely many threads would still have to compute this path sequentially;</li><li><code>without waiting</code> represents the duration of a hypothetical computation in which all computing time would be evenly distributed among threads (i.e. no thread would ever have to wait). This also bounds the total time because it does not account for dependencies between tasks.</li><li><code>Real</code> represents the measured &quot;wall clock time&quot; of the computation; it should be larger than both of the aforementioned bounds.</li></ul><p>When looking for faster response times, this graph may suggest sensible ways to explore. If the measured time is close to the critical path duration, then adding more threads will be of no help, but decomposing the work in smaller tasks may be useful. On the other hand, if the measured time is close to the &quot;without waiting&quot; bound, then adding more workers may reduce the wall clock time and scale relatively well.</p><h3 id="Times-per-Category-plot"><a class="docs-heading-anchor" href="#Times-per-Category-plot">Times per Category plot</a><a id="Times-per-Category-plot-1"></a><a class="docs-heading-anchor-permalink" href="#Times-per-Category-plot" title="Permalink"></a></h3><p>The &quot;Times per Category&quot; barplot (in the bottom right of the window) displays the total time spent on all threads while performing user-defined tasks (grouped by category as explained above).</p><p>When trying to optimize the sequential performance of the algorithm, this is where one can get data about what actually takes time (and therefore could produce large gains in performance if it could be optimized).</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Getting started</a><a class="docs-footer-nextpage" href="../examples/cholesky/cholesky/">Tiled Cholesky Factorization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Wednesday 1 November 2023 11:56">Wednesday 1 November 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(log_info; categories=[&quot;init&quot;, &quot;mutate&quot;, &quot;read&quot;])</code></pre><img src="fea9f6db.png" alt="Example block output"/><p>The <code>categories</code> keyword argument allows grouping tasks in categories according to their labels. In the example above, all tasks containing <code>&quot;mutate&quot;</code> in their label will be grouped in the same category.</p><p>Note : be careful with giving similar labels. If tasks have &quot;R&quot; and &quot;RW&quot; labels, and the substrings given to the plot&#39;s argument are also &quot;R&quot;, and &quot;RW&quot;, then all tasks will be in the category &quot;R&quot; (because &quot;R&quot; can be found in &quot;RW&quot;). Regular expressions can be given instead of substrings in order to avoid such issues.</p><p>Let us explore the various parts of this graph.</p><h3 id="Parallel-Trace"><a class="docs-heading-anchor" href="#Parallel-Trace">Parallel Trace</a><a id="Parallel-Trace-1"></a><a class="docs-heading-anchor-permalink" href="#Parallel-Trace" title="Permalink"></a></h3><p>The main plot (at the top) is the parallel trace visualization. In this example there were two threads; we can see on which thread the task was run, and the time it took.</p><p>Even though tasks are grouped in categories by considering substrings in their labels, the full label is shown when hovering over a task in the interactive visualization (i.e. when using <code>GLMakie</code> instead of <code>CairoMakie</code>).</p><p>The plot also shows the time spent inserting nodes in the graph (which is part of the overhead incurred by the use of <code>DataFlowTasks</code>): these insertion times are visualized as red tasks. They are not visible for such a small example, but the interactive visualization allows zooming on the plot to search for those small tasks.</p><p>Also note that inserting tasks into the graph involves memory allocations, and may thus trigger garbage collector sweeps. When this happens, the time spent in the garbage collector is also shown in the plot.</p><h3 id="Activity-plot"><a class="docs-heading-anchor" href="#Activity-plot">Activity plot</a><a id="Activity-plot-1"></a><a class="docs-heading-anchor-permalink" href="#Activity-plot" title="Permalink"></a></h3><p>The &quot;activity&quot; barplot (in the bottom left corner of the window) gives us information on the break-down of parallel computing times (summed over all threads):</p><ul><li><code>Computing</code> represents the total time spent in the tasks bodies (i.e. &quot;useful&quot; work);</li><li><code>Inserting</code> represents the total time spent inserting nodes in the DAG (i.e. overhead induced by <code>DataFlowTasks</code>), possibly including any time spent in the GC if it is triggered by a memory allocation in the task insertion process;</li><li><code>Other</code> represents the total idle time on all threads (which may be due to bad scheduling, or simply arise by lack of enough exposed parallelism in the algorithm).</li></ul><h3 id="Time-Bounds-plot"><a class="docs-heading-anchor" href="#Time-Bounds-plot">Time Bounds plot</a><a id="Time-Bounds-plot-1"></a><a class="docs-heading-anchor-permalink" href="#Time-Bounds-plot" title="Permalink"></a></h3><p>The &quot;Time Bounds&quot; barplot (in the bottom center of the window) tries to present insightful information about the performance limiting factors in the computation:</p><ul><li><code>critical path</code> represents the time spent in the longest sequential path in the DAG (shown in red in the DAG visualization). As said above, it bounds the performance in that even infinitely many threads would still have to compute this path sequentially;</li><li><code>without waiting</code> represents the duration of a hypothetical computation in which all computing time would be evenly distributed among threads (i.e. no thread would ever have to wait). This also bounds the total time because it does not account for dependencies between tasks.</li><li><code>Real</code> represents the measured &quot;wall clock time&quot; of the computation; it should be larger than both of the aforementioned bounds.</li></ul><p>When looking for faster response times, this graph may suggest sensible ways to explore. If the measured time is close to the critical path duration, then adding more threads will be of no help, but decomposing the work in smaller tasks may be useful. On the other hand, if the measured time is close to the &quot;without waiting&quot; bound, then adding more workers may reduce the wall clock time and scale relatively well.</p><h3 id="Times-per-Category-plot"><a class="docs-heading-anchor" href="#Times-per-Category-plot">Times per Category plot</a><a id="Times-per-Category-plot-1"></a><a class="docs-heading-anchor-permalink" href="#Times-per-Category-plot" title="Permalink"></a></h3><p>The &quot;Times per Category&quot; barplot (in the bottom right of the window) displays the total time spent on all threads while performing user-defined tasks (grouped by category as explained above).</p><p>When trying to optimize the sequential performance of the algorithm, this is where one can get data about what actually takes time (and therefore could produce large gains in performance if it could be optimized).</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Getting started</a><a class="docs-footer-nextpage" href="../examples/cholesky/cholesky/">Tiled Cholesky Factorization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Wednesday 1 November 2023 12:57">Wednesday 1 November 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
