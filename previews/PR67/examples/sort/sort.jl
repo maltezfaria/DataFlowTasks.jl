@@ -12,6 +12,7 @@
 # how it works, let's consider a small vector of 32 elements:
 
 using Random, CairoMakie
+include("helper.jl")
 Random.seed!(42)
 
 v = randperm(32)
@@ -35,6 +36,7 @@ function merge!(dest, left, right)
     ##   `right` is sorted
     ##   length(left) + length(right) == length(dest)
     ## post-condition:
+    ##   `dest` contains all elements from `left` and `right`
     ##   `dest` is sorted
 
     (i, j) = (1, 1)
@@ -270,20 +272,11 @@ j = searchsortedfirst(right, pivot)
 
 ## We now have both `left` and `right` decomposed into two (hopefully nearly
 ## equal) parts:
-colors = map(i->(1+(i>I)+2*(v[i]>pivot)), eachindex(v))
-fig, ax, _ = barplot(v, color=colors, colormap=:Paired_4, colorrange=(1,4));
-linesegments!(ax,
-              [0, K+1, i-0.5, i-0.5, I+0.5, I+0.5, I+j-0.5, I+j-0.5],
-              [pivot, pivot, -2, pivot+10, -2, K+1, -2, pivot+10],
-              linestyle=:dash, color=:black)
-text!(ax, (i/2, -1), text="1:$(i-1)", align=(:center, :top))
-text!(ax, ((I+i)/2, -1), text="$i:$I", align=(:center, :top))
-text!(ax, (I+j/2, -1), text="1:$(j-1)", align=(:center, :top))
-text!(ax, (I+(J+j)/2, -1), text="$j:$J", align=(:center, :top))
-text!(ax, (0, pivot), text="pivot", align=(:left, :bottom))
-text!(ax, ((I+1)/2, K), text="left", align=(:center, :top), fontsize=24)
-text!(ax, (I+(J+1)/2, K), text="right", align=(:center, :top), fontsize=24)
-fig
+(i₁, i₂) = (1:i-1, i:I)  # partition of `left`
+(j₁, j₂) = (1:j-1, j:J)  # partition of `right`
+
+display_split(v, i₁, i₂, j₁, j₂)
+
 
 # Between them, the first part of `left` and the first part of `right` contain
 # all values lower than or equal to `pivot`: they can be merged together in the
@@ -297,35 +290,35 @@ fig
 ## Find the index which splits `dest` into two parts, according to the number of
 ## elements in the first parts of `left` and `right`
 k = i + j - 1
+(k₁, k₂) = (1:k-1, k:K)  # partition of `dest`
 
 ## Merge the first parts
-(rᵢ, rⱼ, rₖ) = (1:i-1, 1:j-1, 1:k-1)
-@views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+@views merge!(dest[k₁], left[i₁], right[j₁])
 
 ## Merge the second parts
-(rᵢ, rⱼ, rₖ) = (i:I,   j:J,   k:K)
-@views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
+@views merge!(dest[k₂], left[i₂], right[j₂])
 
 ## We now have a fully sorted array
 @assert issorted(dest)
 
-# The following function automates the splitting of the arrays into parts:
+# The following function automates the splitting of the arrays into `P` parts,
+# desribed as a vector of `(iₚ, jₚ, kₚ)` tuples:
 
-function split_indices(N, dest, left, right)
+function split_indices(P, dest, left, right)
     (I, J, K) = length(left), length(right), length(dest)
     @assert I+J == K
 
-    i = ones(Int, N+1)
-    j = ones(Int, N+1)
-    k = ones(Int, N+1)
-    for p in 2:N
-        i[p] = 1 + ((p-1)*I) ÷ N
+    i = ones(Int, P+1)
+    j = ones(Int, P+1)
+    k = ones(Int, P+1)
+    for p in 2:P
+        i[p] = 1 + ((p-1)*I) ÷ P
         j[p] = searchsortedfirst(right, left[i[p]-1])
         k[p] = k[p-1] + i[p]-i[p-1] + j[p]-j[p-1]
     end
-    i[N+1] = I+1; j[N+1] = J+1; k[N+1] = K+1
+    i[P+1] = I+1; j[P+1] = J+1; k[P+1] = K+1
 
-    map(1:N) do p
+    map(1:P) do p
         (i[p]:i[p+1]-1, j[p]:j[p+1]-1, k[p]:k[p+1]-1)
     end
 end
@@ -339,23 +332,23 @@ split_indices(2, dest, left, right)
 
 function parallel_merge_dft!(dest, left, right; label="")
     ## Number of parts in which large blocks will be split
-    N = min(8, ceil(Int, length(dest)/65_536))
+    P = min(8, ceil(Int, length(dest)/65_536))
 
     ## Simple sequential merge for small cases
-    if N <= 1
+    if P <= 1
         DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$label"
         return
     end
 
     ## These are the bounds of a "fake" splitting of `dest` into even blocks,
     ## only used to express data dependencies at "task spawn time"
-    k = round.(Int, LinRange(1, length(dest)+1, N+1))
+    k = round.(Int, LinRange(1, length(dest)+1, P+1))
 
     ## Spawn one task per part
-    for p in 1:N
-        piece = 'A' + p -1
+    for p in 1:P
+        part = 'A' + p -1
 
-        DataFlowTasks.@spawn let
+        DataFlowTasks.@spawn begin
             @R left
             @R right
             @W view(dest, k[p]:k[p+1]-1)
@@ -363,9 +356,9 @@ function parallel_merge_dft!(dest, left, right; label="")
             ## The actual splitting has to be delayed until the tasks actually
             ## run, because it depends on data inside the arrays, which won't be
             ## up-to-date until previous tasks have completed
-            (rᵢ, rⱼ, rₖ) = split_indices(N, dest, left, right)[p]
-            @views merge!(dest[rₖ], left[rᵢ], right[rⱼ])
-        end label="merge $piece\n$label"
+            (iₚ, jₚ, kₚ) = split_indices(P, dest, left, right)[p]
+            @views merge!(dest[kₚ], left[iₚ], right[jₚ])
+        end label="merge $part\n$label"
     end
 end
 
