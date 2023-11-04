@@ -200,7 +200,7 @@ trace = plot(log_info; categories=["chol", "ldiv", "schur"])
 # showing a measured wall clock time not too much longer than the lower bound
 # obtained when suppressing idle time.
 #
-# The computing time breakdown by category seems to indicate that the matrix
+# The "Computing time: breakdown by category" plot seems to indicate that the matrix
 # multiplications performed in the "Schur" tasks account for the majority of the
 # computing time. Trying to optimize these would be a priority to increase the
 # sequential performance of the factorization.
