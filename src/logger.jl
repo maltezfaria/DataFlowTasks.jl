@@ -298,8 +298,8 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
     # numbers are aligned
     elapsed = extloginfo.lasttime - extloginfo.firsttime
     @printf(io, "• Elapsed time %-10s: %.3f\n", "", elapsed)
-    @printf(io, "  ├─ %-20s: %.3f\n", "Critical path", extloginfo.t∞)
-    @printf(io, "  ╰─ %-20s: %.3f\n", "No-wait", extloginfo.t_nowait)
+    @printf(io, "  ├─ %-20s: %.3f\n", "Critical Path", extloginfo.t∞)
+    @printf(io, "  ╰─ %-20s: %.3f\n", "No-Wait", extloginfo.t_nowait)
     @printf(io, "\n")
 
     runtime = extloginfo.computingtime + extloginfo.insertingtime + extloginfo.othertime
@@ -310,8 +310,8 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
         @printf(io, "  │  ├─ %-17s:     %.3f\n", title, extloginfo.timespercat[i])
     end
     @printf(io, "  │  ╰─ %-17s:     %.3f\n", "unlabeled", extloginfo.timespercat[end])
-    @printf(io, "  ├─ %-20s:   %.3f\n", "Task insertion", extloginfo.insertingtime)
-    @printf(io, "  ╰─ %-20s:   %.3f", "Other (waiting)", extloginfo.othertime)
+    @printf(io, "  ├─ %-20s:   %.3f\n", "Task Insertion", extloginfo.insertingtime)
+    @printf(io, "  ╰─ %-20s:   %.3f\n", "Other (idle)", extloginfo.othertime)
 end
 
 #= Gives minimum and maximum times the logger has measured. =#
