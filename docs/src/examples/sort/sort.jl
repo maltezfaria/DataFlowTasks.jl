@@ -439,7 +439,7 @@ bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(
 # The profile plot also shows how merge tasks remain parallel until the very end:
 
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
-plot(log_info, categories=["sort", "merge", "copy", "result"])
+plot(log_info, categories=["sort", "merge", "copy", "result", "split"])
 
 
 # Here, one extra performance limiting factor is the additional work performed
