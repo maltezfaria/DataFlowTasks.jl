@@ -346,12 +346,12 @@ function parallel_merge_dft!(dest, left, right; label="")
         return dest
     end
 
-    # Split the arrays into `P` parts. It is important to use `@spawn` here so
-    # that `split_indices` wait until the previous tasks are finished sorting
+    ## Split the arrays into `P` parts. It is important to use `@spawn` here so
+    ## that `split_indices` wait until the previous tasks are finished sorting
     idxs_t = DataFlowTasks.@spawn split_indices(P, @R(dest), @R(left), @R(right)) label="split\n$label"
     idxs   = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
 
-    # Spawn one task per part
+    ## Spawn one task per part
     for p in 1:P
         part = 'A' + p -1
         iₚ, jₚ, kₚ = idxs[p]
