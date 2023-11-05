@@ -76,7 +76,7 @@ end
 # following results on the test image:
 
 width = 5
-blurred = similar(mat)
+blurred = zero(mat)
 
 blur!(blurred, mat; width)
 
@@ -101,20 +101,20 @@ end
 # Applying this edge detection filter on the original image produces the
 # following results:
 
-contour = similar(mat)
+contour = zero(mat)
 roberts!(contour, mat)
 
 mat2img(PixelType, contour)
 
 # Chaining the blur and roberts filters may make edge detection less noisy:
 
-function blur_roberts!(img; width, tmp=similar(img))
+function blur_roberts!(img; width, tmp=zero(img))
     blur!(tmp, img; width)
     roberts!(img, tmp)
 end
 
 mat1 = copy(mat)
-tmp  = similar(mat)
+tmp  = zero(mat)
 
 blur_roberts!(mat1; width, tmp)
 mat2img(PixelType, mat1)
@@ -152,7 +152,7 @@ roberts_tiled!(dest, src, ts) = map_tiled!(dest, src, ts) do dest, src, tile
     roberts!(dest, src; range=tile)
 end
 
-function blur_roberts_tiled!(img, ts; width, tmp=similar(img))
+function blur_roberts_tiled!(img, ts; width, tmp=zero(img))
     blur_tiled!(tmp, img, ts; width)
     roberts_tiled!(img, tmp, ts)
 end
@@ -216,7 +216,7 @@ end
 # (as long as the blurring of a tile and all its neighbors is performed before
 # the application of the roberts filter on this tile).
 
-function blur_roberts_dft!(img, ts; width, tmp=similar(img))
+function blur_roberts_dft!(img, ts; width, tmp=zero(img))
     blur_dft!(tmp, img, ts; width)
     roberts_dft!(img, tmp, ts)
     @spawn @R(img) label="result"
