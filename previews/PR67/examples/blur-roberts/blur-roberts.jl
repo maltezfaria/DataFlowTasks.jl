@@ -158,8 +158,7 @@ function blur_roberts_tiled!(img, ts; width, tmp=zero(img))
 end
 
 # Decomposing the original image in tiles of size $512\times 512$, the tiled
-# application of the filters yields the same result as above, in a more
-# cache-efficient way:
+# application of the filters yields the same result as above:
 
 ts = 512
 
@@ -168,7 +167,9 @@ blur_roberts_tiled!(mat1, ts; width, tmp)
 
 mat2img(PixelType, mat1)
 
-#-
+# Depending on the system, the fact that memory is now accessed in blocks may
+# (or may not) have a significant impact on the performance, due to cache
+# effects.
 
 t_tiled = @belapsed blur_roberts_tiled!(x, ts; width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1
 
@@ -251,9 +252,9 @@ barplot([t_seq, t_tiled, t_dft],
 # We can gain more insight by collecting profiling data:
 
 GC.gc()
-
 mat1 .= mat;
 log_info = DataFlowTasks.@log wait(blur_roberts_dft!(mat1, ts; width, tmp))
+DataFlowTasks.describe(log_info)
 
 # The parallel trace shows how blur and roberts tasks are interspersed in the time line:
 

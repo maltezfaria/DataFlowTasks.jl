@@ -1,3 +1,7 @@
+cd(@__DIR__)             #src
+import Pkg               #src
+Pkg.activate("../../..") #src
+
 # # [Merge sort](@id example-sort)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](sort.ipynb)
@@ -12,7 +16,7 @@
 # how it works, let's consider a small vector of 32 elements:
 
 using Random, CairoMakie
-include("helper.jl")
+include("helper.jl") # plotting utilities
 Random.seed!(42)
 
 v = randperm(32)
@@ -66,9 +70,9 @@ barplot(v)
 
 # The following sequential implementation automates these steps.
 #
-# First, the vector is decomposed in blocks of size 64 (by default). Each block is
-# sorted using an insertion sort (which works in-place without allocating
-# anything, and is relatively fast for small vectors).
+# First, the vector is decomposed in blocks of size `bs` (`64` by default). Each
+# block is sorted using an insertion sort (which works in-place without
+# allocating anything, and is relatively fast for small vectors).
 #
 # Then, sorted blocks are grouped in pairs which are merged into the buffer. If
 # the number of blocks is odd, the last block is copied directly to the
@@ -200,7 +204,6 @@ end
 
 # As expected, the task graph looks like a (mostly binary) tree:
 
-resize!(DataFlowTasks.get_active_taskgraph(), 2000)
 log_info = DataFlowTasks.@log mergesort_dft!(copy(v))
 
 using GraphViz
@@ -229,6 +232,15 @@ bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
  nthreads = Threads.nthreads(),
  speedup = time(minimum(bench_seq)) / time(minimum(bench_dft)))
 
+# To better understand why the speedup may not be as good as expected, we can
+# inspect the execution trace of the parallel version and visualize it using
+# `Makie`:
+
+log_info = DataFlowTasks.@log mergesort_dft!(copy(data))
+
+using CairoMakie
+plot(log_info; categories = ["sort", "merge", "copy", "result"])
+
 # The parallel profile explains it all: at the beginning of the computation,
 # sorting the small blocks and merging them involves a large number of small
 # tasks. There is a lot of expressed parallelism to be taken advantage of at
@@ -237,11 +249,6 @@ bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
 # larger... until the last merge of the whole array (which is performed
 # sequentially) seemingly accounts for as much as 25% of the whole computation
 # time!
-
-log_info = DataFlowTasks.@log mergesort_dft!(copy(data))
-
-using CairoMakie
-plot(log_info, categories=["sort", "merge", "copy", "result"])
 
 # ## Parallel merge
 
@@ -276,7 +283,6 @@ j = searchsortedfirst(right, pivot)
 (j₁, j₂) = (1:j-1, j:J)  # partition of `right`
 
 display_split(v, i₁, i₂, j₁, j₂)
-
 
 # Between them, the first part of `left` and the first part of `right` contain
 # all values lower than or equal to `pivot`: they can be merged together in the
@@ -337,30 +343,26 @@ function parallel_merge_dft!(dest, left, right; label="")
     ## Simple sequential merge for small cases
     if P <= 1
         DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$label"
-        return
+        return dest
     end
 
-    ## These are the bounds of a "fake" splitting of `dest` into even blocks,
-    ## only used to express data dependencies at "task spawn time"
-    k = round.(Int, LinRange(1, length(dest)+1, P+1))
+    ## Split the arrays into `P` parts. It is important to use `@spawn` here so
+    ## that `split_indices` wait until the previous tasks are finished sorting
+    idxs_t = DataFlowTasks.@spawn split_indices(P, @R(dest), @R(left), @R(right)) label="split\n$label"
+    idxs   = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
 
     ## Spawn one task per part
     for p in 1:P
         part = 'A' + p -1
-
-        DataFlowTasks.@spawn begin
-            @R left
-            @R right
-            @W view(dest, k[p]:k[p+1]-1)
-
-            ## The actual splitting has to be delayed until the tasks actually
-            ## run, because it depends on data inside the arrays, which won't be
-            ## up-to-date until previous tasks have completed
-            (iₚ, jₚ, kₚ) = split_indices(P, dest, left, right)[p]
-            @views merge!(dest[kₚ], left[iₚ], right[jₚ])
-        end label="merge $part\n$label"
+        iₚ, jₚ, kₚ = idxs[p]
+        left′, right′, dest′ = @views left[iₚ], right[jₚ], dest[kₚ]
+        DataFlowTasks.@spawn merge!(@W(dest′), @R(left′), @R(right′)) label="merge $part\n$label"
     end
+    return dest
 end
+
+# With this parallel merge version, we can now re-write the mergesort
+# algorithm to spawn parallel merge tasks:
 
 function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
     N = length(v)
@@ -403,6 +405,8 @@ function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
     v
 end
 
+# Let us check that this new version still works as expected:
+
 N = 100_000
 v = rand(N)
 @assert issorted(parallel_mergesort_dft!(copy(v)))
@@ -410,7 +414,11 @@ v = rand(N)
 # The task graph is now a bit more complicated. Here we see for example that the
 # last level of merge has been split into 2 parts (labelled "merge A" and "merge B"):
 
+## Temporarily stop the DAG cleaner from dynamically removing nodes from the task
+## graph in order to obtain the full "static graph".
+DataFlowTasks.stop_dag_cleaner()
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(v))
+DataFlowTasks.start_dag_cleaner()
 
 using GraphViz
 dag = GraphViz.Graph(log_info)
@@ -419,18 +427,19 @@ DataFlowTasks.savedag("sort_dag.svg", dag) #src
 # Since it expresses more parallelism, this new version performs better:
 
 buf = similar(data)
-bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
+bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 1
 
 #-
 
 (;
- nthreads = Threads.nthreads(),
- speedup = time(minimum(bench_seq)) / time(minimum(bench_dft_tiled)))
+    nthreads = Threads.nthreads(),
+    speedup = time(minimum(bench_seq)) / time(minimum(bench_dft_tiled)),
+)
 
 # The profile plot also shows how merge tasks remain parallel until the very end:
 
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
-plot(log_info, categories=["sort", "merge", "copy", "result"])
+plot(log_info, categories=["sort", "merge", "copy", "result", "split"])
 
 
 # Here, one extra performance limiting factor is the additional work performed

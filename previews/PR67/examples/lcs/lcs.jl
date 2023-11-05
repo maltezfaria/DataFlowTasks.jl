@@ -296,9 +296,12 @@ barplot(
 
 (; nthreads = Threads.nthreads(), speedup  = t_seq / t_par)
 
-# Let's try and understand why. The run-time data collected above can help build
-# a profiling plot, which gives some insight about the performances of our
-# parallel version:
+# Let's try and understand why. The run-time data collected above contains useful information
+
+DFT.describe(log_info; categories = ["init", "tile", "backtrack"])
+
+# which we can also visualize in a profiling plot. This gives some insight about
+# the performances of our parallel version:
 
 plot(log_info; categories = ["init", "tile", "backtrack"])
 
