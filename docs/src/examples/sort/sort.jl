@@ -422,12 +422,12 @@ DataFlowTasks.start_dag_cleaner()
 
 using GraphViz
 dag = GraphViz.Graph(log_info)
+DataFlowTasks.savedag("sort_dag.svg", dag) #src
 
 # Since it expresses more parallelism, this new version performs better:
 
 buf = similar(data)
-bench_dft_tiled =
-    @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 1
+bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 1
 
 #-
 
@@ -440,6 +440,7 @@ bench_dft_tiled =
 
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
 plot(log_info, categories=["sort", "merge", "copy", "result"])
+
 
 # Here, one extra performance limiting factor is the additional work performed
 # by the parallel merge algorithm (*e.g.* finding pivots). Compare for example
