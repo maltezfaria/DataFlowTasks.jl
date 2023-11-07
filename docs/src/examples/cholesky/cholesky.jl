@@ -256,7 +256,7 @@ tdft   = map(bench_dft, nsizes)
 
 fig = Figure()
 ax  = Axis(fig[1,1], xlabel="Matrix size", ylabel="Time (s)",
-    title = "Cholesky factorization on $(Threads.nthreads()) threads")
+           title = "Cholesky factorization on $(Threads.nthreads()) threads")
 scatterlines!(ax, nsizes, tblas, label= "OpenBLAS", linewidth=2)
 scatterlines!(ax, nsizes, tdft, label="DFT", linewidth=2)
 axislegend(position=:lt)
@@ -270,7 +270,8 @@ fig
 # a matrix of size $n=4096$:
 
 (;
-speedup = bench_tiled(4096) / bench_dft(4096),
+ threads = Threads.nthreads(),
+ speedup = bench_tiled(4096) / bench_dft(4096),
 )
 
 # ## Hardware specifications
