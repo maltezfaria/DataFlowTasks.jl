@@ -9,59 +9,59 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 184)">
 <title>dag</title>
 <polygon fill="white" stroke="transparent" points="-4,4 -4,-184 236.24,-184 236.24,4 -4,4"/>
-<!-- 52309 -->
+<!-- 52565 -->
 <g id="node1" class="node">
-<title>52309</title>
+<title>52565</title>
 <ellipse fill="none" stroke="black" stroke-width="2" cx="53.3" cy="-162" rx="36" ry="18"/>
 <text text-anchor="middle" x="53.3" y="-158.3" font-family="Times,serif" font-size="14.00">init A</text>
 </g>
-<!-- 52311 -->
-<g id="node4" class="node">
-<title>52311</title>
+<!-- 52567 -->
+<g id="node3" class="node">
+<title>52567</title>
 <ellipse fill="none" stroke="black" stroke-width="2" cx="53.3" cy="-90" rx="53.09" ry="18"/>
 <text text-anchor="middle" x="53.3" y="-86.3" font-family="Times,serif" font-size="14.00">mutate A</text>
 </g>
-<!-- 52309&#45;&gt;52311 -->
-<g id="edge2" class="edge">
-<title>52309&#45;&gt;52311</title>
+<!-- 52565&#45;&gt;52567 -->
+<g id="edge1" class="edge">
+<title>52565&#45;&gt;52567</title>
 <path fill="none" stroke="black" stroke-width="2" d="M53.3,-143.7C53.3,-135.98 53.3,-126.71 53.3,-118.11"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="56.8,-118.1 53.3,-108.1 49.8,-118.1 56.8,-118.1"/>
 </g>
-<!-- 52312 -->
+<!-- 52566 -->
 <g id="node2" class="node">
-<title>52312</title>
-<ellipse fill="none" stroke="red" stroke-width="2" cx="178.3" cy="-90" rx="53.89" ry="18"/>
-<text text-anchor="middle" x="178.3" y="-86.3" font-family="Times,serif" font-size="14.00">mutate B</text>
-</g>
-<!-- 52313 -->
-<g id="node5" class="node">
-<title>52313</title>
-<ellipse fill="none" stroke="red" stroke-width="2" cx="115.3" cy="-18" rx="50.89" ry="18"/>
-<text text-anchor="middle" x="115.3" y="-14.3" font-family="Times,serif" font-size="14.00">read A,B</text>
-</g>
-<!-- 52312&#45;&gt;52313 -->
-<g id="edge4" class="edge">
-<title>52312&#45;&gt;52313</title>
-<path fill="none" stroke="red" stroke-width="2" d="M163.37,-72.41C155.44,-63.61 145.56,-52.63 136.82,-42.92"/>
-<polygon fill="red" stroke="red" stroke-width="2" points="139.41,-40.56 130.12,-35.47 134.21,-45.24 139.41,-40.56"/>
-</g>
-<!-- 52310 -->
-<g id="node3" class="node">
-<title>52310</title>
+<title>52566</title>
 <ellipse fill="none" stroke="red" stroke-width="2" cx="178.3" cy="-162" rx="36.29" ry="18"/>
 <text text-anchor="middle" x="178.3" y="-158.3" font-family="Times,serif" font-size="14.00">init B</text>
 </g>
-<!-- 52310&#45;&gt;52312 -->
-<g id="edge1" class="edge">
-<title>52310&#45;&gt;52312</title>
+<!-- 52568 -->
+<g id="node5" class="node">
+<title>52568</title>
+<ellipse fill="none" stroke="red" stroke-width="2" cx="178.3" cy="-90" rx="53.89" ry="18"/>
+<text text-anchor="middle" x="178.3" y="-86.3" font-family="Times,serif" font-size="14.00">mutate B</text>
+</g>
+<!-- 52566&#45;&gt;52568 -->
+<g id="edge4" class="edge">
+<title>52566&#45;&gt;52568</title>
 <path fill="none" stroke="red" stroke-width="2" d="M178.3,-143.7C178.3,-135.98 178.3,-126.71 178.3,-118.11"/>
 <polygon fill="red" stroke="red" stroke-width="2" points="181.8,-118.1 178.3,-108.1 174.8,-118.1 181.8,-118.1"/>
 </g>
-<!-- 52311&#45;&gt;52313 -->
-<g id="edge3" class="edge">
-<title>52311&#45;&gt;52313</title>
+<!-- 52569 -->
+<g id="node4" class="node">
+<title>52569</title>
+<ellipse fill="none" stroke="red" stroke-width="2" cx="115.3" cy="-18" rx="50.89" ry="18"/>
+<text text-anchor="middle" x="115.3" y="-14.3" font-family="Times,serif" font-size="14.00">read A,B</text>
+</g>
+<!-- 52567&#45;&gt;52569 -->
+<g id="edge2" class="edge">
+<title>52567&#45;&gt;52569</title>
 <path fill="none" stroke="black" stroke-width="2" d="M67.99,-72.41C75.71,-63.69 85.32,-52.85 93.85,-43.21"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="96.7,-45.28 100.71,-35.47 91.46,-40.64 96.7,-45.28"/>
+</g>
+<!-- 52568&#45;&gt;52569 -->
+<g id="edge3" class="edge">
+<title>52568&#45;&gt;52569</title>
+<path fill="none" stroke="red" stroke-width="2" d="M163.37,-72.41C155.44,-63.61 145.56,-52.63 136.82,-42.92"/>
+<polygon fill="red" stroke="red" stroke-width="2" points="139.41,-40.56 130.12,-35.47 134.21,-45.24 139.41,-40.56"/>
 </g>
 </g>
 </svg>
