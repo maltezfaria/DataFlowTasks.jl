@@ -147,7 +147,7 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
 
     for i₀ in 1:bs:N
         i₁ = min(i₀+bs-1, N)
-        DataFlowTasks.@spawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
+        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
     end
 
     ## WARNING: (from, to) are not local to each task but will later be re-bound
@@ -163,7 +163,7 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
                 left  = @view from[i₀:i₁-1]
                 right = @view from[i₁:i₂]
                 dest  = @view to[i₀:i₂]
-                DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$i₀:$i₂"
+                @dspawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$i₀:$i₂"
             end
             i₀ = i₂+1
         end
@@ -171,7 +171,7 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
             let # Create new bindings which will be captured in the task body
                 src  = @view from[i₀:N]
                 dest = @view to[i₀:N]
-                DataFlowTasks.@spawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
+                @dspawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
             end
         end
 
@@ -179,7 +179,7 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
         (from, to) = (to, from)
     end
 
-    final_task = DataFlowTasks.@spawn @R(from) label="result"
+    final_task = @dspawn @R(from) label="result"
     fetch(final_task)
     v === from || copy!(v, from)
     v
@@ -237,8 +237,6 @@ bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
 # `Makie`:
 
 log_info = DataFlowTasks.@log mergesort_dft!(copy(data))
-
-using CairoMakie
 plot(log_info; categories = ["sort", "merge", "copy", "result"])
 
 # The parallel profile explains it all: at the beginning of the computation,
@@ -342,13 +340,13 @@ function parallel_merge_dft!(dest, left, right; label="")
 
     ## Simple sequential merge for small cases
     if P <= 1
-        DataFlowTasks.@spawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$label"
+        @dspawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$label"
         return dest
     end
 
-    ## Split the arrays into `P` parts. It is important to use `@spawn` here so
+    ## Split the arrays into `P` parts. It is important to use `@dspawn` here so
     ## that `split_indices` wait until the previous tasks are finished sorting
-    idxs_t = DataFlowTasks.@spawn split_indices(P, @R(dest), @R(left), @R(right)) label="split\n$label"
+    idxs_t = @dspawn split_indices(P, @R(dest), @R(left), @R(right)) label="split\n$label"
     idxs   = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
 
     ## Spawn one task per part
@@ -356,7 +354,7 @@ function parallel_merge_dft!(dest, left, right; label="")
         part = 'A' + p -1
         iₚ, jₚ, kₚ = idxs[p]
         left′, right′, dest′ = @views left[iₚ], right[jₚ], dest[kₚ]
-        DataFlowTasks.@spawn merge!(@W(dest′), @R(left′), @R(right′)) label="merge $part\n$label"
+        @dspawn merge!(@W(dest′), @R(left′), @R(right′)) label="merge $part\n$label"
     end
     return dest
 end
@@ -369,7 +367,7 @@ function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
 
     for i₀ in 1:bs:N
         i₁ = min(i₀+bs-1, N)
-        DataFlowTasks.@spawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
+        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
     end
 
     (from, to) = (v, buf)
@@ -391,7 +389,7 @@ function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
             let
                 src  = @view from[i₀:N]
                 dest = @view to[i₀:N]
-                DataFlowTasks.@spawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
+                @dspawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
             end
         end
 
@@ -399,7 +397,7 @@ function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
         (from, to) = (to, from)
     end
 
-    final_task = DataFlowTasks.@spawn @R(from) label="result"
+    final_task = @dspawn @R(from) label="result"
     fetch(final_task)
     v === from || copy!(v, from)
     v
