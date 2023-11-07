@@ -9,10 +9,8 @@ Pkg.activate("../../..") #src
 #
 # We illustrate here the use of `DataFlowTasks` to parallelize a tiled Cholesky
 # factorization. The implementation shown here is delibarately made as simple
-# and self-contained as possible; a more complex and more efficient
-# implementation can be found in the
-# [TiledFactorization](https://github.com/maltezfaria/TiledFactorization)
-# package.
+# and self-contained as possible; yet, as we shall see when comparing to
+# *OpenBLAS*, it is already quite performant!
 
 #-
 
@@ -234,19 +232,26 @@ function bench_blas(n)
     return @belapsed cholesky!(A) setup=(A=spd_matrix($n)) evals=1
 end
 
+function bench_tiled(n;tilesize=512)
+    BLAS.set_num_threads(1)
+    return @belapsed cholesky_tiled!(A, $tilesize) setup=(A=spd_matrix($n)) evals=1
+end
+
 function bench_dft(n;tilesize=512)
     BLAS.set_num_threads(1)
     return @belapsed cholesky_dft!(A, $tilesize) setup=(A=spd_matrix($n)) evals=1
 end
 
-# Let us compare the performances of the default *BLAS*  library and ours:
+# Let us compare the performances of the default *BLAS*  library and ours for
+# various matrix sizes, and plot the results:
 
 BLAS.get_config()
 
 #-
 
-nsizes = 1024 .* (1:10)
+nsizes = 1024 .* (1:8)
 tblas  = map(bench_blas, nsizes)
+tseq   = map(bench_tiled, nsizes)
 tdft   = map(bench_dft, nsizes)
 
 fig = Figure()
@@ -255,14 +260,19 @@ scatterlines!(ax, nsizes, tblas, label= "OpenBLAS", linewidth=2)
 scatterlines!(ax, nsizes, tdft, label="DFT", linewidth=2)
 axislegend(position=:lt)
 
-ax  = Axis(fig[1,2], xlabel="Matrix size", ylabel="Speedup ( BLAS / DFT )")
-scatterlines!(ax, nsizes, tblas ./ tdft, linewidth=2)
+ax  = Axis(fig[1,2], xlabel="Matrix size", ylabel="Speedup ( sequential / parallel )")
+scatterlines!(ax, nsizes, tseq ./ tdft, linewidth=2)
+
 fig[0, :] = Label(fig, "Cholesky factorization on $(Threads.nthreads()) threads"; fontsize = 20)
 fig
 
-#=
-!!! note "Hardware specifications"
-    The benchmark was run on a machine with 2x10 Intel Xeon Silver 4114 cores
-    (2.20GHz) with the following topology:
-    ![](lfaria-precision-7920-tower-lstopo.png)
-=#
+# We see that, despite the simplicity of the implementation, the parallel
+# version performs *in par* with the default *BLAS* library for the matrix sizes
+# considered! For very large matrices, further optmizations are probably
+# necessary to take into account the memory hierarchy of the machine.
+
+# ## Hardware specifications
+
+# This benchmark was run on a machine with 2x10 Intel Xeon Silver 4114 cores
+# (2.20GHz) and the following topology:
+# ![](lfaria-precision-7920-tower-lstopo.png)
