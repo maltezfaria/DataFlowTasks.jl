@@ -51,9 +51,6 @@ Pkg.activate("../../..") #src
 #
 # A sequential tiled factorization algorithm can be implemented as:
 
-const USE_MKL = false
-USE_MKL && using MKL
-
 using LinearAlgebra
 BLAS.set_num_threads(1) #src
 
@@ -140,7 +137,7 @@ function cholesky_dft!(A, ts)
         ## Submatrix update
         for j in i+1:n
             for k in j:n
-                @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+                @dspawn schur_complement!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k])) label="schur ($j,$k)"
             end
         end
     end
@@ -149,6 +146,8 @@ function cholesky_dft!(A, ts)
     r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
     return fetch(r)
 end
+
+schur_complement!(C, A, B) = mul!(C, A, B, -1, 1)
 
 # Again, let us check the correctness of the result:
 
@@ -198,24 +197,27 @@ trace = plot(log_info; categories=["chol", "ldiv", "schur"])
 
 # The overhead incurred by `DataFlowTasks` seems relatively small here: the time
 # taken inserting tasks is barely measurable, and the scheduling did not lead to
-# threads waiting idly for too long. This is confirmed by the bottom middle plot,
-# showing a measured wall clock time not too much longer than the lower bound
-# obtained when suppressing idle time.
+# threads waiting idly for too long. This is confirmed by the bottom middle
+# plot, showing a measured wall clock time not too much longer than the lower
+# bound obtained when suppressing idle time.
 #
 # The "Computing time: breakdown by category" plot seems to indicate that the
 # matrix multiplications performed in the "Schur" tasks account for the majority
-# of the computing time, suggeseting we should optimize this to increase the
-# sequential performance of the factorization.
+# of the computing time. This routine is probably already quite fast since it
+# simply calls our *BLAS* library for a *matrix-matrix* product; it would be
+# interesting, however, to see how
+# [`LoopVectorization.jl`](https://github.com/JuliaSIMD/LoopVectorization.jl)
+# fares here!
 
 #-
 
 # # Performances
 
-# To benchmark the performance, we will compare our somewhat naive
-# implementation to the one provided by our system's BLAS library. We will use
+# To benchmark the performance, we will compare our implementation to the one
+# provided by our system's BLAS library. We will use
 # [OpenBlas](https://www.openblas.net) here because it is the default BLAS
-# library on our system, but if you have access to Intel's MKL, you should
-# probably use it! Here is a simple benchmark:
+# library shipped with *Julia*, but if you have access to Intel's MKL, you
+# should probably give it a try! Here is the benchmark:
 
 using BenchmarkTools
 
@@ -243,52 +245,24 @@ BLAS.get_config()
 
 #-
 
-nsizes = 512 .* (1:2:20)
+nsizes = 1024 .* (1:10)
 tblas  = map(bench_blas, nsizes)
 tdft   = map(bench_dft, nsizes)
 
 fig = Figure()
 ax  = Axis(fig[1,1], xlabel="Matrix size", ylabel="Time (s)")
-scatterlines!(ax, nsizes, tblas, label= USE_MKL ? "MKL" : "OpenBLAS", linewidth=2)
+scatterlines!(ax, nsizes, tblas, label= "OpenBLAS", linewidth=2)
 scatterlines!(ax, nsizes, tdft, label="DFT", linewidth=2)
 axislegend(position=:lt)
 
-ax  = Axis(fig[1,2], xlabel="Matrix size", ylabel="BLAS / DFT")
+ax  = Axis(fig[1,2], xlabel="Matrix size", ylabel="Speedup ( BLAS / DFT )")
 scatterlines!(ax, nsizes, tblas ./ tdft, linewidth=2)
-fig[0, :] = Label(fig, "Cholesky factorization on $(Threads.nthreads()) threads")
+fig[0, :] = Label(fig, "Cholesky factorization on $(Threads.nthreads()) threads"; fontsize = 20)
 fig
 
 #=
-
-!!! note "Using MKL"
-    To use the [Intel MKL
-    library](https://en.wikipedia.org/wiki/Math_Kernel_Library), you need set
-    the `USE_MKL` variable at the top of this notebook to `true`, and re-run
-    this notebook on a new Julia session. That is because the `MKL.jl` package
-    must be the first package to be loaded (see [this
-    link](https://docs.juliahub.com/MKL/tDGGv/0.4.4/#Usage))
-
+!!! note "Hardware specifications"
+    The benchmark was run on a machine with 2x10 Intel Xeon Silver 4114 cores
+    (2.20GHz) with the following topology:
+    ![](lfaria-precision-7920-tower-lstopo.png)
 =#
-
-# The performance of this example can be improved by using better
-# implementations for the sequential building blocks operating on tiles:
-#
-# - `LoopVectorization.jl` can improve the performance of the sequential
-#   cholesky factorization of diagonal blocks as well as the `schur_complement`
-# - `TriangularSolve.jl` provides a high-performance `ldiv!` implementation
-#
-# This approach is pursued in
-# [`TiledFactorization.jl`](https://github.com/maltezfaria/TiledFactorization),
-# where all the above mentioned building blocks are combined with the
-# parallelization strategy presented here to create a *pure Julia*
-# implementation of the matrix factorizations. The performances of this
-# implementation is assessed in the following plot, by comparison to MKL on a
-# the case of a 5000x5000 matrix decomposed in tiles of size 256x256.
-#
-# ![](cholesky_scaling.png)
-#
-# The figure above was generated by running [this
-# script](https://github.com/maltezfaria/TiledFactorization/blob/daafed7b6981853b6c71e7441fd9b212582836db/benchmarks/cholesky_scaling.sh)
-# on a machine with 2x10 Intel Xeon Silver 4114 cores (2.20GHz) with the following topology:
-#
-# ![](lfaria-precision-7920-tower-lstopo.png)
