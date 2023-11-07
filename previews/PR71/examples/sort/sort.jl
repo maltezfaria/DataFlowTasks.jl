@@ -336,7 +336,7 @@ split_indices(2, dest, left, right)
 
 function parallel_merge_dft!(dest, left, right; label="")
     ## Number of parts in which large blocks will be split
-    P = min(8, ceil(Int, length(dest)/65_536))
+    P = min(Threads.nthreads(), ceil(Int, length(dest)/65_536))
 
     ## Simple sequential merge for small cases
     if P <= 1

@@ -258,7 +258,3 @@ DataFlowTasks.describe(log_info)
 # The parallel trace shows how blur and roberts tasks are interspersed in the time line:
 
 trace = plot(log_info, categories=["blur", "roberts"])
-
-# In terms of performance, elapsed time seems to be bounded in this case by the
-# total computing time of all threads. Re-running the same computation with more
-# threads may help reduce the overall wall-clock time.
