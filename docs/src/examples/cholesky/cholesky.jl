@@ -276,4 +276,5 @@ speedup = bench_tiled(4096) / bench_dft(4096),
 
 # This benchmark was run on a machine with 2x10 Intel Xeon Silver 4114 cores
 # (2.20GHz) and the following topology:
+#
 # ![](lfaria-precision-7920-tower-lstopo.png)
