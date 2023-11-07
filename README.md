@@ -25,13 +25,13 @@ Pkd.add("https://github.com/maltezfaria/DataFlowTasks.jl.git")
 
 ## Basic Usage
 
-This package defines a `@dspawn` macro type which behaves very much like
+This package defines a `@dspawn` macro which behaves very much like
 `Threads.@spawn`, except that it allows the user to specify explicit *data
-dependencies* for the spawned `Task`. This information is then be used to
-automatically infer *task dependencies* by constructing and analyzing a directed
-acyclic graph based on how tasks access the underlying data. The premise is that
-it is sometimes simpler to specify how *tasks depend on data* than to specify
-how *tasks depend on each other*.
+dependencies* for the spawned `Task`. This information is then used to
+automatically infer *task dependencies* by constructing and analyzing a
+directed acyclic graph based on how tasks access the underlying data. The
+premise is that it is sometimes simpler to specify how *tasks depend on data*
+than to specify how *tasks depend on each other*.
 
 When creating a `Task` using `@dspawn`, the following
 annotations can be used to declare how the `Task` accesses the data:
