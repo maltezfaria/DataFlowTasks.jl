@@ -51,6 +51,9 @@ Pkg.activate("../../..") #src
 #
 # A sequential tiled factorization algorithm can be implemented as:
 
+const USE_MKL = true
+USE_MKL && using MKL
+
 using LinearAlgebra
 BLAS.set_num_threads(1) #src
 
@@ -199,14 +202,69 @@ trace = plot(log_info; categories=["chol", "ldiv", "schur"])
 # showing a measured wall clock time not too much longer than the lower bound
 # obtained when suppressing idle time.
 #
-# The "Computing time: breakdown by category" plot seems to indicate that the matrix
-# multiplications performed in the "Schur" tasks account for the majority of the
-# computing time. Trying to optimize these would be a priority to increase the
+# The "Computing time: breakdown by category" plot seems to indicate that the
+# matrix multiplications performed in the "Schur" tasks account for the majority
+# of the computing time, suggeseting we should optimize this to increase the
 # sequential performance of the factorization.
 
 #-
 
 # # Performances
+
+# To benchmark the performance, we will compare our somewhat naive
+# implementation to the one provided by our system's BLAS library. We will use
+# [OpenBlas](https://www.openblas.net) here because it is the default BLAS
+# library on our system, but if you have access to Intel's MKL, you should
+# probably use it! Here is a simple benchmark:
+
+using BenchmarkTools
+
+## n × n symmetric positive definite matrix
+function spd_matrix(n)
+    A = rand(n, n)
+    A = (A + adjoint(A))/2
+    return A + n*I
+end
+
+function bench_blas(n)
+    nt = Threads.nthreads()
+    BLAS.set_num_threads(nt)
+    return @belapsed cholesky!(A) setup=(A=spd_matrix($n)) evals=1
+end
+
+function bench_dft(n;tilesize=256)
+    BLAS.set_num_threads(1)
+    return @belapsed cholesky_dft!(A, $tilesize) setup=(A=spd_matrix($n)) evals=1
+end
+
+# Let us compare the performances of the default *BLAS*  library and ours:
+
+BLAS.get_config()
+
+#-
+
+nsizes = 2 .^ (8:13)
+tblas  = map(bench_blas, nsizes)
+tdft   = map(bench_dft, nsizes)
+
+fig = Figure(;title="Cholesky factorization on $(Threads.nthreads()) threads")
+ax  = Axis(fig[1,1], xlabel="Matrix size", ylabel="Time (s)")
+scatterlines!(ax, nsizes, tblas, label= USE_MKL ? "MKL" : "OpenBLAS", linewidth=2)
+scatterlines!(ax, nsizes, tdft, label="DFT", linewidth=2)
+axislegend(position=:lt)
+fig
+
+#=
+
+!!! note "Using MKL"
+    To use the [Intel MKL
+    library](https://en.wikipedia.org/wiki/Math_Kernel_Library), you need set
+    the `USE_MKL` variable at the top of this notebook to `true`, and re-run
+    this notebook on a new Julia session. That is because the `MKL.jl` package
+    must be the first package to be loaded in order (see [this
+    link](https://docs.juliahub.com/MKL/tDGGv/0.4.4/#Usage))
+
+=#
 
 # The performance of this example can be improved by using better
 # implementations for the sequential building blocks operating on tiles:
