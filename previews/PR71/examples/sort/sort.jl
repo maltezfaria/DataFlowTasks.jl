@@ -434,7 +434,8 @@ bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(
     speedup = time(minimum(bench_seq)) / time(minimum(bench_dft_tiled)),
 )
 
-# The profile plot also shows how merge tasks remain parallel until the very end:
+# The profile plot also shows how merge tasks remain parallel until the very
+# end, even though each large merge forces all threads to synchronize:
 
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
 plot(log_info, categories=["sort", "merge", "copy", "result", "split"])
