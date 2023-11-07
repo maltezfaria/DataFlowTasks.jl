@@ -7,7 +7,7 @@ CurrentModule = DataFlowTasks
 
 ## Basic usage
 
-This package defines a [`@spawn`](@ref) macro type which behaves very much like
+This package defines a [`@dspawn`](@ref) macro type which behaves very much like
 `Threads.@spawn`, except that it allows the user to specify explicit *data
 dependencies* for the spawned `Task`. This information is then be used to
 automatically infer *task dependencies* by constructing and analyzing a directed
@@ -15,7 +15,7 @@ acyclic graph based on how tasks access the underlying data. The premise is that
 it is sometimes simpler to specify how *tasks depend on data* than to specify
 how *tasks depend on each other*.
 
-When creating a `Task` using [`DataFlowTasks.@spawn`](@ref), the following
+When creating a `Task` using [`@dspawn`](@ref), the following
 annotations can be used to declare how the `Task` accesses the data:
 
 - read-only: `@R` or `@READ`
@@ -26,12 +26,12 @@ An `@R(A)` annotation for example implies that *data* `A` will be accessed in
 read-only mode by the *task*. Here is a simple example:
 
 ```@example simple-example
-using DataFlowTasks: @spawn
+using DataFlowTasks
 
 n = 100_000
 A = ones(n)
 
-d1 = @spawn begin
+d1 = @dspawn begin
     @RW A
 
     # in-place work on A
@@ -41,9 +41,9 @@ d1 = @spawn begin
 end
 
 # reduce A
-d2 = @spawn sum(@R A)
+d2 = @dspawn sum(@R A)
 # The above is a shortcut for:
-#   d2 = @spawn begin
+#   d2 = @dspawn begin
 #       @R A
 #       sum(A)
 #   end
@@ -62,7 +62,7 @@ wait on `d1` because of an inferred data dependency. The outcome is thus always
 zero.
 
 !!! note
-    If you replace `DataFlowTasks.@spawn` by `Threads.@spawn` in the example above (and pick
+    If you replace `DataFlowTasks.@dspawn` by `Threads.@spawn` in the example above (and pick
     an `n` large enough) you will see that you no longer get `0` because `d2`
     may access an element of `A` before it has been replaced by zero!
 
@@ -70,7 +70,7 @@ zero.
     In the `d2` example above, a shortcut syntax was introduced, which
     allows putting access mode annotations directly around arguments in a
     function call. This is especially useful when the task body is a one-liner.
-    See [`@spawn`](@ref) for an exhaustive list of supported ways to create
+    See [`@dspawn`](@ref) for an exhaustive list of supported ways to create
     tasks and specify data dependencies.
 
 No parallelism was allowed in the previous example due to a data conflict. To
@@ -78,24 +78,24 @@ see that when parallelism is possible, `DataFlowTasks` will exploit it,
 consider this one last example:
 
 ```@example simple-example
-using DataFlowTasks: @spawn
+using DataFlowTasks
 
 function run(A)
-    d1 = @spawn begin
+    d1 = @dspawn begin
         @W A # write to A
         sleep(1)
         fill!(A,0)
     end
 
     # a reduction on A
-    d2 = @spawn begin
+    d2 = @dspawn begin
         @R A # read from A
         sleep(10)
         sum(A)
     end
 
     # another reduction on A
-    d3 = @spawn sum(@R(A))
+    d3 = @dspawn sum(@R(A))
 
     t = @elapsed c = fetch(d3)
 
@@ -177,7 +177,7 @@ You can now `spawn` tasks with your custom type `CirculantMatrix` as a data
 dependency, and things should work as expected:
 
 ```@example memory-overlap
-using DataFlowTasks: @spawn
+using DataFlowTasks
 
 v  = ones(5);
 M1 = CirculantMatrix(v);
@@ -185,13 +185,13 @@ M2 = CirculantMatrix(copy(v));
 
 Base.sum(M::CirculantMatrix) = length(M.data)*sum(M.data)
 
-d1 = @spawn begin
+d1 = @dspawn begin
     @W v
     sleep(0.5)
     fill!(v,0) 
 end;
-d2 = @spawn sum(@R M1)
-d3 = @spawn sum(@R M2)
+d2 = @dspawn sum(@R M1)
+d3 = @dspawn sum(@R M2)
 
 fetch(d3) # 25
 fetch(d2) # 0
@@ -201,7 +201,7 @@ nothing # hide
 
 ## Task graph
 
-Each time a `Task` is spawned using `DataFlowTasks.@spawn`, it is added to an
+Each time a `Task` is spawned using `@dspawn`, it is added to an
 internal `TaskGraph` (see [`get_active_taskgraph`](@ref)) so that its
 data-dependencies can be tracked and analyzed. There are two important things to
 know about `TaskGraph` objects. First, they are buffered to handle at most
@@ -229,11 +229,11 @@ Finished nodes will now remain in the DAG:
 
 ```@example scheduler
 A = ones(5)
-DataFlowTasks.@spawn begin 
+@dspawn begin
     @RW A
     A .= 2 .* A
 end
-DataFlowTasks.@spawn sum(@R A)
+@dspawn sum(@R A)
 taskgraph
 ```
 

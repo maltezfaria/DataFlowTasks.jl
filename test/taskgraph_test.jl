@@ -1,5 +1,6 @@
 using Test
 using LinearAlgebra
+using DataFlowTasks
 import DataFlowTasks as DFT
 
 include(joinpath(DFT.PROJECT_ROOT, "test", "testutils.jl"))
@@ -40,15 +41,15 @@ end
     n = 10
     A = ones(n)
     # a first task that errors
-    t1 = DFT.@spawn error() (@RW A)
+    t1 = @dspawn error() (@RW A)
     # a second task that hangs
-    t2 = DFT.@spawn identity(@RW A)
+    t2 = @dspawn identity(@RW A)
     # check that scheduler is in limbo
     tg = DFT.get_active_taskgraph()
     @test DFT.num_nodes(tg.dag) == 2
     # restart scheduler and make sure it runs again
     empty!(tg)
     @test DFT.num_nodes(tg.dag) == 0
-    t = DFT.@spawn sum(@R A)
+    t = @dspawn sum(@R A)
     @test fetch(t) == n
 end

@@ -142,14 +142,14 @@ Execute `f()` and log `DataFlowTask`s into the `loginfo` object.
 ## Examples:
 
 ```jldoctest; output = false
-using DataFlowTasks: @spawn
+using DataFlowTasks
 
 A,B = zeros(2), ones(2);
 
 out,loginfo = DataFlowTasks.with_logging() do
-    @spawn fill!(@W(A),1)
-    @spawn fill!(@W(B),1)
-    res = @spawn sum(@R(A)) + sum(@R(B))
+    @dspawn fill!(@W(A),1)
+    @dspawn fill!(@W(B),1)
+    res = @dspawn sum(@R(A)) + sum(@R(B))
     fetch(res)
 end
 

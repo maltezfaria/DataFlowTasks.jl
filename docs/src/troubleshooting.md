@@ -2,7 +2,7 @@
 
 ## [Tricky behavior of captured variables](@id troubleshooting-captures)
 
-It is easy to forget that `DataFlowTasks.@spawn`, like its siblings `@async` or
+It is easy to forget that `DataFlowTasks.@dspawn`, like its siblings `@async` or
 `Threads.@spawn`, wraps its body in an anonymous function. This can lead to
 unexpected behavior when variables are captured in these closures at task spawn
 time, and re-bound before task execution time.
@@ -48,7 +48,7 @@ copies `NaN`s into the original array.
 !!! note
 
     In a real code, one would probably schedule the task as soon as it is created
-    (using `@async`, `Threads.@spawn` or `DataFlowTasks.@spawn`). In such cases, the
+    (using `@async`, `Threads.@spawn` or `DataFlowTasks.@dspawn`). In such cases, the
     result may vary from run to run, depending on whether the task actually starts
     before the bindings are swapped, or not.
 

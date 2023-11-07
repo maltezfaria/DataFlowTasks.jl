@@ -1,5 +1,6 @@
 using Test
 using LinearAlgebra
+using DataFlowTasks
 import DataFlowTasks as DFT
 
 # NOTE: the functions below call sleep to make sure the computation does not finish
@@ -8,11 +9,11 @@ import DataFlowTasks as DFT
 computing(A) = (sleep(0.01); A * A)
 computing(A, B) = (sleep(0.01); A * B)
 function work(A, B)
-    DFT.@spawn computing(@RW(A)) label = "A²"
-    DFT.@spawn computing(@RW(A)) label = "A²"
-    DFT.@spawn computing(@RW(A)) label = "A²"
-    DFT.@spawn computing(@RW(B)) label = "B²"
-    res = DFT.@spawn computing(@RW(A), @RW(B)) label = "A*B"
+    @dspawn computing(@RW(A)) label = "A²"
+    @dspawn computing(@RW(A)) label = "A²"
+    @dspawn computing(@RW(A)) label = "A²"
+    @dspawn computing(@RW(B)) label = "B²"
+    res = @dspawn computing(@RW(A), @RW(B)) label = "A*B"
     return fetch(res)
 end
 

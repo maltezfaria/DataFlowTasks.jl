@@ -22,7 +22,6 @@ introduced here:
 
 ```@example profiling
 using DataFlowTasks
-using DataFlowTasks: @spawn
 DataFlowTasks.stack_weakdeps_env!() #hide
 
 # Utility functions
@@ -33,15 +32,15 @@ result(x,y) = sum(x) + sum(y)   # Read
 # Main work function
 function work(A, B)
     # Initialization
-    @spawn init!(@W(A))               label="init A"
-    @spawn init!(@W(B))               label="init B"
+    @dspawn init!(@W(A))               label="init A"
+    @dspawn init!(@W(B))               label="init B"
 
     # Mutation
-    @spawn mutate!(@RW(A))            label="mutate A"
-    @spawn mutate!(@RW(B))            label="mutate B"
+    @dspawn mutate!(@RW(A))            label="mutate A"
+    @dspawn mutate!(@RW(B))            label="mutate B"
 
     # Final read
-    res = @spawn result(@R(A), @R(B)) label="read A,B"
+    res = @dspawn result(@R(A), @R(B)) label="read A,B"
     fetch(res)
 end
 ```
@@ -113,7 +112,7 @@ DataFlowTasks.savedag("profiling-example.svg", dag)
 nothing # hide
 ```
 
-Note how the task labels (which were provided as extra arguments to `@spawn`)
+Note how the task labels (which were provided as extra arguments to `@dspawn`)
 are used in the DAG rendering and make it more readable. In the DAG
 visualization, the *critical path* is highlighted in red: it is the sequential
 path that took the longest run time during the computation.
