@@ -218,6 +218,7 @@ trace = plot(log_info; categories=["chol", "ldiv", "schur"])
 # should probably give it a try! Here is the benchmark:
 
 using BenchmarkTools
+BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1
 
 ## n × n symmetric positive definite matrix
 function spd_matrix(n)
