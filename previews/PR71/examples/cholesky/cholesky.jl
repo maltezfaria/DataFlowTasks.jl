@@ -51,7 +51,7 @@ Pkg.activate("../../..") #src
 #
 # A sequential tiled factorization algorithm can be implemented as:
 
-const USE_MKL = true
+const USE_MKL = false
 USE_MKL && using MKL
 
 using LinearAlgebra
@@ -233,7 +233,7 @@ function bench_blas(n)
     return @belapsed cholesky!(A) setup=(A=spd_matrix($n)) evals=1
 end
 
-function bench_dft(n;tilesize=256)
+function bench_dft(n;tilesize=512)
     BLAS.set_num_threads(1)
     return @belapsed cholesky_dft!(A, $tilesize) setup=(A=spd_matrix($n)) evals=1
 end
@@ -244,15 +244,19 @@ BLAS.get_config()
 
 #-
 
-nsizes = 2 .^ (8:13)
+nsizes = 512 .* (1:2:20)
 tblas  = map(bench_blas, nsizes)
 tdft   = map(bench_dft, nsizes)
 
-fig = Figure(;title="Cholesky factorization on $(Threads.nthreads()) threads")
+fig = Figure()
 ax  = Axis(fig[1,1], xlabel="Matrix size", ylabel="Time (s)")
 scatterlines!(ax, nsizes, tblas, label= USE_MKL ? "MKL" : "OpenBLAS", linewidth=2)
 scatterlines!(ax, nsizes, tdft, label="DFT", linewidth=2)
 axislegend(position=:lt)
+
+ax  = Axis(fig[1,2], xlabel="Matrix size", ylabel="BLAS / DFT")
+scatterlines!(ax, nsizes, tblas ./ tdft, linewidth=2)
+fig[0, :] = Label(fig, "Cholesky factorization on $(Threads.nthreads()) threads")
 fig
 
 #=
@@ -262,7 +266,7 @@ fig
     library](https://en.wikipedia.org/wiki/Math_Kernel_Library), you need set
     the `USE_MKL` variable at the top of this notebook to `true`, and re-run
     this notebook on a new Julia session. That is because the `MKL.jl` package
-    must be the first package to be loaded in order (see [this
+    must be the first package to be loaded (see [this
     link](https://docs.juliahub.com/MKL/tDGGv/0.4.4/#Usage))
 
 =#
