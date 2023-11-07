@@ -109,12 +109,11 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 # ## Parallel implementation
 #
 # In order to parallelize the code with `DataFlowTasks.jl`, function calls
-# acting on tiles are wrapped within `@spawn`, along with annotations
+# acting on tiles are wrapped within `@dspawn`, along with annotations
 # describing data access modes. We also give meaningful labels to the tasks,
 # which will help debug and profile the code.
 
 using DataFlowTasks
-using DataFlowTasks: @spawn
 
 function cholesky_dft!(A, ts)
     m = size(A, 1); @assert m==size(A, 2)
@@ -125,24 +124,24 @@ function cholesky_dft!(A, ts)
 
     for i in 1:n
         ## Diagonal cholesky serial factorization
-        @spawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
+        @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
 
         ## Left tiles update
         U = UpperTriangular(T[i,i])
         for j in i+1:n
-            @spawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
+            @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
         end
 
         ## Submatrix update
         for j in i+1:n
             for k in j:n
-                @spawn schur_complement!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k])) label="schur ($j,$k)"
+                @dspawn schur_complement!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k])) label="schur ($j,$k)"
             end
         end
     end
 
     ## Construct the factorized object
-    r = @spawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
+    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
     return fetch(r)
 end
 
@@ -219,6 +218,7 @@ trace = plot(log_info; categories=["chol", "ldiv", "schur"])
 # should probably give it a try! Here is the benchmark:
 
 using BenchmarkTools
+BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1
 
 ## n × n symmetric positive definite matrix
 function spd_matrix(n)
@@ -277,4 +277,5 @@ speedup = bench_tiled(4096) / bench_dft(4096),
 
 # This benchmark was run on a machine with 2x10 Intel Xeon Silver 4114 cores
 # (2.20GHz) and the following topology:
+#
 # ![](lfaria-precision-7920-tower-lstopo.png)
