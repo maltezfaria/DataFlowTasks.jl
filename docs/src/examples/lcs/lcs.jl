@@ -237,7 +237,7 @@ t_tiled = @belapsed LCS_tiled!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y)
 # in a synchronous way and perform an apple-to-apple comparison to the previous
 # implementations.
 
-import DataFlowTasks as DFT
+using DataFlowTasks
 
 init_lengths!(L, ir, jr) = fill!(view(L, ir, jr), 0)
 
@@ -245,11 +245,11 @@ function LCS_par!(L, x, y, nx, ny)
     L[1,1] = 0
     for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
         L1j = view(L, 1, jrange .+ 1)
-        DFT.@spawn fill!(@W(L1j), 0) label = "init (1, $(ky+1))"
+        @dspawn fill!(@W(L1j), 0) label = "init (1, $(ky+1))"
         for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
             Lx1 = view(L, irange .+ 1, 1)
-            ky == 1 && DFT.@spawn fill!(@W(Lx1), 0) label = "init ($(kx+1), 1)"
-            DFT.@spawn begin
+            ky == 1 && @dspawn fill!(@W(Lx1), 0) label = "init ($(kx+1), 1)"
+            @dspawn begin
                 @R view(L, irange, jrange)
                 @W view(L, irange .+ 1, jrange .+ 1)
                 fill_lengths!(L, x, y, irange, jrange)
@@ -257,7 +257,7 @@ function LCS_par!(L, x, y, nx, ny)
         end
     end
 
-    bt = DFT.@spawn backtrack(@R(L), x, y) label = "backtrack"
+    bt = @dspawn backtrack(@R(L), x, y) label = "backtrack"
     return fetch(bt)
 end
 LCS_par(x, y, nx, ny) = LCS_par!(init_buffer(x, y), x, y, nx, ny)
@@ -272,6 +272,7 @@ t_par = @belapsed LCS_par!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y))
 # As an added safety measure, let's also check that the task dependency graph
 # looks as expected:
 
+import DataFlowTasks as DFT
 resize!(DFT.get_active_taskgraph(), 300)
 GC.gc()
 log_info = DFT.@log LCS_par(x, y, nx, ny)

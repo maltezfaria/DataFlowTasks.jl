@@ -180,30 +180,29 @@ t_tiled = @belapsed blur_roberts_tiled!(x, ts; width=$width, tmp=$tmp) setup=(x=
 # each task.
 
 using DataFlowTasks
-using DataFlowTasks: @spawn
 
 function blur_dft!(dest, src, ts; width)
     map_tiled!(dest, src, ts) do dest, src, tile
         outer = intersect.(expand.(tile, width), axes(src))
-        @spawn begin
+        @dspawn begin
             @R view(src, outer...)
             @W view(dest, tile...)
             blur!(dest, src; width, range=tile)
         end label="blur ($tile)"
     end
-    @spawn @R(dest) label="blur (result)"
+    @dspawn @R(dest) label="blur (result)"
 end
 
 function roberts_dft!(dest, src, ts)
     map_tiled!(dest, src, ts) do dest, src, tile
         outer = intersect.(expand.(tile, 1), axes(src))
-        @spawn begin
+        @dspawn begin
             @R view(src, outer...)
             @W view(dest, tile...)
             roberts!(dest, src; range=tile)
         end label="roberts ($tile)"
     end
-    @spawn @R(dest) label="roberts (result)"
+    @dspawn @R(dest) label="roberts (result)"
 end
 
 # Note how each filter spawns one task for each tile, and an extra task to get
@@ -219,7 +218,7 @@ end
 function blur_roberts_dft!(img, ts; width, tmp=zero(img))
     blur_dft!(tmp, img, ts; width)
     roberts_dft!(img, tmp, ts)
-    @spawn @R(img) label="result"
+    @dspawn @R(img) label="result"
 end
 
 # Again this yields the same results on the test image:

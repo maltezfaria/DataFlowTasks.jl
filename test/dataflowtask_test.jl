@@ -1,6 +1,7 @@
 using Test
 using Suppressor
 using LinearAlgebra
+using DataFlowTasks
 import DataFlowTasks as DFT
 
 @testset "Macros" begin
@@ -93,21 +94,21 @@ end
     # Errors are not handled when debug mode is off
     DFT.enable_debug(false)
     empty!(ERRORS)
-    t = DFT.@spawn error("Unseen error")
+    t = @dspawn error("Unseen error")
     @test_throws TaskFailedException wait(t)
     @test isempty(ERRORS)
 
     # Errors are handled when debug mode is on.
     DFT.enable_debug(true)
     empty!(ERRORS)
-    t = DFT.@spawn error("Expected error")
+    t = @dspawn error("Expected error")
     @test_throws TaskFailedException wait(t)
     @test length(ERRORS) == 1
     @test ERRORS[1][1].exception.msg == "Expected error"
 
     # Tasks can be stopped when debug mode is on
     empty!(ERRORS)
-    t = DFT.@spawn sleep(3600)
+    t = @dspawn sleep(3600)
     sleep(0.1)
     @test !istaskdone(t)
     schedule(t, :stop; error = true)
@@ -118,7 +119,7 @@ end
 
 @testset "Sequential mode" begin
     x = rand(10)
-    test_seq_mode(x) = DFT.@spawn sum(@R x) label = "test_seq_mode" priority = 1
+    test_seq_mode(x) = @dspawn sum(@R x) label = "test_seq_mode" priority = 1
 
     # Sequential mode
     DFT.force_sequential()

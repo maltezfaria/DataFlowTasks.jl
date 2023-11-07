@@ -12,7 +12,7 @@ those dependencies.
 A `DataFlowTask` behaves much like a Julia `Task`: you can call `wait(t)`,
 `schedule(t)` and `fetch(t)` on it.
 
-See also: [`@dtask`](@ref), [`@spawn`](@ref), [`@dasync`](@ref).
+See also: [`@dtask`](@ref), [`@dspawn`](@ref), [`@dasync`](@ref).
 """
 mutable struct DataFlowTask
     data::Tuple
@@ -169,7 +169,7 @@ _linear_dag() = false
     force_sequential(mode = true)
 
 If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
-code is simply run as it appears in the sources. In effect, this makes `@spawn`
+code is simply run as it appears in the sources. In effect, this makes `@dspawn`
 a no-op.
 
 By default, sequential mode is disabled when the program starts.
@@ -315,10 +315,10 @@ Create a `DataFlowTask` to execute `expr`, where data have been tagged to
 specify how they are accessed. Note that the task is not automatically scheduled
 for execution.
 
-See [`@spawn`](@ref) for information on how to annotate `expr` to specify data
+See [`@dspawn`](@ref) for information on how to annotate `expr` to specify data
 dependencies, and a list of supported keyword arguments.
 
-See also: [`@spawn`](@ref), [`@dasync`](@ref)
+See also: [`@dspawn`](@ref), [`@dasync`](@ref)
 """
 macro dtask(expr, kwargs...)
     return _dtask(expr, kwargs; source = __source__)

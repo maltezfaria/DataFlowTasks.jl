@@ -172,7 +172,7 @@ function Base.show(io::IO, sch::TaskGraph)
 end
 
 """
-    @spawn expr [kwargs...]
+    @dspawn expr [kwargs...]
 
 Spawn a Julia `Task` to execute the code given by `expr`, and schedule it to
 run on any available thread.
@@ -195,17 +195,17 @@ Read-Write dependency on `C` and Read dependencies on `A` and `B`
 
 ```jldoctest; output = false
 using LinearAlgebra
-using DataFlowTasks: @spawn
+using DataFlowTasks
 A = ones(5, 5)
 B = ones(5, 5)
 C = zeros(5, 5)
 α, β = (1, 0)
 
 # Option 1: annotate arguments in a function call
-@spawn mul!(@RW(C), @R(A), @R(B), α, β)
+@dspawn mul!(@RW(C), @R(A), @R(B), α, β)
 
 # Option 2: specify data access modes in the code block
-@spawn begin
+@dspawn begin
    @RW C
    @R  A B
    mul!(C, A, B, α, β)
@@ -213,7 +213,7 @@ end
 
 # Option 3: specify data access modes after the code block
 # (i.e. alongside keyword arguments)
-res = @spawn mul!(C, A, B, α, β) @RW(C) @R(A,B)
+res = @dspawn mul!(C, A, B, α, β) @RW(C) @R(A,B)
 
 fetch(res) # a 5×5 matrix of 5.0
 
@@ -230,13 +230,13 @@ fetch(res) # a 5×5 matrix of 5.0
 Here is a more complete example, demonstrating a full computation involving 2 different tasks.
 
 ```jldoctest
-using DataFlowTasks: @spawn
+using DataFlowTasks
 
 A = rand(5)
 
 # create a task with WRITE access mode to A
 # and label "writer"
-t1 = @spawn begin
+t1 = @dspawn begin
     @W A
     sleep(1)
     fill!(A,0)
@@ -244,7 +244,7 @@ t1 = @spawn begin
 end  label="writer"
 
 # create a task with READ access mode to A
-t2 = @spawn begin
+t2 = @dspawn begin
     @R A
     println("I automatically wait for `t1` to finish")
     sum(A)
@@ -262,7 +262,7 @@ I automatically wait for `t1` to finish
 Note that in the example above `t2` waited for `t1` because it read a data field
 that `t1` accessed in a writable manner.
 """
-macro spawn(expr, kwargs...)
+macro dspawn(expr, kwargs...)
     _dtask(expr, kwargs; source = __source__) do t
         return :($spawn($t))
     end
@@ -271,11 +271,11 @@ end
 """
     @dasync expr [kwargs...]
 
-Like [`@spawn`](@ref), but schedules the task to run on the current thread.
+Like [`@dspawn`](@ref), but schedules the task to run on the current thread.
 
 See also:
 
-[`@spawn`](@ref), [`@dtask`](@ref)
+[`@dspawn`](@ref), [`@dtask`](@ref)
 """
 macro dasync(expr, kwargs...)
     _dtask(expr, kwargs; source = __source__) do t

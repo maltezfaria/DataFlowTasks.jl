@@ -14,6 +14,8 @@ import TOML
 import Scratch
 using Printf
 
+export @dspawn, @dasync
+
 """
     @enum AccessMode READ WRITE READWRITE
 
