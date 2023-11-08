@@ -89,6 +89,59 @@ arr  # expect all 4 after the round-trip
 ```
 
 !!! note
-
     The [Parallel Merge Sort example](@ref example-sort) shows a real-world
     situation in which such issues could arise.
+
+## [Nested task graph](@id nested-tasks)
+
+It may sometimes be useful, or even necessary, to spawn a `DataFlowTask` inside
+another. This, although possible, can be a bit tricky to get right. To
+understand why that is the case, let us walk through a simple example:
+
+```julia
+using DataFlowTasks
+
+A,B = ones(10), ones(10)
+@dspawn begin
+    sleep(0.1)
+    @RW A B
+    @dspawn begin
+        @RW(view(A,1:5)) .= 0
+    end label = "1a"
+    @dspawn begin
+        @RW(view(A,6:10)) .= 0 
+    end label = "1b"
+    B .= 0
+end label = "1"
+res = @dspawn begin
+    (sum(@R(A)),sum(@R(B))) 
+end label = "2"
+@show fetch(res)
+```
+
+If we were to disable `@dspawn` (make it a `no-op`) in the code above, the
+sequential execution would proceed as follows:
+
+1. `A` and `B` are initialized to ones.
+2. After a small nap, `A[1:5]` is filled with `0` in block `1a`
+3. `A[6:10]` is filled with `0` in block `1b`
+4. A reduction of both `A` and `B` is performed in block `2`, yielding `(0.,0.)`
+
+The sequential code will therefore *always* yield `(0.,0.)`, and that could be
+considered the *correct* answer as per a *sequential consistency* criterion.
+
+If you run the code above however, you will notice that summing `A` at the end
+will not yield `0`, but summing `B` will. The reason is that while we are
+guaranteed that task `2` will be created *after* task `1`, we don't have much control on
+when tasks `1a` and `1b` will be created relative to task `2`. Because of that,
+while `2` will always wait on `1` before running due to the data conflict, `2`
+could very well be spawned *before* `1a` and/or `1b`, in which case it won't
+wait for them! The result of `sum(A)`, therefore, is not deterministic in our
+program.
+
+The problem is that if we allow for several threads of execution to `spawn`
+`DataFlowTask`s on the same task graph concurrently, the order upon which these
+tasks are added to the task graph is impossible to control. This makes the
+*direction of dependency* between two tasks `ti` and `tj` with conflicting data
+accesses undetermined: we will infer that `ti` depends on `tj` if it is created
+before, and that `tj` depends on `ti` if it is created after.
