@@ -269,4 +269,4 @@ Some current limitations are listed below:
   blocking the main thread from executing tasks.
 - Nesting `DataFlowTask`s, although possible, can be tricky due to some
   technical details of our current implementation. See [Nested Tasks](@ref
-  nested-task) for a more in-depth discussion.
+  nested-tasks) for a more in-depth discussion.
