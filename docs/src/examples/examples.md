@@ -14,15 +14,25 @@ This section contains a variety of examples and benchmarks of applications where
 
 ## Hardware and `versioninfo`
 
-The examples and benchmarks here were generated using
+The examples and benchmarks here were generated using:
+
+### Version info
 
 ```@example
+using InteractiveUtils
 versioninfo()
 ```
 
-on a hardware with the following topology:
+### Topology
 
 ```@example
 using Hwloc
 topology_info()
+```
+
+### CPU
+
+```@example
+using CpuId
+printstyled(cpuinfo())
 ```
