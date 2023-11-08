@@ -14,14 +14,16 @@ This section contains a variety of examples and benchmarks of applications where
 
 ## Hardware specification
 
-All examples and benchmarks on this section where run on the following machine:
+All examples and benchmarks where generated using the following `CPU`:
 
 ```@example
 using CpuId
-cpuinfo()
+printstyled(cpuinfo())
 ```
+
+and the following topology:
 
 ```@example
 using Hwloc
-topology_graphical()
+topology_info()
 ```
