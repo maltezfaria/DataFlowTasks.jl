@@ -17,8 +17,11 @@ This section contains a variety of examples and benchmarks of applications where
 All examples and benchmarks on this section where run on the following machine:
 
 ```@example
-write("cpu.svg", read(`lstopo --output-format svg -v --no-io`)) 
-nothing #hide
+using CpuId
+cpuinfo()
 ```
 
-![](cpu.svg)
+```@example
+using Hwlock
+topology_graphical()
+```
