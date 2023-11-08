@@ -12,16 +12,15 @@ This section contains a variety of examples and benchmarks of applications where
  locally: give it a try. And if `DataFlowTasks` is useful to you, please
  consider submitting your own example application!
 
-## Hardware specification
+## Hardware and `versioninfo`
 
-The examples and benchmarks were generated using the following `CPU`:
+The examples and benchmarks here were generated using
 
 ```@example
-using CpuId
-printstyled(cpuinfo())
+versioninfo()
 ```
 
-and the following topology:
+on a hardware with the following topology:
 
 ```@example
 using Hwloc
