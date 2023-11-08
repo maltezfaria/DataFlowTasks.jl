@@ -3,7 +3,7 @@ import Pkg               #src
 Pkg.activate("../../..") #src
 using BenchmarkTools     #src
 
-# # Blur & Roberts image filters
+# # [Blur & Roberts image filters](@id blur-roberts-section)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](blur-roberts.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/blur-roberts/blur-roberts.ipynb)
