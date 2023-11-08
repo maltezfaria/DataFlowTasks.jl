@@ -63,7 +63,10 @@ function with_taskgraph(f, tg)
     return res
 end
 
-addnode!(taskgraph::TaskGraph, tj, check = true) = addnode!(taskgraph.dag, tj, check)
+function addnode!(taskgraph::TaskGraph, tj, check = true)
+    addnode!(taskgraph.dag, tj, check)
+    return taskgraph
+end
 remove_node!(taskgraph::TaskGraph, tj) = remove_node!(taskgraph.dag, tj)
 
 dag(sch::TaskGraph) = sch.dag

@@ -15,7 +15,8 @@ struct DAG{T}
     cond_push::Condition
     cond_empty::Condition
     lock::ReentrantLock
-    sz_max::Ref{Int}
+    sz_max::Base.RefValue{Int}
+    counter::Base.RefValue{Int}
     _buffer::Set{Int} # used to keep track of visited nodes when needed
 end
 
@@ -34,7 +35,7 @@ function DAG{T}(sz = typemax(Int)) where {T}
     cond_empty = Condition()
     lock       = ReentrantLock()
     _buffer    = Set{Int}()
-    return DAG{T}(inoutlist, cond_push, cond_empty, lock, Ref(sz), _buffer)
+    return DAG{T}(inoutlist, cond_push, cond_empty, lock, Ref(sz), Ref(0), _buffer)
 end
 
 function Base.resize!(dag::DAG, sz)
@@ -138,6 +139,7 @@ function addnode!(dag::DAG{T}, i::T, check = false) where {T}
 end
 
 function addnode!(dag::DAG, kv::Pair, check = false)
+    k, v = kv
     while num_nodes(dag) == dag.sz_max[]
         wait(dag.cond_push)
     end
@@ -146,8 +148,10 @@ function addnode!(dag::DAG, kv::Pair, check = false)
         t₀ = time_ns()
         stats = Base.gc_num()
         # -------
+        dag.counter[] += 1
+        k isa DataFlowTask && (k.tag = dag.counter[])
         push!(dag.inoutlist, kv)
-        k, v = kv
+
         check && update_edges!(dag, k)
 
         # -------
@@ -186,7 +190,7 @@ function update_edges!(dag::DAG, nodej)
         ti = tag(nodei)
         (ti ∈ transitively_connected) && continue
         # if a DataFlowTask is in data, add the edge directly to the DAG
-        @assert nodei ≤ nodej
+        @assert nodei ≤ nodej "i = $(nodei.tag), j = $(nodej.tag)"
         dep = data_dependency(nodei, nodej)
         dep || continue
         addedge!(dag, nodei, nodej)

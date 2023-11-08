@@ -30,8 +30,8 @@ mutable struct DataFlowTask
         sch = get_active_taskgraph(),
     ) where {N}
         @assert length(data) == N
-        TASKCOUNTER[] += 1
-        tj = new(data, mode, TASKCOUNTER[], priority, label)
+        taskcounter = 0 # not yet inserted in a dag. This will be modified upon insertion.
+        tj = new(data, mode, taskcounter, priority, label)
         addnode!(sch, tj, true)
 
         deps = inneighbors(sch.dag, tj) |> copy
@@ -58,13 +58,6 @@ mutable struct DataFlowTask
         return tj
     end
 end
-
-"""
-    const TASKCOUNTER::Threads.Atomic{Int64}
-
-Global counter of created `DataFlowTask`s.
-"""
-const TASKCOUNTER = Threads.Atomic{Int64}(0)
 
 """
     data(t::DataFlowTask[,i])

@@ -20,8 +20,9 @@ end
 A = ones(20, 20)
 B = ones(20, 20)
 
-# reset counter. Needed because the tests below assume tags started with 1
-DFT.TASKCOUNTER[] = 0
+# Run the code below using a new taskgraphg
+tg = DFT.TaskGraph()
+DFT.set_active_taskgraph!(tg)
 
 logger = DFT.@log work(A, B)
 
