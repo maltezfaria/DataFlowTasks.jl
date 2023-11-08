@@ -22,6 +22,6 @@ cpuinfo()
 ```
 
 ```@example
-using Hwlock
+using Hwloc
 topology_graphical()
 ```
