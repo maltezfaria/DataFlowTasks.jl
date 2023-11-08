@@ -2,6 +2,8 @@ using DataFlowTasks
 using Documenter
 using Literate
 
+draft = false
+
 # generate examples
 for example in ["cholesky", "blur-roberts", "lcs", "sort"]
     println("\n*** Generating $example example")
@@ -9,7 +11,7 @@ for example in ["cholesky", "blur-roberts", "lcs", "sort"]
         dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "src", "examples", example)
         src = joinpath(dir, "$(example).jl")
         Literate.markdown(src, dir)
-        Literate.notebook(src, dir)
+        draft || Literate.notebook(src, dir)
     end
 end
 
@@ -22,7 +24,7 @@ println("\n*** Generating README")
     include(src)
 
     # Generate notebook
-    Literate.notebook(src, pwd())
+    draft || Literate.notebook(src, pwd())
 
     # Generate markdown
     # -> fix image paths to link to github.io
@@ -87,6 +89,7 @@ makedocs(;
     ],
     warnonly = on_CI ? false : Documenter.except(:linkcheck_remotes),
     pagesonly = true,
+    draft,
 )
 
 deploydocs(;
