@@ -3,7 +3,7 @@ import Pkg               #src
 Pkg.activate("../../..") #src
 using BenchmarkTools     #src
 
-# # Blur & Roberts image filters
+# # [Blur & Roberts image filters](@id blur-roberts-section)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](blur-roberts.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/blur-roberts/blur-roberts.ipynb)
@@ -258,7 +258,3 @@ DataFlowTasks.describe(log_info)
 # The parallel trace shows how blur and roberts tasks are interspersed in the time line:
 
 trace = plot(log_info, categories=["blur", "roberts"])
-
-# In terms of performance, elapsed time seems to be bounded in this case by the
-# total computing time of all threads. Re-running the same computation with more
-# threads may help reduce the overall wall-clock time.

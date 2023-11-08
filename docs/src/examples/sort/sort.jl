@@ -336,7 +336,7 @@ split_indices(2, dest, left, right)
 
 function parallel_merge_dft!(dest, left, right; label="")
     ## Number of parts in which large blocks will be split
-    P = min(8, ceil(Int, length(dest)/65_536))
+    P = min(Threads.nthreads(), ceil(Int, length(dest)/65_536))
 
     ## Simple sequential merge for small cases
     if P <= 1
@@ -434,7 +434,8 @@ bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(
     speedup = time(minimum(bench_seq)) / time(minimum(bench_dft_tiled)),
 )
 
-# The profile plot also shows how merge tasks remain parallel until the very end:
+# The profile plot also shows how merge tasks remain parallel until the very
+# end, even though each large merge forces all threads to synchronize:
 
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
 plot(log_info, categories=["sort", "merge", "copy", "result", "split"])
