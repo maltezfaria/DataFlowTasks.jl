@@ -14,7 +14,7 @@ This section contains a variety of examples and benchmarks of applications where
 
 ## Hardware specification
 
-All examples and benchmarks where generated using the following `CPU`:
+The examples and benchmarks were generated using the following `CPU`:
 
 ```@example
 using CpuId

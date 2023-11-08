@@ -44,7 +44,7 @@ jobs:
     name: Documentation
     runs-on: self-hosted
     env:
-      JULIA_NUM_THREADS: 16
+      JULIA_NUM_THREADS: 8
     permissions:
       contents: write
       statuses: write
