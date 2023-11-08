@@ -1,4 +1,4 @@
-## [Overview](@id examples-overview)
+# [Overview](@id examples-overview)
 
 This section contains a variety of examples and benchmarks of applications where
 `DataFlowTasks` can be used to parallelize code. These include:
