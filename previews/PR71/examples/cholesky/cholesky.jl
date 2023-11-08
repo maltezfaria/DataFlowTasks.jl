@@ -253,13 +253,18 @@ BLAS.get_config()
 nsizes = 512 .* (1:1:8)
 tblas  = map(bench_blas, nsizes)
 tdft   = map(bench_dft, nsizes)
+Gflops =  map(n->(1/3*n^3 + 1/2*n^2)/10^9, nsizes)
 
 fig = Figure()
-ax  = Axis(fig[1,1], xlabel="Matrix size", ylabel="Time (s)",
-           title = "Cholesky factorization on $(Threads.nthreads()) threads")
+ax  = Axis(fig[1,1], xlabel="Matrix size", ylabel="Time (s)")
 scatterlines!(ax, nsizes, tblas, label= "OpenBLAS", linewidth=2)
 scatterlines!(ax, nsizes, tdft, label="DFT", linewidth=2)
 axislegend(position=:lt)
+ax  = Axis(fig[1,2], xlabel="Matrix size", ylabel="GFlops/second")
+scatterlines!(ax, nsizes, Gflops ./ tblas, label= "OpenBLAS", linewidth=2)
+scatterlines!(ax, nsizes, Gflops ./ tdft, label="DFT", linewidth=2)
+axislegend(position=:lt)
+Label(fig[0,:],  "Cholesky factorization on $(Threads.nthreads()) threads", fontsize=20)
 fig
 
 # We see that, despite the simplicity of the implementation, the parallel
