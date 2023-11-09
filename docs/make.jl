@@ -73,7 +73,6 @@ makedocs(;
         "Getting started" => "index.md",
         "Debugging & Profiling" => "profiling.md",
         "Examples" => [
-            "examples/examples.md",
             "examples/cholesky/cholesky.md",
             "examples/blur-roberts/blur-roberts.md",
             "examples/lcs/lcs.md",
@@ -81,6 +80,7 @@ makedocs(;
             # "examples/stencil/stencil.md",
             # "examples/lu/lu.md",
             # "examples/hmat/hmat.md",
+            "examples/hardware.md"
         ],
         # "Comparaison with Dagger.jl" => "dagger.md",
         # "Common Issues" => "issues.md",
