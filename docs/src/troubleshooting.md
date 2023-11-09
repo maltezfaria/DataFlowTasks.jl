@@ -253,8 +253,10 @@ nested_taskgraphs()
 
 In this last solution, there are two task graphs: the *outer* one containing
 tasks `1` and `2`, and an *inner* one, created by task `1`, which spawns tasks
-`1a` and `1b`. The inner task graph is waited on by the outer one, so that task
-`2` will only start after both `1a` and `1b` have completed.
+`1a` and `1b`. The inner task graph is waited on by task `1`, so that task `2`
+will only start after both `1a` and `1b` have completed. Note that because a new
+task graph is created for `1a` and `1b`, they will never depend on task `2`,
+which could create a deadlock!
 
 In the future we may provide a more convenient syntax for creating nested task;
 at present, the suggestion is to avoid them if possible.
