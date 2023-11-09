@@ -98,25 +98,29 @@ It may sometimes be useful, or even necessary, to spawn a `DataFlowTask` inside
 another. This, although possible, can be a bit tricky to get right. To
 understand why that is the case, let us walk through a simple example:
 
-```julia
+```@example nested-tasks
+
 using DataFlowTasks
 
-A,B = ones(10), ones(10)
-@dspawn begin
-    sleep(0.1)
-    @RW A B
+function nested_tasks()
+    A,B = ones(10), ones(10)
     @dspawn begin
-        @RW(view(A,1:5)) .= 0
-    end label = "1a"
-    @dspawn begin
-        @RW(view(A,6:10)) .= 0 
-    end label = "1b"
-    B .= 0
-end label = "1"
-res = @dspawn begin
-    (sum(@R(A)),sum(@R(B))) 
-end label = "2"
-@show fetch(res)
+        sleep(0.1)
+        @RW A B
+        @dspawn begin
+            @RW(view(A,1:5)) .= 0
+        end label = "1a"
+        @dspawn begin
+            @RW(view(A,6:10)) .= 0 
+        end label = "1b"
+        B .= 0
+    end label = "1"
+    res = @dspawn begin
+        (sum(@R(A)),sum(@R(B))) 
+    end label = "2"
+    fetch(res)
+end
+
 ```
 
 If we were to disable `@dspawn` (make it a `no-op`) in the code above, the
@@ -128,20 +132,100 @@ sequential execution would proceed as follows:
 4. A reduction of both `A` and `B` is performed in block `2`, yielding `(0.,0.)`
 
 The sequential code will therefore *always* yield `(0.,0.)`, and that could be
-considered the *correct* answer as per a *sequential consistency* criterion.
+considered the *correct* answer as per a *sequential consistency* criterion. We
+can check that this is actually the case by running
+[`DataFlowTasks.force_sequential()`](@ref) before executing the code:
 
-If you run the code above however, you will notice that summing `A` at the end
-will not yield `0`, but summing `B` will. The reason is that while we are
-guaranteed that task `2` will be created *after* task `1`, we don't have much control on
-when tasks `1a` and `1b` will be created relative to task `2`. Because of that,
-while `2` will always wait on `1` before running due to the data conflict, `2`
-could very well be spawned *before* `1a` and/or `1b`, in which case it won't
-wait for them! The result of `sum(A)`, therefore, is not deterministic in our
-program.
+```@example nested-tasks
+DataFlowTasks.force_sequential(true)
+nested_tasks()
+```
 
-The problem is that if we allow for several threads of execution to `spawn`
+If you reactivate `DataFlowTasks` and re-run the code above a few times,
+however, you will notice that summing `B` will always give `0`, but summing `A`
+will not
+
+```@example nested-tasks
+DataFlowTasks.force_sequential(false)
+map(i -> nested_tasks(), 1:10)
+```
+
+The reason is that while we are guaranteed that task `2` will be created *after*
+task `1`, we don't have much control on when tasks `1a` and `1b` will be created
+relative to task `2`. Because of that, while `2` will always wait on `1` before
+running due to the data conflict, `2` could very well be spawned *before* `1a`
+and/or `1b`, in which case it won't wait for them! The result of `sum(A)`,
+therefore, is not deterministic in our program.
+
+The problem is that if we allow for several paths of execution to `spawn`
 `DataFlowTask`s on the same task graph concurrently, the order upon which these
 tasks are added to the task graph is impossible to control. This makes the
 *direction of dependency* between two tasks `ti` and `tj` with conflicting data
-accesses undetermined: we will infer that `ti` depends on `tj` if it is created
-before, and that `tj` depends on `ti` if it is created after.
+accesses undetermined: we will infer that `ti` depends on `tj` if `ti` is created
+first, and that `tj` depends on `ti` if `tj` is created first.
+
+One way to resolve this ambiguity in the example above is to modify function to
+avoid nested tasks. For this admittedly contrived example, we could have written
+instead:
+
+```@example nested-tasks
+function linear_tasks()
+    A,B = ones(10), ones(10)
+    sleep(0.1)
+    @dspawn begin
+        @RW(view(A,1:5)) .= 0
+    end label = "1a"
+    @dspawn begin
+        @RW(view(A,6:10)) .= 0 
+    end label = "1b"
+    @dspawn @W(B) .= 0 label = "1"
+    res = @dspawn begin
+        (sum(@R(A)),sum(@R(B))) 
+    end label = "2"
+    fetch(res)
+end
+@show linear_tasks()
+```
+
+You can check that the code above will consistently yield `(0.,0.)` as a result.
+
+When nesting tasks is unavoidable, or when the performance hit from *flattening
+out* our nested algorithm is too large, a more advanced option is to create a
+*separate task graph* for each level of nesting. That way we manually handle the
+logic, and recover a predictable order in each task graph:
+
+```@example nested-tasks
+using DataFlowTasks: TaskGraph, with_taskgraph
+
+function nested_taskgraphs()
+    A,B = ones(10), ones(10)
+    @dspawn begin
+        sleep(0.1)
+        @RW A B
+        tg = TaskGraph() # a new taskgraph
+        with_taskgraph(tg) do
+            @dspawn begin
+                @RW(view(A,1:5)) .= 0
+            end label = "1a"
+            @dspawn begin
+                @RW(view(A,6:10)) .= 0 
+            end label = "1b"
+        end
+        wait(tg)
+        B .= 0
+    end label = "1"
+    res = @dspawn begin
+        (sum(@R(A)),sum(@R(B))) 
+    end label = "2"
+    fetch(res)
+end
+nested_taskgraphs()
+```
+
+In this last solution, there are two task graphs: the *outer* one containing
+tasks `1` and `2`, and an *inner* one, created by task `1`, which spawns tasks
+`1a` and `1b`. The inner task graph is waited on by the outer one, so that task
+`2` will only start after both `1a` and `1b` have completed.
+
+In the future we may provide a more convenient syntax for creating nested task;
+at present, the suggestion is to avoid them if possible.
