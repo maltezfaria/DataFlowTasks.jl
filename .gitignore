@@ -22,3 +22,12 @@ JuliaSysimage.dll
 Manifest.toml
 TiledFactorization
 docs/.DS_Store
+sandbox/*
+
+# Ignore almost everything in slides
+docs/slides/cafe-julia-2023/*
+!docs/slides/cafe-julia-2023/main.tex
+!docs/slides/cafe-julia-2023/figures
+
+
+
