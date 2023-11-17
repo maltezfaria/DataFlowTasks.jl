@@ -143,7 +143,7 @@ function stop_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
         return tg.dag_cleaner
     else # expected result, task is running
         put!(tg.finished, Stop())
-        # wait for t to stop before continuining
+        # wait for t to stop before continuing
         wait(t)
     end
     return tg.dag_cleaner

@@ -135,3 +135,18 @@ end
     @test typeof(s) == Task
     @inferred test_seq_mode(x)
 end
+
+@testset "Fetching task" begin
+    DataFlowTasks.set_active_taskgraph!(DataFlowTasks.TaskGraph())
+    d1 = @dspawn (sleep(0.01); rand(10)) label = "sleep"
+    d2 = @dspawn fill!(fetch(@R(d1)), 0) label = "fill"
+    @test fetch(d2) |> sum == 0
+    # make sure that d2 depends on d1 by checking the length of the critical
+    # path
+    log_info = DataFlowTasks.@log begin
+        d1 = @dspawn (sleep(0.01); rand(10)) label = "sleep"
+        d2 = @dspawn fill!(fetch(@R(d1)), 0) label = "fill"
+        fetch(d2)
+    end
+    @test length(DataFlowTasks.longest_path(log_info)) == 2
+end
