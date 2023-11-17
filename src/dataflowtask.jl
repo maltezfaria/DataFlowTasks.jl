@@ -115,9 +115,9 @@ end
 
 @noinline function _data_dependency(datai, modei, dataj, modej)
     for (di, mi) in zip(datai, modei)
-        (di isa DataFlowTask) && continue
+        (di isa Task) && continue # Tasks are handled differently
         for (dj, mj) in zip(dataj, modej)
-            (dj isa DataFlowTask) && continue
+            (dj isa Task) && continue # Tasks are handled differently
             mi == READ && mj == READ && continue
             if memory_overlap(di, dj)
                 return true
