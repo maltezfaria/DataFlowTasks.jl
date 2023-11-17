@@ -8,6 +8,9 @@
 \usepackage{tikz}
 
 \usetikzlibrary{graphs,quotes,arrows.meta}
+\definecolor{themegreen}{RGB}{0,100,0}
+\definecolor{themelightgreen}{RGB}{230,239,230}
+\definecolor{themelightblue}{RGB}{215,215,240}
 
 % set graphics path to figure
 \graphicspath{{./figures/}}
@@ -23,8 +26,8 @@
 
 \subtitle{Julia \texttt{Task}s which automatically handle data-dependencies}
 
-\author[Faria, Fevotte] % short version of authors
-{Luiz~M.~Faria\inst{1} \and François Fevotte\inst{2}}
+\author[Faria, Févotte] % short version of authors
+{Luiz~M.~Faria\inst{1} \and François Févotte\inst{2}}
 
 \institute[]
 {
@@ -33,15 +36,16 @@
     POEMS Laboratory
     \and
     \inst{2}%
-    FILL ME\\
-    FILL ME
+    Chief Scientist\\
+    TriScale innov
 }
 
 \date{\today}
 
-\logo{
-    \includegraphics[height=0.5cm]{poems_logo.png}
-    % \includegraphics[height=0.5cm]{inr_logo_rouge.png}
+\titlegraphic{
+  \includegraphics[height=0.5cm]{inr_logo_rouge.png}\hspace{2em}
+  \includegraphics[height=0.5cm]{poems_logo.png}\hspace{2em}
+  \includegraphics[height=0.5cm]{triscale_couleur_texteadroite.png}
 }
 
 \begin{document}
@@ -185,134 +189,103 @@ fetch(t4)
 
 \subsection{Basic idea}
 
-\begin{frame}[fragile,t]
-\frametitle{Basic idea}
-\begin{enumerate}
-    \item Extract data dependency from user annotations
-    \item \textcolor{lightgray}{Infer task dependency from data dependency}
-    \item \textcolor{lightgray}{Schedule tasks with inferred dependencies}
-\end{enumerate}
-
-\vspace{20pt}
-\begin{columns}
-
-\column{0.45\textwidth}    
-
-\begin{minted}[fontsize=\footnotesize]{julia}    
-A = rand(4)
-@dspawn fill!(@R(A),0)          
-@dspawn (@RW(view(A,1:2)) += 2) 
-@dspawn (@RW(view(A,3:4)) += 3) 
-@dspawn (sum(@R(A))) 
-\end{minted}
-
-\column{0.5\textwidth}
-
-\begin{tikzpicture}[scale=0.9, every node/.style={transform shape}]
-    % Nodes
-    \node[circle, draw] (1) at (0, 0) {1};
-    \node[circle, draw] (2) at (2, 0) {2};
-    \node[circle, draw] (3) at (4, 0) {3};
-    \node[circle, draw] (4) at (6, 0) {4};
-    \node[rectangle, draw, fill=yellow] (A) at (0, 2) {A};
-    \node[rectangle, draw, fill=yellow] (A1) at (2, 2) {\texttt{view(A,1:2)}};
-    \node[rectangle, draw, fill=yellow] (A2) at (5, 2) {\texttt{view(A,3:4)}};
-    
-    % Edges
-    \draw[->, thick] (1) -- node[midway, left] {\scriptsize \texttt{W}} (A);
-    \draw[->, thick] (2) -- node[midway, left] {\scriptsize \texttt{RW}} (A1);
-    \draw[->, thick] (3) -- node[midway, right] {\scriptsize \texttt{RW}} (A2);
-    \draw[->, thick] (4) -- node[midway, below] {\scriptsize \texttt{R}} (A);
-\end{tikzpicture}
-
-
-\end{columns}
-
-\end{frame}   
-
 \begin{frame}[fragile]
 
 \frametitle{Basic idea}
 \begin{enumerate}
-    \item \textcolor{lightgray}{Extract data dependency from user annotations}
-    \item Infer task dependency from data dependency
-    \item \textcolor{lightgray}{Schedule tasks with inferred dependencies}
+    \item \textcolor<4->{lightgray}{Extract data dependency from user annotations}
+    \item \textcolor<1-3,10->{lightgray}{Infer task dependency from data dependency}
+    \item \textcolor<1-9>{lightgray}{Schedule tasks with inferred dependencies}
 \end{enumerate}
 
 \center
 \begin{tikzpicture}[scale=0.9, every node/.style={transform shape}]
-    % Nodes
-    \node[circle, draw] (1) at (0, 0) {1};
-    \node[circle, draw] (2) at (2, 0) {2};
-    \node[circle, draw] (3) at (4, 0) {3};
-    \node[circle, draw] (4) at (6, 0) {4};
-    \node[rectangle, draw, fill=yellow] (A) at (0, 2) {A};
-    \node[rectangle, draw, fill=yellow] (A1) at (2, 2) {\texttt{view(A,1:2)}};
-    \node[rectangle, draw, fill=yellow] (A2) at (5, 2) {\texttt{view(A,3:4)}};
-    
-    % Edges
-    \draw[->, thick] (1) -- node[midway, left] {\scriptsize \texttt{W}} (A);
-    \draw[->, thick] (2) -- node[midway, left] {\scriptsize \texttt{RW}} (A1);
-    \draw[->, thick] (3) -- node[midway, right] {\scriptsize \texttt{RW}} (A2);
-    \draw[->, thick] (4) -- node[midway, below] {\scriptsize \texttt{R}} (A);
+  % Tasks
+  \node<2->[circle, draw] (1) at (0,  0) {1};
+  \node<2>[circle, draw, fill=themegreen, text=white] at (0,  0) {1};
+  \node<4,6,9>[circle, draw, fill=themelightblue] at (0,  0) {1};
+  
+  \node<3->[circle, draw] (2) at (2,  1) {2};
+  \node<3-4>[circle, draw, fill=themegreen, text=white] at (2,  1) {2};
+  \node<5,8>[circle, draw, fill=themelightblue] at (2,  1) {2};
+  
+  \node<5->[circle, draw] (3) at (2, -1) {3};
+  \node<5-6>[circle, draw, fill=themegreen, text=white] at (2, -1) {3};
+  \node<7>[circle, draw, fill=themelightblue] at (2, -1) {3};
+
+  \node<7->[circle, draw, fill=themegreen, text=white] (4) at (4,  0) {4};
+  
+  % Data
+  \node<1->[rectangle, draw, fill=themelightgreen, anchor=west] (A)  at (-3.5,  0)   {A};
+  \node<3->[rectangle, draw, fill=themelightgreen, anchor=west] (A1) at (-3.5,  1) {\texttt{view(A,1:2)}};
+  \node<5->[rectangle, draw, fill=themelightgreen, anchor=west] (A2) at (-3.5, -1) {\texttt{view(A,3:4)}};
+  
+  % Task -> Data dependencies
+  \draw<2->[->, dashed] (1) -- node[midway, below]{\scriptsize\ttfamily W} (A);
+  \draw<3->[->, dashed] (2) -- node[midway, above]{\scriptsize\ttfamily RW} (A1) ;
+  \draw<5->[->, dashed] (3) -- node[midway, above]{\scriptsize\ttfamily RW} (A2);
+  \draw<7-> (4) edge[out=170, in=5, dashed, ->] node[pos=0.87, above]{\scriptsize\ttfamily R} (A.north east);
+  
+  % Task -> Task dependencies
+  \draw<4->[->, thick] (1) -- (2);
+  \draw<6->[->, thick] (1) -- (3);
+  \draw<8->[->, thick] (2) -- (4);
+  \draw<7->[->, thick] (3) -- (4);
+  
+  % Data <-> Data dependencies
+  \draw<4,8>[<->, thick, red] (A.west)  -- ++(-0.5,0) |- (A1.west);
+  \draw<6,7>[<->, thick, red] (A.west)  -- ++(-0.5,0) |- (A2.west);
+  \draw<5>[<->, thick, themegreen] (A1.west) -- ++(-0.5,0) |- (A2.west);
+  \draw<9>[<->, thick, red] (A.south west) -- ++(-0.5,0) |- (A.north west);
+
+  % Bounding box
+  \node at (-4,-1.3) {};
+  \node at (4.5,1.3) {};
 \end{tikzpicture}
 
-\begin{exampleblock}{}
-\centering    
-\begin{minted}[fontsize=\footnotesize]{julia}
-for i in 1:N, j in i:-1:1
-  # detect conflict between i and j
-  for di in data(i), dj in data(j)
-    memory_overlap(di,dj) && add_edge(j,i)
-  end
-end
+\vspace{-1em}
+\begin{columns}[T]
+  \column{0.42\textwidth}
+\begin{exampleblock}{User-written code}
+\begin{minted}[fontsize=\footnotesize,escapeinside=||,beameroverlays=true]{julia}
+|\onslide<1->|A = rand(4)
+|\onslide<2->|@dspawn fill!(@R(A),0)
+|\onslide<3->|@dspawn @RW(view(A,1:2)) += 2
+|\onslide<5->|@dspawn @RW(view(A,3:4)) += 3
+|\onslide<7->|@dspawn sum(@R(A))
+|\onslide<1->|
 \end{minted}    
 \end{exampleblock}
+  
+  \column{0.50\textwidth}
+\begin{onlyenv}<4-9>
+  \begin{exampleblock}{Behind the scenes: DAG}
+\begin{minted}[fontsize=\footnotesize,escapeinside=||]{julia}
+for i in 1:N, j in i:-1:1
+  # Note the quadratic complexity!
+  # Detect conflict between i and j
+  for di in data(i), dj in data(j)
+    if memory_overlap(di, dj)
+      add_edge(j, i)
+\end{minted}
+\end{exampleblock}
+\end{onlyenv}
+\begin{onlyenv}<10>
+\begin{exampleblock}{Behind the scenes: task scheduling}
+\begin{minted}[fontsize=\footnotesize]{julia}
+t4 = Threads.@spawn begin
+  wait(t2); wait(t3)
+  sum(A)
+end
+\end{minted}
+\end{exampleblock}
+\end{onlyenv}
+\end{columns}
 
 % \alert{Note the quadratic complexity in the number of tasks!}
 
 \end{frame}
 
-\begin{frame}[fragile]
-
-    \frametitle{Basic idea}
-    \begin{enumerate}
-        \item \textcolor{lightgray}{Extract data dependency from user annotations}
-        \item \textcolor{lightgray}{Infer task dependency from data dependency}
-        \item Schedule tasks with inferred dependencies
-    \end{enumerate}
-    
-    \center
-    \begin{tikzpicture}[scale=0.9, every node/.style={transform shape}]
-        % Nodes
-        \node[circle, draw] (1) at (0, 0) {1};
-        \node[circle, draw] (2) at (2, 1) {2};
-        \node[circle, draw] (3) at (2, -1) {3};
-        \node[circle, draw] (4) at (4, 0) {4};
-        
-        % Edges
-        \draw[->, thick] (1) -- (2);
-        \draw[->, thick] (1) -- (3);
-        \draw[->, thick] (2) -- (4);
-        \draw[->, thick] (3) -- (4);
-    \end{tikzpicture}
-    
-\begin{exampleblock}{}
-\centering    
-\begin{minted}[fontsize=\footnotesize]{julia}
-for i in 1:N
-  deps = inneighbors(i)
-  for j in deps
-    wait(j)
-  end
-  schedule(i)
-end
-\end{minted}    
-\end{exampleblock}
-    
-    % \alert{Note the quadratic complexity in the number of tasks!}
-    
-\end{frame}
 
 \section{\mintinline{julia}{Implementation details}}
 
@@ -334,27 +307,27 @@ The \mintinline{julia}{@dspawn} macro does the following:
     \item Insert a call to \mintinline{julia}{DataFlowTask} constructor
 \end{itemize}
 
-\begin{columns}
+\begin{columns}[T]
 
-\column{0.4\textwidth}    
-\begin{exampleblock}{}    
+\column{0.45\textwidth}    
+\begin{exampleblock}{User-written code}    
 \begin{minted}{julia}
-@dspawn begin
-  @RW A
-  @R B
-  A .= A .+ B
-end label="add(A,B)"
+@dspawn(foo!(@W(B), @R(A)),
+        label="foo!")
 \end{minted}
 \end{exampleblock}
 
-\column{0.5\textwidth}    
 
-\begin{exampleblock}{}    
+\column{0.4\textwidth}    
+
+\begin{exampleblock}{Macro expansion (approx.)}    
 \begin{minted}{julia}
-DataFlowTasks((A,B),(RW,R);
-  label="add(A,B)") do 
-  A .= A .+ B
-end 
+_t = DataFlowTask(
+       () -> foo!(B, A),
+       (B, A),
+       (WRITE, READ);
+       label="foo!")
+spawn(_t)
 \end{minted}
 \end{exampleblock}
 
