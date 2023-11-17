@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Merge sort · DataFlowTasks.jl</title><meta name="title" content="Merge sort · DataFlowTasks.jl"/><meta property="og:title" content="Merge sort · DataFlowTasks.jl"/><meta property="twitter:title" content="Merge sort · DataFlowTasks.jl"/><meta name="description" content="Documentation for DataFlowTasks.jl."/><meta property="og:description" content="Documentation for DataFlowTasks.jl."/><meta property="twitter:description" content="Documentation for DataFlowTasks.jl."/><meta property="og:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/sort/sort/"/><meta property="twitter:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/sort/sort/"/><link rel="canonical" href="https://maltezfaria.github.io/DataFlowTasks.jl/examples/sort/sort/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">DataFlowTasks.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Getting started</a></li><li><a class="tocitem" href="../../../profiling/">Debugging &amp; Profiling</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../cholesky/cholesky/">Tiled Cholesky Factorization</a></li><li><a class="tocitem" href="../../blur-roberts/blur-roberts/">Blur &amp; Roberts image filters</a></li><li><a class="tocitem" href="../../lcs/lcs/">Longest Common Subsequence</a></li><li class="is-active"><a class="tocitem" href>Merge sort</a><ul class="internal"><li><a class="tocitem" href="#Sequential-version"><span>Sequential version</span></a></li><li><a class="tocitem" href="#Parallel-version"><span>Parallel version</span></a></li><li><a class="tocitem" href="#Performance"><span>Performance</span></a></li><li><a class="tocitem" href="#Parallel-merge"><span>Parallel merge</span></a></li></ul></li><li><a class="tocitem" href="../../hardware/">Hardware information</a></li></ul></li><li><a class="tocitem" href="../../../troubleshooting/">Troubleshooting</a></li><li><a class="tocitem" href="../../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Merge sort</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Merge sort</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl/blob/main/docs/src/examples/sort/sort.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="example-sort"><a class="docs-heading-anchor" href="#example-sort">Merge sort</a><a id="example-sort-1"></a><a class="docs-heading-anchor-permalink" href="#example-sort" title="Permalink"></a></h1><p><a href="../sort.ipynb"><img src="https://img.shields.io/badge/download-ipynb-blue" alt="ipynb"/></a> <a href="https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/gh-pages/previews/PR78/examples/sort/sort.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-blue.svg" alt="nbviewer"/></a></p><p>This example illustrates the use of <code>DataFlowTasks</code> to implement a parallel <a href="https://en.wikipedia.org/wiki/Merge_sort">merge sort</a> algorithm.</p><h2 id="Sequential-version"><a class="docs-heading-anchor" href="#Sequential-version">Sequential version</a><a id="Sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Sequential-version" title="Permalink"></a></h2><p>We&#39;ll use a &quot;bottom-up&quot; implementation of the merge sort algorithm. To explain how it works, let&#39;s consider a small vector of 32 elements:</p><pre><code class="language-julia hljs">using Random, CairoMakie
+include(&quot;helper.jl&quot;) # plotting utilities
+Random.seed!(42)
+
+v = randperm(32)
+barplot(v)</code></pre><img src="9d6c3814.png" alt="Example block output"/><p>We decompose it into 4 blocks of 8 elements, which we sort individually:</p><pre><code class="language-julia hljs">sort!(view(v, 1:8))
+sort!(view(v, 9:16))
+sort!(view(v, 17:24))
+sort!(view(v, 25:32))
+barplot(v; color=ceil.(Int, eachindex(v)./8), colormap=:Paired_4, colorrange=(1,4))</code></pre><img src="216a2b57.png" alt="Example block output"/><p>Now we can merge the first two 8-element blocks into a sorted 16-element block. And do the same for the 3rd and 4th 8-element blocks. We&#39;ll need an auxilliary array <code>w</code> to store the results:</p><pre><code class="language-julia hljs">function merge!(dest, left, right)
+    # pre-condition:
+    #   `left`  is sorted
+    #   `right` is sorted
+    #   length(left) + length(right) == length(dest)
+    # post-condition:
+    #   `dest` contains all elements from `left` and `right`
+    #   `dest` is sorted
+
+    (i, j) = (1, 1)
+    (I, J) = (length(left), length(right))
+    @assert I + J == length(dest)
+    @inbounds for k in eachindex(dest)
+        if i &lt;= I &amp;&amp; (j &gt; J || left[i] &lt; right[j])
+            dest[k] = left[i]; i += 1
+        else
+            dest[k] = right[j]; j+=1
+        end
+    end
+end
+
+w = similar(v)
+@views merge!(w[1:16],  v[1:8],   v[9:16])
+@views merge!(w[17:32], v[17:24], v[25:32])
+barplot(w; color=ceil.(Int, eachindex(v)./16), colormap=:Paired_4, colorrange=(1,4))</code></pre><img src="30954a07.png" alt="Example block output"/><p>Now <code>w</code> is sorted in two blocks, which we can merge to get the entire sorted array. Instead of using a new buffer to store the results, let&#39;s re-use the original array <code>v</code>:</p><pre><code class="language-julia hljs">@views merge!(v, w[1:16], w[17:32])
+barplot(v)</code></pre><img src="18e821bd.png" alt="Example block output"/><p>The following sequential implementation automates these steps.</p><p>First, the vector is decomposed in blocks of size <code>bs</code> (<code>64</code> by default). Each block is sorted using an insertion sort (which works in-place without allocating anything, and is relatively fast for small vectors).</p><p>Then, sorted blocks are grouped in pairs which are merged into the buffer. If the number of blocks is odd, the last block is copied directly to the destination buffer.</p><p>The auxiliary buffer is now composed of sorted blocks twice as large as the original blocks, so we can iterate the algorithm with a doubled block size, this time putting the results back to the original vector.</p><p>Depending on the parity of the number of iterations, the final result ends up being stored either in the original vector (which is what we want) or in the auxiliary buffer (in which case we copy it back to the original vector). The semantics of <code>mergesort!</code> is thus that of an in-place sort: after the call, <code>v</code> should be sorted.</p><pre><code class="language-julia hljs">function mergesort!(v, buf=similar(v), bs=64)
+    N = length(v)
+
+    for i₀ in 1:bs:N
+        i₁ = min(i₀+bs-1, N)
+        sort!(view(v, i₀:i₁), alg=InsertionSort)
+    end
+
+    (from, to) = (v, buf)
+
+    while bs &lt; length(v)
+        i₀ = 1
+        while i₀ &lt; N
+            i₁ = i₀+bs; i₁&gt;N &amp;&amp; break
+            i₂ = min(i₀+2bs-1, N)
+            @views merge!(to[i₀:i₂], from[i₀:i₁-1], from[i₁:i₂])
+
+            i₀ = i₂+1
+        end
+        if i₀ &lt;= N
+            @inbounds @views to[i₀:N] .= from[i₀:N]
+        end
+
+        bs *= 2
+        (from, to) = (to, from)
+    end
+
+    v === from || copy!(v, from)
+    v
+end
+
+N = 100_000
+v = rand(N)
+buf = similar(v)
+
+@assert issorted(mergesort!(copy(v), buf))</code></pre><h2 id="Parallel-version"><a class="docs-heading-anchor" href="#Parallel-version">Parallel version</a><a id="Parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Parallel-version" title="Permalink"></a></h2><p>Parallelizing with DataFlowTasks involves splitting the work into several parallel tasks, which have to be annotated to list their data dependencies. In our case:</p><ul><li><p>Sorting each initial block involves calling the sequential implementation on it. The block size is larger here, to avoid spawning tasks for too small chunks. Each such task modifies its own block in-place.</p></li><li><p>Merging two blocks (or copying a lone block) reads part of the source array, and writes to (the same) part of the destination array.</p></li><li><p>A final task reads the whole array to act as a barrier: we can fetch it to synchronize all other tasks and get the result.</p></li></ul><pre><code class="language-julia hljs">using DataFlowTasks
+
+function mergesort_dft!(v, buf=similar(v), bs=16384)
+    N = length(v)
+
+    for i₀ in 1:bs:N
+        i₁ = min(i₀+bs-1, N)
+        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label=&quot;sort\n$i₀:$i₁&quot;
+    end
+
+    # WARNING: (from, to) are not local to each task but will later be re-bound
+    # =&gt; avoid capturing them
+    (from, to) = (v, buf)
+
+    while bs &lt; N
+        i₀ = 1  # WARNING: i₀ is not local to each task; avoid capturing it
+        while i₀ &lt; N
+            i₁ = i₀+bs; i₁&gt;N &amp;&amp; break
+            i₂ = min(i₀+2bs-1, N)
+            let # Create new bindings which will be captured in the task body
+                left  = @view from[i₀:i₁-1]
+                right = @view from[i₁:i₂]
+                dest  = @view to[i₀:i₂]
+                @dspawn merge!(@W(dest), @R(left), @R(right)) label=&quot;merge\n$i₀:$i₂&quot;
+            end
+            i₀ = i₂+1
+        end
+        if i₀ &lt;= N
+            let # Create new bindings which will be captured in the task body
+                src  = @view from[i₀:N]
+                dest = @view to[i₀:N]
+                @dspawn @W(dest) .= @R(src) label=&quot;copy\n$i₀:$N&quot;
+            end
+        end
+
+        bs *= 2
+        (from, to) = (to, from)
+    end
+
+    final_task = @dspawn @R(from) label=&quot;result&quot;
+    fetch(final_task)
+    v === from || copy!(v, from)
+    v
+end
+
+@assert issorted(mergesort_dft!(copy(v), buf))</code></pre><div class="admonition is-info"><header class="admonition-header">Captured bindings</header><div class="admonition-body"><p>The swapping of variables <code>from</code> and <code>to</code> could cause hard-to-debug issues if these bindings were captured into the task bodies. The same is true of variable <code>i₀</code>, which is repeatedly re-bound in the <code>while</code>-loop (as opposed to what classically happens with a <code>for</code> loop, which creates a new binding at each iteration).</p><p>This is a real-world occurrence of the situation described in more details in the <a href="../../../troubleshooting/#troubleshooting-captures">troubleshooting page</a>.</p></div></div><p>As expected, the task graph looks like a (mostly binary) tree:</p><pre><code class="language-julia hljs">log_info = DataFlowTasks.@log mergesort_dft!(copy(v))
+
+using GraphViz
+dag = GraphViz.Graph(log_info)</code></pre><img src="2049c3a5.svg" alt="Example block output"/><h2 id="Performance"><a class="docs-heading-anchor" href="#Performance">Performance</a><a id="Performance-1"></a><a class="docs-heading-anchor-permalink" href="#Performance" title="Permalink"></a></h2><p>Let&#39;s use bigger data to assess the performance of our implementations:</p><pre><code class="language-julia hljs">N = 1_000_000
+data = rand(N);
+buf  = similar(data);
+
+using BenchmarkTools
+bench_seq = @benchmark mergesort!(x, $buf) setup=(x=copy(data)) evals=1</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 9 samples with 1 evaluation.
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">115.902 ms</span></span> … <span class="sgr35">118.052 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 0.00%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">116.472 ms               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">116.754 ms</span></span> ± <span class="sgr32">778.793 μs</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>0.00% ± 0.00%
+
+  ▁     ▁      <span class="sgr34">█</span>  ▁  ▁    <span class="sgr32"> </span> ▁                                 █  
+  █▁▁▁▁▁█▁▁▁▁▁▁<span class="sgr34">█</span>▁▁█▁▁█▁▁▁▁<span class="sgr32">▁</span>▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█ ▁
+  116 ms<span class="sgr90">           Histogram: frequency by time</span>          118 ms <span class="sgr1">&lt;</span>
+
+ Memory estimate<span class="sgr90">: </span><span class="sgr33">0 bytes</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">0</span>.</code></pre><pre><code class="language-julia hljs">bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 23 samples with 1 evaluation.
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">34.744 ms</span></span> … <span class="sgr35">47.596 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 0.00%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">37.668 ms              </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">38.720 ms</span></span> ± <span class="sgr32"> 3.444 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>0.00% ± 0.00%
+
+     ▃ ▃      <span class="sgr34"> </span>▃    <span class="sgr32"> </span>       █                                  
+  ▇▁▁█▁█▇▇▇▁▇▇<span class="sgr34">▇</span>█▁▁▁▇<span class="sgr32">▁</span>▁▇▁▇▇▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▇▁▁▁▁▁▁▁▁▁▇▁▁▁▁▇ ▁
+  34.7 ms<span class="sgr90">         Histogram: frequency by time</span>        47.6 ms <span class="sgr1">&lt;</span>
+
+ Memory estimate<span class="sgr90">: </span><span class="sgr33">7.97 MiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">4760</span>.</code></pre><p>The parallel version does exhibit some speed-up, but not as much as one would hope for given the number of threads used in the computation:</p><pre><code class="language-julia hljs">(;
+ nthreads = Threads.nthreads(),
+ speedup = time(minimum(bench_seq)) / time(minimum(bench_dft)))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(nthreads = 8, speedup = 3.3358907776351465)</code></pre><p>To better understand why the speedup may not be as good as expected, we can inspect the execution trace of the parallel version and visualize it using <code>Makie</code>:</p><pre><code class="language-julia hljs">log_info = DataFlowTasks.@log mergesort_dft!(copy(data))
+plot(log_info; categories = [&quot;sort&quot;, &quot;merge&quot;, &quot;copy&quot;, &quot;result&quot;])</code></pre><img src="c063bde8.png" alt="Example block output"/><p>The parallel profile explains it all: at the beginning of the computation, sorting the small blocks and merging them involves a large number of small tasks. There is a lot of expressed parallelism to be taken advantage of at this stage, and <code>DataFlowTasks</code> seems to do a good job. But as the algorithm advances, fewer and fewer blocks have to be merged, which are larger and larger... until the last merge of the whole array (which is performed sequentially) seemingly accounts for as much as 25% of the whole computation time!</p><h2 id="Parallel-merge"><a class="docs-heading-anchor" href="#Parallel-merge">Parallel merge</a><a id="Parallel-merge-1"></a><a class="docs-heading-anchor-permalink" href="#Parallel-merge" title="Permalink"></a></h2><p>In order to express more parallelism in the algorithm, it is therefore important to perform large merges in parallel. There exist many elaborate <a href="https://en.wikipedia.org/wiki/Merge_algorithm">parallel binary merge algorithms</a>; here we describe a relatively naive one:</p><pre><code class="language-julia hljs"># Assuming we want to sort `v`, and its `left` and `right` halves have already
+# been sorted, we merge them into `dest`:
+v = randperm(64)
+left  = @views v[1:32]; sort!(left)
+right = @views v[33:64]; sort!(right)
+dest = similar(v)
+
+(I, J, K) = length(left), length(right), length(dest)
+@assert I+J == K
+
+# First we find a pivot value, which splits `left` in two halves:
+i = 1 + I ÷ 2
+pivot = left[i-1]
+
+# Next we split `right` into two parts: indices associated to values lower than
+# the pivot, and indices associated to values larger than the pivot. Since the
+# data is sorted, an efficient binary search algorithm can be used:
+j = searchsortedfirst(right, pivot)
+
+# We now have both `left` and `right` decomposed into two (hopefully nearly
+# equal) parts:
+(i₁, i₂) = (1:i-1, i:I)  # partition of `left`
+(j₁, j₂) = (1:j-1, j:J)  # partition of `right`
+
+display_split(v, i₁, i₂, j₁, j₂)</code></pre><img src="f4b42b09.png" alt="Example block output"/><p>Between them, the first part of <code>left</code> and the first part of <code>right</code> contain all values lower than or equal to <code>pivot</code>: they can be merged together in the first part of the destination array, which will also contain all values lower than or equal to <code>pivot</code>.</p><p>The same is true of the second parts of <code>left</code> and <code>right</code>, which contain all values larger than <code>pivot</code> and can be merged into the second part of the destination array.</p><pre><code class="language-julia hljs"># Find the index which splits `dest` into two parts, according to the number of
+# elements in the first parts of `left` and `right`
+k = i + j - 1
+(k₁, k₂) = (1:k-1, k:K)  # partition of `dest`
+
+# Merge the first parts
+@views merge!(dest[k₁], left[i₁], right[j₁])
+
+# Merge the second parts
+@views merge!(dest[k₂], left[i₂], right[j₂])
+
+# We now have a fully sorted array
+@assert issorted(dest)</code></pre><p>The following function automates the splitting of the arrays into <code>P</code> parts, desribed as a vector of <code>(iₚ, jₚ, kₚ)</code> tuples:</p><pre><code class="language-julia hljs">function split_indices(P, dest, left, right)
+    (I, J, K) = length(left), length(right), length(dest)
+    @assert I+J == K
+
+    i = ones(Int, P+1)
+    j = ones(Int, P+1)
+    k = ones(Int, P+1)
+    for p in 2:P
+        i[p] = 1 + ((p-1)*I) ÷ P
+        j[p] = searchsortedfirst(right, left[i[p]-1])
+        k[p] = k[p-1] + i[p]-i[p-1] + j[p]-j[p-1]
+    end
+    i[P+1] = I+1; j[P+1] = J+1; k[P+1] = K+1
+
+    map(1:P) do p
+        (i[p]:i[p+1]-1, j[p]:j[p+1]-1, k[p]:k[p+1]-1)
+    end
+end
+
+# Check that this decomposes `left` and `right` into the same ranges as shown
+# in the figure above:
+split_indices(2, dest, left, right)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Tuple{UnitRange{Int64}, UnitRange{Int64}, UnitRange{Int64}}}:
+ (1:16, 1:21, 1:37)
+ (17:32, 22:32, 38:64)</code></pre><p>This can serve as a building block for a parallel merge and new version of the parallel merge sort:</p><pre><code class="language-julia hljs">function parallel_merge_dft!(dest, left, right; label=&quot;&quot;)
+    # Number of parts in which large blocks will be split
+    P = min(Threads.nthreads(), ceil(Int, length(dest)/65_536))
+
+    # Simple sequential merge for small cases
+    if P &lt;= 1
+        @dspawn merge!(@W(dest), @R(left), @R(right)) label=&quot;merge\n$label&quot;
+        return dest
+    end
+
+    # Split the arrays into `P` parts. It is important to use `@dspawn` here so
+    # that `split_indices` wait until the previous tasks are finished sorting
+    idxs_t = @dspawn split_indices(P, @R(dest), @R(left), @R(right)) label=&quot;split\n$label&quot;
+    idxs   = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
+
+    # Spawn one task per part
+    for p in 1:P
+        part = &#39;A&#39; + p -1
+        iₚ, jₚ, kₚ = idxs[p]
+        left′, right′, dest′ = @views left[iₚ], right[jₚ], dest[kₚ]
+        @dspawn merge!(@W(dest′), @R(left′), @R(right′)) label=&quot;merge $part\n$label&quot;
+    end
+    return dest
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">parallel_merge_dft! (generic function with 1 method)</code></pre><p>With this parallel merge version, we can now re-write the mergesort algorithm to spawn parallel merge tasks:</p><pre><code class="language-julia hljs">function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
+    N = length(v)
+
+    for i₀ in 1:bs:N
+        i₁ = min(i₀+bs-1, N)
+        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label=&quot;sort\n$i₀:$i₁&quot;
+    end
+
+    (from, to) = (v, buf)
+
+    while bs &lt; N
+        i₀ = 1
+        while i₀ &lt; N
+            i₁ = i₀+bs; i₁&gt;N &amp;&amp; break
+            i₂ = min(i₀+2bs-1, N)
+            let
+                left  = @view from[i₀:i₁-1]
+                right = @view from[i₁:i₂]
+                dest  = @view to[i₀:i₂]
+                parallel_merge_dft!(dest, left, right, label=&quot;$i₀:$i₂&quot;)
+            end
+            i₀ = i₂+1
+        end
+        if i₀ &lt;= N
+            let
+                src  = @view from[i₀:N]
+                dest = @view to[i₀:N]
+                @dspawn @W(dest) .= @R(src) label=&quot;copy\n$i₀:$N&quot;
+            end
+        end
+
+        bs *= 2
+        (from, to) = (to, from)
+    end
+
+    final_task = @dspawn @R(from) label=&quot;result&quot;
+    fetch(final_task)
+    v === from || copy!(v, from)
+    v
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">parallel_mergesort_dft! (generic function with 2 methods)</code></pre><p>Let us check that this new version still works as expected:</p><pre><code class="language-julia hljs">N = 100_000
+v = rand(N)
+@assert issorted(parallel_mergesort_dft!(copy(v)))</code></pre><p>The task graph is now a bit more complicated. Here we see for example that the last level of merge has been split into 2 parts (labelled &quot;merge A&quot; and &quot;merge B&quot;):</p><pre><code class="language-julia hljs"># Temporarily stop the DAG cleaner from dynamically removing nodes from the task
+# graph in order to obtain the full &quot;static graph&quot;.
+DataFlowTasks.stop_dag_cleaner()
+log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(v))
+DataFlowTasks.start_dag_cleaner()
+
+using GraphViz
+dag = GraphViz.Graph(log_info)</code></pre><img src="68107340.svg" alt="Example block output"/><p>Since it expresses more parallelism, this new version performs better:</p><pre><code class="language-julia hljs">buf = similar(data)
+bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 1</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 31 samples with 1 evaluation.
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">21.095 ms</span></span> … <span class="sgr35">34.432 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 0.00%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">23.629 ms              </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">24.895 ms</span></span> ± <span class="sgr32"> 3.312 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>0.00% ± 0.00%
+
+   ▄      ▄██<span class="sgr34">▁</span>▁▁   <span class="sgr32"> </span>                                           
+  ▆█▁▁▁▁▁▁███<span class="sgr34">█</span>██▆▁▁<span class="sgr32">▁</span>▁▆▁▁▁▆▆▁▁▁▁▆▆▁▁▁▆▁▁▁▁▁▁▁▆▁▁▁▁▁▁▁▁▁▁▁▁▁▆▁▆ ▁
+  21.1 ms<span class="sgr90">         Histogram: frequency by time</span>        34.4 ms <span class="sgr1">&lt;</span>
+
+ Memory estimate<span class="sgr90">: </span><span class="sgr33">8.09 MiB</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">6228</span>.</code></pre><pre><code class="language-julia hljs">(;
+    nthreads = Threads.nthreads(),
+    speedup = time(minimum(bench_seq)) / time(minimum(bench_dft_tiled)),
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(nthreads = 8, speedup = 5.494159865343181)</code></pre><p>The profile plot also shows how merge tasks remain parallel until the very end, even though each large merge forces all threads to synchronize:</p><pre><code class="language-julia hljs">log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
+plot(log_info, categories=[&quot;sort&quot;, &quot;merge&quot;, &quot;copy&quot;, &quot;result&quot;, &quot;split&quot;])</code></pre><img src="fabe577d.png" alt="Example block output"/><p>Here, one extra performance limiting factor is the additional work performed by the parallel merge algorithm (<em>e.g.</em> finding pivots). Compare for example the sequential elapsed time:</p><pre><code class="language-julia hljs">bench_seq</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BenchmarkTools.Trial: 9 samples with 1 evaluation.
+ Range <span class="sgr90">(</span><span class="sgr36"><span class="sgr1">min</span></span> … <span class="sgr35">max</span><span class="sgr90">):  </span><span class="sgr36"><span class="sgr1">115.902 ms</span></span> … <span class="sgr35">118.052 ms</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>min … max<span class="sgr90">): </span>0.00% … 0.00%
+ Time  <span class="sgr90">(</span><span class="sgr34"><span class="sgr1">median</span></span><span class="sgr90">):     </span><span class="sgr34"><span class="sgr1">116.472 ms               </span></span><span class="sgr90">┊</span> GC <span class="sgr90">(</span>median<span class="sgr90">):    </span>0.00%
+ Time  <span class="sgr90">(</span><span class="sgr32"><span class="sgr1">mean</span></span> ± <span class="sgr32">σ</span><span class="sgr90">):   </span><span class="sgr32"><span class="sgr1">116.754 ms</span></span> ± <span class="sgr32">778.793 μs</span>  <span class="sgr90">┊</span> GC <span class="sgr90">(</span>mean ± σ<span class="sgr90">):  </span>0.00% ± 0.00%
+
+  ▁     ▁      <span class="sgr34">█</span>  ▁  ▁    <span class="sgr32"> </span> ▁                                 █  
+  █▁▁▁▁▁█▁▁▁▁▁▁<span class="sgr34">█</span>▁▁█▁▁█▁▁▁▁<span class="sgr32">▁</span>▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█ ▁
+  116 ms<span class="sgr90">           Histogram: frequency by time</span>          118 ms <span class="sgr1">&lt;</span>
+
+ Memory estimate<span class="sgr90">: </span><span class="sgr33">0 bytes</span>, allocs estimate<span class="sgr90">: </span><span class="sgr33">0</span>.</code></pre><p>to the cumulated run time of the tasks (shown as &quot;Computing&quot; in the <code>log_info</code> description):</p><pre><code class="language-julia hljs">DataFlowTasks.describe(log_info)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">• Elapsed time           : 0.037
+  ├─ Critical Path       : 0.007
+  ╰─ No-Wait             : 0.034
+
+• Run time               : 0.294
+  ├─ Computing           :   0.275
+  │  ╰─ unlabeled        :     0.275
+  ├─ Task Insertion      :   0.000
+  ╰─ Other (idle)        :   0.019</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../lcs/lcs/">« Longest Common Subsequence</a><a class="docs-footer-nextpage" href="../../hardware/">Hardware information »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Friday 17 November 2023 14:45">Friday 17 November 2023</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
