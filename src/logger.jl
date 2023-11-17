@@ -400,3 +400,45 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
 
     return gantt
 end
+
+"""
+    loggertodot(logger)  --> dagstring
+
+Return a string in the
+[DOT](https://en.wikipedia.org/wiki/DOT_(graph_description_language)) format
+representing the underlying graph in `logger`.
+
+If `GraphViz` is installed, you can use `GraphViz.Graph(logger)` to produce an
+image.
+"""
+function loggertodot(logger)
+    path = longest_path(logger)
+
+    # Write DOT graph
+    # ---------------
+    str = "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;"
+    str *= """concentrate=true;"""
+
+    for tasklog in Iterators.flatten(logger.tasklogs)
+        # Tasklog.tag node attributes
+        str *= """ $(tasklog.tag) """
+        tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)
+        tasklog.tag ∈ path && (str *= """ [color=red] """)
+        str *= """[penwidth=2];"""
+
+        # Defines edges
+        for neighbour in tasklog.inneighbors
+            red = false
+
+            # Is this connection is in critical path
+            (neighbour ∈ path && tasklog.tag ∈ path) && (red = true)
+
+            # Edge
+            str *= """ $neighbour -> $(tasklog.tag) """
+            red && (str *= """[color=red] """)
+            str *= """[penwidth=2];"""
+        end
+    end
+
+    return str *= "}"
+end

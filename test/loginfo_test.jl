@@ -46,7 +46,7 @@ if isdefined(Base, :get_extension)
         @test GraphVizExt isa Module
 
         # DOT Format File
-        dotstr = GraphVizExt.loggertodot(logger)
+        dotstr = DataFlowTasks.loggertodot(logger)
         @test occursin("strict digraph dag", dotstr)
         @test occursin("1 -> 2", dotstr)
         @test occursin("2 -> 3", dotstr)
