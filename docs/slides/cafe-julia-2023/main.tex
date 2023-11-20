@@ -243,16 +243,16 @@ fetch(t4)
   \node at (4.5,1.3) {};
 \end{tikzpicture}
 
-\vspace{-1em}
 \begin{columns}[T]
   \column{0.42\textwidth}
 \begin{exampleblock}{User-written code}
 \begin{minted}[fontsize=\footnotesize,escapeinside=||,beameroverlays=true]{julia}
 |\onslide<1->|A = rand(4)
-|\onslide<2->|@dspawn fill!(@R(A),0)
+|\onslide<2->|@dspawn fill!(@W(A),0)
 |\onslide<3->|@dspawn @RW(view(A,1:2)) += 2
 |\onslide<5->|@dspawn @RW(view(A,3:4)) += 3
 |\onslide<7->|@dspawn sum(@R(A))
+
 |\onslide<1->|
 \end{minted}    
 \end{exampleblock}
@@ -261,8 +261,8 @@ fetch(t4)
 \begin{onlyenv}<4-9>
   \begin{exampleblock}{Behind the scenes: DAG}
 \begin{minted}[fontsize=\footnotesize,escapeinside=||]{julia}
+# Note the quadratic complexity!
 for i in 1:N, j in i:-1:1
-  # Note the quadratic complexity!
   # Detect conflict between i and j
   for di in data(i), dj in data(j)
     if memory_overlap(di, dj)
