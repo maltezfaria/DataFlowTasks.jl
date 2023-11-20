@@ -179,7 +179,6 @@ and outgoing edges are updated.
 function update_edges!(dag::DAG, nodej)
     transitively_connected = dag._buffer
     empty!(transitively_connected)
-    hastask = any(x -> isa(x, Task), data(nodej))
     # update dependencies from newer to older and reinfornce transitivity by
     # skipping predecessors of nodes which are already connected
     for (nodei, _) in Iterators.reverse(dag)
@@ -192,13 +191,7 @@ function update_edges!(dag::DAG, nodej)
         (ti ∈ transitively_connected) && continue
         # tasks are handled differently when they appear in the data in that
         # they are checked directly agains the nodej.task field
-        dep = false
-        if hastask
-            for d in data(nodej)
-                d === nodei.task && (dep = true; break)
-            end
-        end
-        dep || data_dependency(nodei, nodej) || continue
+        data_dependency(nodei, nodej) || continue
         addedge!(dag, nodei, nodej)
         update_transitively_connected!(transitively_connected, nodei, dag)
     end
