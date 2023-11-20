@@ -21,16 +21,16 @@ import DataFlowTasks as DFT
 
     @testset "access tags in arguments list" begin
         t = DFT.@dtask f(@R(x), @W(y), @RW(z))
-        @test t.data === (x, y, z)
-        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE)
+        @test t.data === (x, y, z, t.task)
+        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE, DFT.READWRITE)
         @test t.priority == 0
         @test t.label == ""
     end
 
     @testset "arrow access tags" begin
         t = DFT.@dtask f(@←(x), @→(y), @↔(z))
-        @test t.data === (x, y, z)
-        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE)
+        @test t.data === (x, y, z, t.task)
+        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE, DFT.READWRITE)
     end
 
     @testset "access tags in task body" begin
@@ -39,21 +39,21 @@ import DataFlowTasks as DFT
             @R y z
             f(x', y', z')
         end
-        @test t.data === (x, y, z)
-        @test t.access_mode == (DFT.WRITE, DFT.READ, DFT.READ)
+        @test t.data === (x, y, z, t.task)
+        @test t.access_mode == (DFT.WRITE, DFT.READ, DFT.READ, DFT.READWRITE)
     end
 
     @testset "access tags in parameters" begin
         t = DFT.@dtask f(x', y', z') @R(x) @W(y) @RW(z)
-        @test t.data === (x, y, z)
-        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE)
+        @test t.data === (x, y, z, t.task)
+        @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE, DFT.READWRITE)
     end
 
     @testset "optional parameters" begin
         j = 2
         t = DFT.@dtask f(@W(x), y') @R(y) priority = j label = "task($j)"
-        @test t.data === (x, y)
-        @test t.access_mode == (DFT.WRITE, DFT.READ)
+        @test t.data === (x, y, t.task)
+        @test t.access_mode == (DFT.WRITE, DFT.READ, DFT.READWRITE)
         @test t.priority == 2
         @test t.label == "task(2)"
     end

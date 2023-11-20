@@ -55,6 +55,8 @@ mutable struct DataFlowTask
             put!(sch.finished, tj)
             return res
         end
+        tj.data = (tj.data..., tj.task)
+        tj.access_mode = (tj.access_mode..., READWRITE)
         return tj
     end
 end
@@ -115,9 +117,7 @@ end
 
 @noinline function _data_dependency(datai, modei, dataj, modej)
     for (di, mi) in zip(datai, modei)
-        (di isa Task) && continue # Tasks are handled differently
         for (dj, mj) in zip(dataj, modej)
-            (dj isa Task) && continue # Tasks are handled differently
             mi == READ && mj == READ && continue
             if memory_overlap(di, dj)
                 return true
@@ -140,6 +140,7 @@ arguments to allow for appropriate inference of data dependencies.
 """
 function memory_overlap(di, dj)
     (isbits(di) || isbits(dj)) && return false
+    (di isa Task || dj isa Task) && return di === dj
     @warn """using fallback `memory_overlap(::Any,::Any) = true`. Consider implementing
     `DataFlowTasks.memory_overlap(::$(typeof(di)),::$(typeof(dj)))`.
     """
