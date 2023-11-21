@@ -45,7 +45,7 @@ Pkg.activate("../../..") #src
 
 # The following image illustrates the 2nd step of the algorithm:
 #
-# ![](https://github.com/maltezfaria/DataFlowTasks.jl/blob/1d101c3d738bcb35a93ed4c9db60a2ad66886fa5/docs/src/examples/cholesky/Cholesky_2ndStep.png)
+# ![](https://github.com/maltezfaria/DataFlowTasks.jl/blob/1d101c3d738bcb35a93ed4c9db60a2ad66886fa5/docs/src/examples/cholesky/Cholesky_2ndStep.png?raw=true)
 
 #-
 
