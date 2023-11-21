@@ -2,6 +2,10 @@ cd(@__DIR__)             #src
 import Pkg               #src
 Pkg.activate("../../..") #src
 
+#nb ## Environment setup
+#nb const DEPENDENCIES = ["PrettyTables", "BenchmarkTools", "TiledIteration", "CairoMakie", "GraphViz"];
+#nb ## __NOTEBOOK_SETUP__
+
 # # [Longest Common Subsequence](@id lcs-section)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](lcs.ipynb)

@@ -2,9 +2,9 @@ cd(@__DIR__)             #src
 import Pkg               #src
 Pkg.activate("../../..") #src
 
-#nb using Pkg
-#nb Pkg.add(name="DataFlowTasks", rev="COMMIT")
-#nb Pkg.add(["BenchmarkTools"])
+#nb ## Environment setup
+#nb const DEPENDENCIES = ["GraphViz", "CairoMakie", "BenchmarkTools"];
+#nb ## __NOTEBOOK_SETUP__
 
 # # [Tiled Cholesky Factorization](@id tiledcholesky-section)
 #

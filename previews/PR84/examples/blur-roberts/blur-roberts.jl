@@ -1,7 +1,10 @@
 cd(@__DIR__)             #src
 import Pkg               #src
 Pkg.activate("../../..") #src
-using BenchmarkTools     #src
+
+#nb ## Environment setup
+#nb const DEPENDENCIES = ["Images", "BenchmarkTools", "TiledIteration", "CairoMakie"];
+#nb ## __NOTEBOOK_SETUP__
 
 # # [Blur & Roberts image filters](@id blur-roberts-section)
 #
