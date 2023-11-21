@@ -40,6 +40,14 @@
     TriScale innov
 }
 
+\AtBeginSection[]
+{
+    \begin{frame}
+        \frametitle{Table of Contents}
+        \tableofcontents[currentsection]
+    \end{frame}
+}
+
 \date{\today}
 
 \titlegraphic{
@@ -164,13 +172,9 @@ fetch(t4)
 \frametitle{Motivation}
 
 \begin{itemize}
-    \item Many algorithms make constant re-use of data for efficiency. 
-    % \begin{itemize}
-    %     \item Merge sort
-    %     \item In-place matrix factorization
-    %     \item ...
-    % \end{itemize}
-    \item Reasoning about \mintinline{julia}{Task} interdependencies can be challenging.
+    \item Reasoning about \mintinline{julia}{Task} interdependencies can be
+    challenging
+    \item Specially for algorithms making constant re-use of data   
     \item Sometimes, simpler to reason about how \mintinline{julia}{Task}s depends on data than how \mintinline{julia}{Task}s depend on each other
 \end{itemize}
 
@@ -184,6 +188,10 @@ t4 = @spawn (wait(t2); wait(t3); sum(A)) # R access to A
 fetch(t4)
 \end{minted}
 \end{example}
+
+\begin{itemize}
+  \item<2-> \alert{Would like to declared only the task-to-data dependencies}
+\end{itemize}
 
 \end{frame}
 
@@ -252,8 +260,6 @@ fetch(t4)
 |\onslide<3->|@dspawn @RW(view(A,1:2)) += 2
 |\onslide<5->|@dspawn @RW(view(A,3:4)) += 3
 |\onslide<7->|@dspawn sum(@R(A))
-
-|\onslide<1->|
 \end{minted}    
 \end{exampleblock}
   
@@ -286,8 +292,35 @@ end
 
 \end{frame}
 
+\subsection{Simple example}
+
+\begin{frame}
+\frametitle{Simple example}
+\center \href{run:./sort.slides.html}{\LARGE{Demo: parallel merge sort}}
+
+\end{frame}
 
 \section{\mintinline{julia}{Implementation details}}
+
+\begin{frame}{Main types}
+
+The package revolves around three main types:
+\begin{itemize}
+  \item <1->\mintinline{julia}{DataFlowTask}: wrapper around a
+  \mintinline{julia}{Task} with user-declared data dependencies
+  \item <2->\mintinline{julia}{DAG}: graph data
+  structure to represent dependencies between \mintinline{julia}{DataFlowTask}s
+  \item <3->\mintinline{julia}{TaskGraph}: a
+  \mintinline{julia}{DAG} and some helper functions/workers to manage it
+
+\end{itemize}
+
+\begin{alertblock}<4->{}
+  Next: some technical details about their
+  implementation.
+\end{alertblock}
+
+\end{frame}
 
 \subsection{\mintinline{julia}{DataFlowTask}}
 
@@ -295,16 +328,17 @@ end
 
 \frametitle{\texttt{DataFlowTask}: \mintinline{julia}{@dspawn} macro}
 
-The \mintinline{julia}{@dspawn} macro does the following:
+\texttt{DataFlowTask}s are created using \mintinline{julia}{@dspawn}. The macro
+does the following:
 
 \begin{itemize}
-    \item Scan the \mintinline{julia}{Expr} for \mintinline{julia}{@R, @W, @RW} annotations
-    \item Create a \mintinline{julia}{data} and \mintinline{julia}{access_mode}
+    \item <2->Scan the \mintinline{julia}{Expr} for \mintinline{julia}{@R, @W, @RW} annotations
+    \item <3->Create a \mintinline{julia}{data} and \mintinline{julia}{access_mode}
     tuple
-    \item Remove annotations from the \mintinline{julia}{Expr}
-    \item Parse keyword arguments    
-    \item Create an anonymous function wrapping the new \mintinline{julia}{Expr}
-    \item Insert a call to \mintinline{julia}{DataFlowTask} constructor
+    \item <4->Remove annotations from the \mintinline{julia}{Expr}
+    \item <5->Parse keyword arguments    
+    \item <6->Create an anonymous function wrapping the new \mintinline{julia}{Expr}
+    \item <7->Insert a call to \mintinline{julia}{DataFlowTask} constructor
 \end{itemize}
 
 \begin{columns}[T]
@@ -317,10 +351,9 @@ The \mintinline{julia}{@dspawn} macro does the following:
 \end{minted}
 \end{exampleblock}
 
-
 \column{0.4\textwidth}    
 
-\begin{exampleblock}{Macro expansion (approx.)}    
+\begin{exampleblock}<8->{Macro expansion (approx.)}    
 \begin{minted}{julia}
 _t = DataFlowTask(
        () -> foo!(B, A),
@@ -355,7 +388,7 @@ mutable struct DataFlowTask
     addnode!(taskgraph, tj, true) 
     deps = inneighbors(taskgraph, tj) |> copy
     tj.task = @task do
-      foreach(ti->wait(ti),deps)
+      foreach(wait,deps)
       res = f() # run the underlying function
       put!(taskgraph.finished, tj)
       return res
@@ -371,8 +404,7 @@ end
 \begin{frame}[fragile]
 \frametitle{{\mintinline{julia}{DAG}}}  
 
-A graph data structure to store \mintinline{julia}{DataFlowTask}s and their
-dependencies:
+Graph data used to represent dependencies between \mintinline{julia}{DataFlowTask}s:
 
 \begin{itemize}
   \item Dynamic: nodes are added and removed on the fly
@@ -382,18 +414,34 @@ dependencies:
 \end{itemize}
 
 \hrulefill
+
+\begin{columns}[T]
+
+\column{0.45\textwidth}
+\begin{exampleblock}{}
 \begin{minted}[fontsize=\footnotesize]{julia}
 struct DAG{T}
-  inoutlist::OrderedDict{T,Tuple{Set{T},Set{T}}}
+  inoutlist::OrderedDict{...}
   cond_push::Condition
-  cond_empty::Condition
   lock::ReentrantLock
   sz_max::Base.RefValue{Int}
-  counter::Base.RefValue{Int}
-  _buffer::Set{Int} # used for transitive reduction
+  ...
 end
 \end{minted}
-  
+\end{exampleblock}
+
+\column{0.45\textwidth}
+
+\begin{exampleblock}{}
+\begin{minted}[fontsize=\footnotesize]{julia}
+while num_nodes(dag) == dag.sz_max[]
+wait(dag.cond_push)
+end
+\end{minted}
+\end{exampleblock}
+
+\end{columns}
+
 \end{frame}
 
 \subsection{\mintinline{julia}{TaskGraph}}
