@@ -1,8 +1,26 @@
-using DataFlowTasks
 using Documenter
 using Literate
+using DataFlowTasks
+
+# Load weakdeps as early as possible
+DataFlowTasks.stack_weakdeps_env!()
+using GraphViz, CairoMakie
 
 draft = false
+
+const on_CI = get(ENV, "CI", "false") == "true"
+const GIT_HEAD = chomp(read(`git rev-parse HEAD`, String))
+const SETUP = """
+#nb import Pkg
+#nb Pkg.activate(temp=true)
+#nb Pkg.add(name="DataFlowTasks", rev="$GIT_HEAD")
+#nb foreach(Pkg.add, DEPENDENCIES)
+"""
+
+function insert_setup(content)
+    on_CI || return content
+    replace(content, "#nb ## __NOTEBOOK_SETUP__" => SETUP)
+end
 
 # generate examples
 for example in ["cholesky", "blur-roberts", "lcs", "sort"]
@@ -11,7 +29,7 @@ for example in ["cholesky", "blur-roberts", "lcs", "sort"]
         dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "src", "examples", example)
         src = joinpath(dir, "$(example).jl")
         Literate.markdown(src, dir)
-        draft || Literate.notebook(src, dir)
+        draft || Literate.notebook(src, dir; preprocess = insert_setup)
     end
 end
 
@@ -42,9 +60,7 @@ end
 
 
 println("\n*** Generating documentation")
-on_CI = get(ENV, "CI", "false") == "true"
 
-DataFlowTasks.stack_weakdeps_env!()
 DocMeta.setdocmeta!(
     DataFlowTasks,
     :DocTestSetup,

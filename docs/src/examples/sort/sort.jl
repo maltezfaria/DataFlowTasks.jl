@@ -2,6 +2,10 @@ cd(@__DIR__)             #src
 import Pkg               #src
 Pkg.activate("../../..") #src
 
+#nb ## Environment setup
+#nb const DEPENDENCIES = ["BenchmarkTools", "GraphViz", "CairoMakie"];
+#nb ## __NOTEBOOK_SETUP__
+
 # # [Merge sort](@id example-sort)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](sort.ipynb)

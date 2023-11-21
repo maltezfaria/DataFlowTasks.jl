@@ -2,6 +2,10 @@ cd(@__DIR__)             #src
 import Pkg               #src
 Pkg.activate("../../..") #src
 
+#nb ## Environment setup
+#nb const DEPENDENCIES = ["GraphViz", "CairoMakie", "BenchmarkTools"];
+#nb ## __NOTEBOOK_SETUP__
+
 # # [Tiled Cholesky Factorization](@id tiledcholesky-section)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](cholesky.ipynb)
