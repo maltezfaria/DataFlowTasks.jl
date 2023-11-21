@@ -1,34 +1,5 @@
 # Troubleshooting / known issues
 
-## Suggested workflow
-
-Writing parallel code is hard, specially when it involves shared memory. While
-`DataFlowTasks` tries to alleviate some of the burden, it comes with its own
-sharp corners. A suggested workflow for writing parallel code with
-`DataFlowTasks` is the following:
-
-1. Write the serial code, make sure it works. This may sound obvious, but it is
-   easy to get carried away with the parallelization and forget this crucial
-   step!
-2. Add [`@dspawn`](@ref) to the chunks of your code that you want to run in
-   parallel. If it works as expected, you are an awesome programmer! But then,
-   probably you would not be reading this section, if that were the case, so
-   let's assume that you run into some issues.
-3. Run [`DataFlowTasks.force_sequential`](@ref)`(true)` and try your code again. This will
-   make `@dspawn` a no-op, and if your sequential code worked, it should work.
-4. Enable `@dspawn` again with `force_sequential(false)`, and run
-   [`DataFlowTasks.force_linear_dag`](@ref)`(true)`. This makes sure
-   `DataFlowTask`s are created and schedule, but it forces the underlying `DAG`
-   to be linear (i.e. node `i` is always connected to node `i+1`). This is
-   closer to the *real thing* than `force_sequential` since closures are created
-   and variables are capture in the task bodies. If you have an issue here,
-   consider reading the following section on [captured variables](@ref
-   troubleshooting-captures).
-5. Deactivate the `force_linear_dag(false)` and see results are correct. If they
-   are not, the problem is likely related to incorrectly declared data
-   dependencies in your `@dspawn` blocks. Look at the code, scratch your head,
-   and continue debugging...
-
 ## [Tricky behavior of captured variables](@id troubleshooting-captures)
 
 It is easy to forget that `DataFlowTasks.@dspawn`, like its siblings `@async` or
@@ -75,7 +46,6 @@ it later), it "sees" the swapped version of `from` and `to`, and therefore
 copies `NaN`s into the original array.
 
 !!! note
-
     In a real code, one would probably schedule the task as soon as it is created
     (using `@async`, `Threads.@spawn` or `DataFlowTasks.@dspawn`). In such cases, the
     result may vary from run to run, depending on whether the task actually starts
@@ -128,7 +98,6 @@ another. This, although possible, can be a bit tricky to get right. To
 understand why that is the case, let us walk through a simple example:
 
 ```@example nested-tasks
-
 using DataFlowTasks
 
 function nested_tasks()
@@ -260,3 +229,30 @@ which could create a deadlock!
 
 In the future we may provide a more convenient syntax for creating nested task;
 at present, the suggestion is to avoid them if possible.
+
+## Suggested workflow
+
+Writing parallel code is hard, specially when it involves shared memory. A
+suggested workflow for writing parallel code with `DataFlowTasks` is the
+following:
+
+1. Write the serial code, and make sure it works. This may sound obvious, but it
+   is easy to get carried away with the parallelization too early.
+2. Add [`@dspawn`](@ref) around the chunks of your code that you want to run in
+   parallel. If it works as expected, you are done; otherwise, continue to the
+   next step.
+3. Run [`DataFlowTasks.force_sequential(true)`](@ref) (this will make `@dspawn`
+   a no-op) and try your code again. If you are getting the wrong results,
+   return to step 1.
+4. Enable `@dspawn` once more with `force_sequential(false)`, and run
+   [`DataFlowTasks.force_linear_dag`](@ref)`(true)`. This makes sure
+   `DataFlowTask`s are created and schedule, but it forces the underlying `DAG`
+   to be linear (i.e. node `i` is always connected to node `i+1`). This is
+   closer to the *real thing* than `force_sequential` since closures are created
+   and variables are capture in the task bodies. If you have an issue here,
+   consider reading the section on [captured variables](@ref
+   troubleshooting-captures).
+5. Once step 4 works, run `force_linear_dag(false)` to deactivate the linear DAG
+   mechanism, and execute the code again. If the result is wrong, the problem is
+   likely related to incorrectly declared data dependencies in your `@dspawn`
+   blocks. Look at the code, scratch your head, and happy debugging!
