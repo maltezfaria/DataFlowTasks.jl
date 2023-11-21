@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Longest Common Subsequence · DataFlowTasks.jl</title><meta name="title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta property="og:title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta property="twitter:title" content="Longest Common Subsequence · DataFlowTasks.jl"/><meta name="description" content="Documentation for DataFlowTasks.jl."/><meta property="og:description" content="Documentation for DataFlowTasks.jl."/><meta property="twitter:description" content="Documentation for DataFlowTasks.jl."/><meta property="og:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><meta property="twitter:url" content="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><link rel="canonical" href="https://maltezfaria.github.io/DataFlowTasks.jl/examples/lcs/lcs/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">DataFlowTasks.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Getting started</a></li><li><a class="tocitem" href="../../../profiling/">Debugging &amp; Profiling</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../cholesky/cholesky/">Tiled Cholesky Factorization</a></li><li><a class="tocitem" href="../../blur-roberts/blur-roberts/">Blur &amp; Roberts image filters</a></li><li class="is-active"><a class="tocitem" href>Longest Common Subsequence</a><ul class="internal"><li><a class="tocitem" href="#Small-example"><span>Small example</span></a></li><li><a class="tocitem" href="#Large-example"><span>Large example</span></a></li><li><a class="tocitem" href="#Tiled-parallel-version"><span>Tiled parallel version</span></a></li><li><a class="tocitem" href="#Performance-comparison"><span>Performance comparison</span></a></li></ul></li><li><a class="tocitem" href="../../sort/sort/">Merge sort</a></li><li><a class="tocitem" href="../../hardware/">Hardware information</a></li></ul></li><li><a class="tocitem" href="../../../troubleshooting/">Troubleshooting</a></li><li><a class="tocitem" href="../../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Longest Common Subsequence</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Longest Common Subsequence</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/maltezfaria/DataFlowTasks.jl/blob/main/docs/src/examples/lcs/lcs.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="lcs-section"><a class="docs-heading-anchor" href="#lcs-section">Longest Common Subsequence</a><a id="lcs-section-1"></a><a class="docs-heading-anchor-permalink" href="#lcs-section" title="Permalink"></a></h1><p><a href="../lcs.ipynb"><img src="https://img.shields.io/badge/download-ipynb-blue" alt="ipynb"/></a> <a href="https://nbviewer.jupyter.org/github/maltezfaria/DataFlowTasks.jl/blob/gh-pages/previews/PR84/examples/lcs/lcs.ipynb"><img src="https://img.shields.io/badge/show-nbviewer-blue.svg" alt="nbviewer"/></a></p><p>The problem of finding the <a href="https://en.wikipedia.org/wiki/Longest_common_subsequence">Longest Common Subsequence</a> between two sequences finds numerous applications in fields as diverse as computer sciences or bioinformatics. In this example, we&#39;ll implement a parallel dynamic programming approach to solving such problems.</p><p>The idea behind this approach is that, if we denote by <span>$LCS(X,Y)$</span> the longest common subsequence of two sequences <span>$X$</span> and <span>$Y$</span>, then <span>$LCS$</span> satisfies the two following properties:</p><p class="math-container">\[\begin{align}
+&amp; LCS(X*c, Y*c) = LCS(X, Y) * c \\
+&amp; LCS(X*c_1, Y*c_2) \in \left\{ LCS(X*c_1, Y), LCS(X, Y*c_2)\right\} &amp; \text{if } c_1 \neq c_2
+\end{align}\]</p><p>where <span>$X*c$</span> denotes the concatenation of sequence <span>$X$</span> with character <span>$c$</span>. The first property above allows simplifying the Longest Common Subsequence computation of two sequences that end with the same character. When the two sequences end with different characters, the second property allows simplifying the problem to a choice between two possibilities.</p><p>If we now denote by <span>$L_{i,j}$</span> the length of the longest common subsequence between the first <span>$i$</span> characters of <span>$X$</span> and the first <span>$j$</span> characters of <span>$Y$</span>, then we now have the following property for <span>$L$</span>:</p><p class="math-container">\[L_{i,j} = \left\{
+\begin{array}{ll}
+0 &amp; \text{ if } i=0 \text{ or } j=0\\
+1 + L_{i-1, j-1} &amp; \text{ if } i\neq 0 \text{ and } j\neq 0 \text{ and } x_i = y_j\\
+\text{max}\left(L_{i-1, j}, L_{i,j-1}\right) &amp; \text{ if } i\neq 0 \text{ and } j\neq 0 \text{ and } x_i \neq y_j\\
+\end{array}
+\right.\]</p><p>where <span>$x_i$</span> represents the <span>$i$</span>-th character in sequence <span>$X$</span> and <span>$y_j$</span> the <span>$j$</span>-th character in sequence <span>$Y$</span>.</p><p>If <span>$L$</span> is stored in an array, the first condition above allows initializing its first row and first column. Then, the neighboring cells can be filled using the two other conditions, which in turn unlocks further neighboring cells until the whole <span>$L$</span> matrix is filled.</p><h2 id="Small-example"><a class="docs-heading-anchor" href="#Small-example">Small example</a><a id="Small-example-1"></a><a class="docs-heading-anchor-permalink" href="#Small-example" title="Permalink"></a></h2><p>Let us begin with a small example: we want to find a longest common subsequence between <code>GAC</code> and <code>AGCAT</code>:</p><pre><code class="language-julia hljs">x = collect(&quot;GAC&quot;);
+y = collect(&quot;AGCAT&quot;);</code></pre><p>Let&#39;s build the <span>$L$</span> array. For the sake of the example, we&#39;ll initially fill it with <span>$(-1)$</span> in order to indicate which values haven&#39;t been computed yet. The <code>init_buffer(x,y)</code> function simply initiaizes a buffer matrix <code>L</code> of the appropriate size, while <code>init_length!(L)</code> takes a matrix and fills its first row and first column with zeros. We also define a <code>display</code> helper function, which shows a pretty representation of the <span>$L$</span> array.</p><pre><code class="language-julia hljs">init_buffer(x, y) = Matrix{Int}(undef, 1 + length(x), 1 + length(y))
+
+function init_lengths!(L)
+    L[:, 1] .= 0
+    return L[1, :] .= 0
+end
+
+using PrettyTables
+function display(L, x, y)
+    return pretty_table(
+        hcat([&#39;∅&#39;, x...], L);
+        header = [&#39; &#39;, &#39;∅&#39;, y...],
+        formatters = (v, i, j) -&gt; v == -1 ? &quot;&quot; : v,
+    )
+end
+
+L = fill!(init_buffer(x, y), -1)
+init_lengths!(L)
+display(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
+│   │ ∅ │ A │ G │ C │ A │ T │
+├───┼───┼───┼───┼───┼───┼───┤
+│ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
+│ G │ 0 │   │   │   │   │   │
+│ A │ 0 │   │   │   │   │   │
+│ C │ 0 │   │   │   │   │   │
+└───┴───┴───┴───┴───┴───┴───┘</code></pre><p>The <code>fill_lengths!</code> function then allows filling other rows. By default it will fill the entire array, but for the sake of the example we restrict it here to a subset of the rows and/or the columns.</p><pre><code class="language-julia hljs">function fill_lengths!(L, x, y, ir = eachindex(x), jr = eachindex(y))
+    @inbounds for j in jr, i in ir
+        L[i+1, j+1] = (x[i] == y[j]) ? L[i, j] + 1 : max(L[i+1, j], L[i, j+1])
+    end
+end
+
+fill_lengths!(L, x, y, 1:1)
+display(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
+│   │ ∅ │ A │ G │ C │ A │ T │
+├───┼───┼───┼───┼───┼───┼───┤
+│ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
+│ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
+│ A │ 0 │   │   │   │   │   │
+│ C │ 0 │   │   │   │   │   │
+└───┴───┴───┴───┴───┴───┴───┘</code></pre><p>After the first row has been filled, we see that <span>$L_{1,1} = 0$</span> because we can&#39;t extract any common subsequence from the first characters in <span>$X$</span> (<code>G</code>) and <span>$Y$</span> (<code>A</code>). However, <span>$L_{1,2}=1$</span> because the first character of <span>$X$</span> (<code>G</code>) matches the second character of <span>$Y$</span> (which is also <code>G</code>). In turn this causes all other <span>$L_{1,j}$</span> values to be equal to 1.</p><p>Now that the first row is complete, we can fill the remaining two rows in the array:</p><pre><code class="language-julia hljs">fill_lengths!(L, x, y, 2:3)
+display(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌───┬───┬───┬───┬───┬───┬───┐
+│   │ ∅ │ A │ G │ C │ A │ T │
+├───┼───┼───┼───┼───┼───┼───┤
+│ ∅ │ 0 │ 0 │ 0 │ 0 │ 0 │ 0 │
+│ G │ 0 │ 0 │ 1 │ 1 │ 1 │ 1 │
+│ A │ 0 │ 1 │ 1 │ 1 │ 2 │ 2 │
+│ C │ 0 │ 1 │ 1 │ 2 │ 2 │ 2 │
+└───┴───┴───┴───┴───┴───┴───┘</code></pre><p>We now know that the longest common subsequence between <span>$X$</span> and <span>$Y$</span> has a length of 2. In order to actually find a subsequence of this length, we can &quot;backtrack&quot; from the bottom right of the array back to the top left:</p><pre><code class="language-julia hljs">function backtrack(L, x, y)
+    i = lastindex(x)
+    j = lastindex(y)
+    subseq = Char[]
+    while L[i+1, j+1] != 0
+        if x[i] == y[j]
+            pushfirst!(subseq, x[i])
+            (i, j) = (i - 1, j - 1)
+        elseif L[i+1, j] &gt; L[i, j+1]
+            (i, j) = (i, j - 1)
+        else
+            (i, j) = (i - 1, j)
+        end
+    end
+    return String(subseq)
+end
+
+backtrack(L, x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;GA&quot;</code></pre><p>Wrapping everything into a function, we get</p><pre><code class="language-julia hljs">function LCS!(L, x, y)
+    init_lengths!(L)
+    fill_lengths!(L, x, y)
+    return backtrack(L, x, y)
+end
+LCS(x, y) = LCS!(init_buffer(x, y), x, y)
+
+LCS(x, y)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;GA&quot;</code></pre><p>Note that we define both an in-place version of the algorithm, which takes a pre-allocated array as input, and another version which allocates the array internally.</p><h2 id="Large-example"><a class="docs-heading-anchor" href="#Large-example">Large example</a><a id="Large-example-1"></a><a class="docs-heading-anchor-permalink" href="#Large-example" title="Permalink"></a></h2><p>Let&#39;s test this on larger data. The results obtained with this sequential version of the algorithm will serve as reference to check the validity of more complex implementations.</p><pre><code class="language-julia hljs">import Random;
+Random.seed!(42);
+x = rand(&quot;ATCG&quot;, 4096);
+y = rand(&quot;ATCG&quot;, 8192);
+seq = LCS(x, y)
+length(seq)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3575</code></pre><p>We can also measure the elapsed time for this implementation, which will serve as a base line to assess the performance of other implementations described below.</p><pre><code class="language-julia hljs">using BenchmarkTools
+BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1
+t_seq = @belapsed LCS!(L, $x, $y) setup = (L = init_buffer(x, y))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.273992592</code></pre><h3 id="Tiled-sequential-version"><a class="docs-heading-anchor" href="#Tiled-sequential-version">Tiled sequential version</a><a id="Tiled-sequential-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-sequential-version" title="Permalink"></a></h3><p>We&#39;ll now build a tiled version of the same algorithm. The <a href="https://github.com/JuliaArrays/TiledIteration.jl"><code>TiledIteration.jl</code></a> package implements various tools allowing to define and iterate over disjoint tiles of a larger array. Among these, the <code>SplitAxis</code> function allows splitting a range of indices into a given number of chunks:</p><pre><code class="language-julia hljs">using TiledIteration
+SplitAxis(1:20, 3)  # split the range 1:20 into 3 chunks of approximately equal sizes</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3-element TiledIteration.SplitAxis:
+ 1:6
+ 7:13
+ 14:20</code></pre><p>A tiled version of the previous algorithm is then as simple as filling the chunks one after the other:</p><pre><code class="language-julia hljs">function LCS_tiled!(L, x, y, nx, ny)
+    init_lengths!(L)
+    for jrange in SplitAxis(eachindex(y), ny)
+        for irange in SplitAxis(eachindex(x), nx)
+            fill_lengths!(L, x, y, irange, jrange)
+        end
+    end
+    return backtrack(L, x, y)
+end
+LCS_tiled(x, y, nx, ny) = LCS_tiled!(init_buffer(x, y), x, y, nx, ny)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LCS_tiled (generic function with 1 method)</code></pre><p>Here we split the problem into <span>$10 \times 10$</span> blocks, and check that the tiled version gives the same results as the plain implementation above. Even without parallelization, and depending on the characteristics of the system, tiling may already be beneficial in terms of performance because it is more cache-friendly:</p><pre><code class="language-julia hljs">nx = ny = 10
+tiled = LCS_tiled(x, y, nx, ny)
+@assert seq == tiled
+
+t_tiled = @belapsed LCS_tiled!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.25780083</code></pre><div class="admonition is-info"><header class="admonition-header">Tiling and cache effects</header><div class="admonition-body"><p>The tiled version of the algorithm above is not exactly equivalent to the sequential version, because the array is visited in a different way when the tiles are used. This can have an impact on the performance, depending on the characteristics of the system and the problem size. In particular, the tiled version may be more cache-friendly, which can lead to better performance even in the absence of parallelization.</p></div></div><h2 id="Tiled-parallel-version"><a class="docs-heading-anchor" href="#Tiled-parallel-version">Tiled parallel version</a><a id="Tiled-parallel-version-1"></a><a class="docs-heading-anchor-permalink" href="#Tiled-parallel-version" title="Permalink"></a></h2><p>Parallelizing the tiled version using <code>DataFlowTasks</code> is now relatively straightforward: it only requires annotating the code to expose data dependencies.</p><p>In our case:</p><ul><li><p>the initialization task writes to the first row and first column of the array. In this parallel implementation, initialization will be done tile-by-tile as well using <code>fill!</code> on a <code>view</code> of <code>L</code>;</p></li><li><p>filling a tile involves reading <code>L</code> for the provided ranges of indices, and writing to a range of indices shifted by 1;</p></li><li><p>backtracking reads the whole <code>L</code> array.</p></li></ul><p>Note that the backtracking task needs to be fetched in order to get the result in a synchronous way and perform an apple-to-apple comparison to the previous implementations.</p><pre><code class="language-julia hljs">using DataFlowTasks
+
+init_lengths!(L, ir, jr) = fill!(view(L, ir, jr), 0)
+
+function LCS_par!(L, x, y, nx, ny)
+    L[1,1] = 0
+    for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
+        L1j = view(L, 1, jrange .+ 1)
+        @dspawn fill!(@W(L1j), 0) label = &quot;init (1, $(ky+1))&quot;
+        for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
+            Lx1 = view(L, irange .+ 1, 1)
+            ky == 1 &amp;&amp; @dspawn fill!(@W(Lx1), 0) label = &quot;init ($(kx+1), 1)&quot;
+            @dspawn begin
+                @R view(L, irange, jrange)
+                @W view(L, irange .+ 1, jrange .+ 1)
+                fill_lengths!(L, x, y, irange, jrange)
+            end label = &quot;tile ($kx, $ky)&quot;
+        end
+    end
+
+    bt = @dspawn backtrack(@R(L), x, y) label = &quot;backtrack&quot;
+    return fetch(bt)
+end
+LCS_par(x, y, nx, ny) = LCS_par!(init_buffer(x, y), x, y, nx, ny)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LCS_par (generic function with 1 method)</code></pre><p>Again, we can check that this implementation produces the correct results, and measure its run-time.</p><pre><code class="language-julia hljs">par = LCS_par(x, y, nx, ny)
+@assert seq == par
+t_par = @belapsed LCS_par!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.107128706</code></pre><p>As an added safety measure, let&#39;s also check that the task dependency graph looks as expected:</p><pre><code class="language-julia hljs">import DataFlowTasks as DFT
+resize!(DFT.get_active_taskgraph(), 300)
+GC.gc()
+log_info = DFT.@log LCS_par(x, y, nx, ny)
+
+DFT.stack_weakdeps_env!()
+using GraphViz
+dag = GraphViz.Graph(log_info)</code></pre><img src="5c792c12.svg" alt="Example block output"/><h2 id="Performance-comparison"><a class="docs-heading-anchor" href="#Performance-comparison">Performance comparison</a><a id="Performance-comparison-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-comparison" title="Permalink"></a></h2><pre><code class="language-julia hljs">using CairoMakie
+barplot(
+    1:3,
+    [t_seq, t_tiled, t_par];
+    axis = (; title = &quot;Run times [s]&quot;, xticks = (1:3, [&quot;sequential&quot;, &quot;tiled&quot;, &quot;parallel&quot;])),
+)</code></pre><img src="afdd3537.png" alt="Example block output"/><p>Comparing the performances of these 3 implementations, the tiled version may, depending on the system, already saves some time due to cache effects. The the parallel version does show some speedup, but not as much as one might expect:</p><pre><code class="language-julia hljs">(; nthreads = Threads.nthreads(), speedup  = t_seq / t_par)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(nthreads = 8, speedup = 2.557601993250996)</code></pre><p>Let&#39;s try and understand why. The run-time data collected above contains useful information</p><pre><code class="language-julia hljs">DFT.describe(log_info; categories = [&quot;init&quot;, &quot;tile&quot;, &quot;backtrack&quot;])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">• Elapsed time           : 0.100
+  ├─ Critical Path       : 0.096
+  ╰─ No-Wait             : 0.058
+
+• Run time               : 0.797
+  ├─ Computing           :   0.462
+  │  ├─ init             :     0.077
+  │  ├─ tile             :     0.384
+  │  ├─ backtrack        :     0.000
+  │  ╰─ unlabeled        :     0.000
+  ├─ Task Insertion      :   0.002
+  ╰─ Other (idle)        :   0.334</code></pre><p>which we can also visualize in a profiling plot. This gives some insight about the performances of our parallel version:</p><pre><code class="language-julia hljs">plot(log_info; categories = [&quot;init&quot;, &quot;tile&quot;, &quot;backtrack&quot;])</code></pre><img src="55c008c0.png" alt="Example block output"/><p>Here, we see for example that the run time is bounded by the length of the critical path, which means that adding more threads would not help much. One way to try and improve the performance is to expose more parallelism by dividing the problem into smaller chunks. Give it a try and see what you get!</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../blur-roberts/blur-roberts/">« Blur &amp; Roberts image filters</a><a class="docs-footer-nextpage" href="../../sort/sort/">Merge sort »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Tuesday 21 November 2023 14:29">Tuesday 21 November 2023</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
