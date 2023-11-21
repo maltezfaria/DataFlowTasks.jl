@@ -3,14 +3,6 @@ import Pkg               #src
 Pkg.activate("../../..") #src
 using BenchmarkTools     #src
 
-#nb ## Preamble
-#nb import Pkg
-#nb Pkg.activate(temp=true)
-#nb Pkg.add(name="DataFlowTasks", rev="main")
-#nb using DataFlowTasks
-#nb Pkg.activate(joinpath(DataFlowTasks.PROJECT_ROOT,"docs"))
-#nb Pkg.instantiate()
-
 # # [Blur & Roberts image filters](@id blur-roberts-section)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](blur-roberts.ipynb)

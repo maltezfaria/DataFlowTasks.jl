@@ -2,14 +2,6 @@ cd(@__DIR__)             #src
 import Pkg               #src
 Pkg.activate("../../..") #src
 
-#nb ## Preamble
-#nb import Pkg
-#nb Pkg.activate(temp=true)
-#nb Pkg.add(name="DataFlowTasks", rev="main")
-#nb using DataFlowTasks
-#nb Pkg.activate(joinpath(DataFlowTasks.PROJECT_ROOT,"docs"))
-#nb Pkg.instantiate()
-
 # # [Longest Common Subsequence](@id lcs-section)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](lcs.ipynb)

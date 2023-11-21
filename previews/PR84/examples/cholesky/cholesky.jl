@@ -2,14 +2,6 @@ cd(@__DIR__)             #src
 import Pkg               #src
 Pkg.activate("../../..") #src
 
-#nb ## Preamble
-#nb import Pkg
-#nb Pkg.activate(temp=true)
-#nb Pkg.add(name="DataFlowTasks", rev="main")
-#nb using DataFlowTasks
-#nb Pkg.activate(joinpath(DataFlowTasks.PROJECT_ROOT,"docs"))
-#nb Pkg.instantiate()
-
 # # [Tiled Cholesky Factorization](@id tiledcholesky-section)
 #
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](cholesky.ipynb)
@@ -49,7 +41,7 @@ Pkg.activate("../../..") #src
 
 # The following image illustrates the 2nd step of the algorithm:
 #
-# ![](https://github.com/maltezfaria/DataFlowTasks.jl/blob/1d101c3d738bcb35a93ed4c9db60a2ad66886fa5/docs/src/examples/cholesky/Cholesky_2ndStep.png)
+# ![](Cholesky_2ndStep.png)
 
 #-
 
