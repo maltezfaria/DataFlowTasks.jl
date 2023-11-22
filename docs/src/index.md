@@ -7,16 +7,16 @@ CurrentModule = DataFlowTasks
 
 ## Basic usage
 
-This package defines a [`@dspawn`](@ref) macro type which behaves very much like
+This package defines a [`@dspawn`](@ref) macro which behaves very much like
 `Threads.@spawn`, except that it allows the user to specify explicit *data
-dependencies* for the spawned `Task`. This information is then be used to
+dependencies* for the spawned `Task`. This information is then used to
 automatically infer *task dependencies* by constructing and analyzing a directed
 acyclic graph based on how tasks access the underlying data. The premise is that
 it is sometimes simpler to specify how *tasks depend on data* than to specify
 how *tasks depend on each other*.
 
-When creating a `Task` using [`@dspawn`](@ref), the following
-annotations can be used to declare how the `Task` accesses the data:
+When creating a `Task` using [`@dspawn`](@ref), the following annotations can be
+used to declare how the `Task` accesses the data:
 
 - read-only: `@R` or `@READ`
 - write-only: `@W` or `@WRITE`
@@ -67,11 +67,11 @@ zero.
     may access an element of `A` before it has been replaced by zero!
 
 !!! tip
-    In the `d2` example above, a shortcut syntax was introduced, which
-    allows putting access mode annotations directly around arguments in a
-    function call. This is especially useful when the task body is a one-liner.
-    See [`@dspawn`](@ref) for an exhaustive list of supported ways to create
-    tasks and specify data dependencies.
+    In the `d2` example above, a shortcut syntax was introduced, which allows
+    putting access mode annotations directly around arguments in a function
+    call. This is especially useful when the task body is a one-liner. See
+    [`@dspawn`](@ref) for an exhaustive list of supported ways to create tasks
+    and specify data dependencies.
 
 No parallelism was allowed in the previous example due to a data conflict. To
 see that when parallelism is possible, `DataFlowTasks` will exploit it,
@@ -103,6 +103,7 @@ function run(A)
 end
 
 A = ones(10)
+run(copy(A)) # run once to precompile
 run(A)
 ```
 
@@ -217,9 +218,8 @@ resize!(taskgraph,200)
 
 Second, when the computation of a task in the `TaskGraph` is completed, it gets
 pushed into a `finished` channel, to be eventually processed and `pop`ed from
-the graph by the `dag_cleaner`. This is done to avoid concurrent access to the
-DAG: only the `dag_cleaner` should modify it. If you want to stop nodes from
-being removed from the DAG, you may stop the `dag_cleaner` using:
+the graph by the `dag_cleaner`. If you want to stop nodes from being removed
+from the DAG, you may stop the `dag_cleaner` using:
 
 ```@example scheduler
 DataFlowTasks.stop_dag_cleaner(taskgraph)
@@ -267,6 +267,5 @@ Some current limitations are listed below:
   free again. This could be a problem if the task execution times are *very
   inhomogeneous*; a solution, not currently implemented, would be to allow for
   blocking the main thread from executing tasks.
-- Nesting `DataFlowTask`s, although possible, can be tricky due to some
-  technical details of our current implementation. See [Nested Tasks](@ref
-  nested-tasks) for a more in-depth discussion.
+- Nesting `DataFlowTask`s, although possible, can be tricky. See [Nested
+  Tasks](@ref nested-tasks) for a more in-depth discussion.

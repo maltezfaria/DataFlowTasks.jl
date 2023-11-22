@@ -8,7 +8,7 @@ profiling parallel programs:
 - a visualization of how tasks were scheduled during a run, alongside with other
   information helping understand what limits the performances of the computation.
 
-!!! note
+!!! note "Weak dependencies"
 
     Visualization tools require additional dependencies (such as `Makie` or
     `GraphViz`) which are only needed during the development stage. We are
@@ -81,13 +81,20 @@ loading additional packages such as `GraphViz` or `Makie`. These are discussed
 in the following sections, where we also explain in more detail the meaning of
 the numbers output by [`DataFlowTasks.describe`](@ref).
 
-!!! warning
-    When using `@log`, you typically want the block of code being benchmarked
-    to wait for the completion of its `DataFlowTask`s before returning
-    (otherwise the `LogInfo` object that is returned may lack information
-    regarding the `DataFlowTask`s that have not been completed). In the example
-    above, that was achieved through the use of `fetch` in the last line of the
-    `work` function.
+!!! tip "Fetching results in `@log` blocks"
+
+    When using `@log`, you typically want the block of code being benchmarked to
+    wait for the completion of its `DataFlowTask`s before returning (otherwise the
+    `LogInfo` object that is returned may lack information regarding the
+    `DataFlowTask`s that have not been completed). In the example above, that was
+    achieved through the use of `fetch` in the last line of the `work` function.
+
+!!! warning "Profiling functions that `yield`"
+  
+    The logged execution time of each `DataFlowTask` is the time elapsed between
+    the moment the code block passed to `@dspawn` starts executing, and the moment
+    it finishes. This means that if the code block `yield`s, the time recorded may
+    not be representative of the actual time the task spent *running*.
 
 ## DAG visualization
 
@@ -117,8 +124,7 @@ are used in the DAG rendering and make it more readable. In the DAG
 visualization, the *critical path* is highlighted in red: it is the sequential
 path that took the longest run time during the computation.
 
-!!! note 
-
+!!! note
     The run time of this critical path imposes a hard bound on parallel
     performances: no matter how many threads are available, it is not possible for
     the computation to take less time than the duration of the critical path.

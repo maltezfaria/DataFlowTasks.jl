@@ -1,8 +1,28 @@
-using DataFlowTasks
 using Documenter
 using Literate
+using DataFlowTasks
+
+# Load weakdeps as early as possible
+DataFlowTasks.stack_weakdeps_env!()
+using GraphViz, CairoMakie
 
 draft = false
+
+const ON_CI = get(ENV, "CI", "false") == "true"
+const GIT_HEAD = chomp(read(`git rev-parse HEAD`, String))
+const SETUP = """
+#nb import Pkg
+#nb Pkg.activate(temp=true)
+#nb Pkg.add(name="DataFlowTasks", rev="$GIT_HEAD")
+#nb foreach(Pkg.add, DEPENDENCIES)
+"""
+
+ON_CI && (draft = false) # always full build on CI
+
+function insert_setup(content)
+    ON_CI || return content
+    replace(content, "#nb ## __NOTEBOOK_SETUP__" => SETUP)
+end
 
 # generate examples
 for example in ["cholesky", "blur-roberts", "lcs", "sort"]
@@ -11,7 +31,7 @@ for example in ["cholesky", "blur-roberts", "lcs", "sort"]
         dir = joinpath(DataFlowTasks.PROJECT_ROOT, "docs", "src", "examples", example)
         src = joinpath(dir, "$(example).jl")
         Literate.markdown(src, dir)
-        draft || Literate.notebook(src, dir)
+        draft || Literate.notebook(src, dir; preprocess = insert_setup)
     end
 end
 
@@ -42,9 +62,7 @@ end
 
 
 println("\n*** Generating documentation")
-on_CI = get(ENV, "CI", "false") == "true"
 
-DataFlowTasks.stack_weakdeps_env!()
 DocMeta.setdocmeta!(
     DataFlowTasks,
     :DocTestSetup,
@@ -65,7 +83,7 @@ makedocs(;
     repo = "",
     sitename = "DataFlowTasks.jl",
     format = Documenter.HTML(;
-        prettyurls = on_CI,
+        prettyurls = ON_CI,
         canonical = "https://maltezfaria.github.io/DataFlowTasks.jl",
         assets = String[],
     ),
@@ -87,7 +105,7 @@ makedocs(;
         "Troubleshooting" => "troubleshooting.md",
         "References" => "references.md",
     ],
-    warnonly = on_CI ? false : Documenter.except(:linkcheck_remotes),
+    warnonly = ON_CI ? false : Documenter.except(:linkcheck_remotes),
     pagesonly = true,
     draft,
 )
