@@ -8,7 +8,7 @@ using GraphViz, CairoMakie
 
 draft = false
 
-const on_CI = get(ENV, "CI", "false") == "true"
+const ON_CI = get(ENV, "CI", "false") == "true"
 const GIT_HEAD = chomp(read(`git rev-parse HEAD`, String))
 const SETUP = """
 #nb import Pkg
@@ -17,8 +17,10 @@ const SETUP = """
 #nb foreach(Pkg.add, DEPENDENCIES)
 """
 
+ON_CI && (draft = false) # always full build on CI
+
 function insert_setup(content)
-    on_CI || return content
+    ON_CI || return content
     replace(content, "#nb ## __NOTEBOOK_SETUP__" => SETUP)
 end
 
@@ -81,7 +83,7 @@ makedocs(;
     repo = "",
     sitename = "DataFlowTasks.jl",
     format = Documenter.HTML(;
-        prettyurls = on_CI,
+        prettyurls = ON_CI,
         canonical = "https://maltezfaria.github.io/DataFlowTasks.jl",
         assets = String[],
     ),
@@ -103,7 +105,7 @@ makedocs(;
         "Troubleshooting" => "troubleshooting.md",
         "References" => "references.md",
     ],
-    warnonly = on_CI ? false : Documenter.except(:linkcheck_remotes),
+    warnonly = ON_CI ? false : Documenter.except(:linkcheck_remotes),
     pagesonly = true,
     draft,
 )
