@@ -283,8 +283,8 @@ j = searchsortedfirst(right, pivot)
 (i₁, i₂) = (1:i-1, i:I)  # partition of `left`
 (j₁, j₂) = (1:j-1, j:J)  # partition of `right`
 
-# Let's visualize this decomposition by plotting horizontal line for the pivot
-# and the four groups `i₁`, `i₂`, `j₁`, `j₂`:
+# Let's visualize this decomposition by plotting four groups `i₁`, `i₂`, `j₁`,
+# `j₂`:
 
 I = last(i₂)
 M = maximum(v)
