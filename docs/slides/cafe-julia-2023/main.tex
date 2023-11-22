@@ -404,18 +404,18 @@ end
 \begin{frame}[fragile]
 \frametitle{{\mintinline{julia}{DAG}}}  
 
-Graph data used to represent dependencies between \mintinline{julia}{DataFlowTask}s:
+Graph structure used to represent dependencies between \mintinline{julia}{DataFlowTask}s:
 
 \begin{itemize}
   \item Dynamic: nodes are added and removed on the fly
-  \item Buffered: limit the number of active nodes
-  \item Thread-safe: multiple threads can add/remove nodes
+  \item \textbf<2>{Buffered: limit the number of active nodes}
+  \item \textbf<3>{Thread-safe: multiple threads can add/remove nodes}
   \item Efficient: easy access to both in- and out-neighbors
 \end{itemize}
 
 \hrulefill
 
-\begin{columns}[T]
+\begin{columns}
 
 \column{0.45\textwidth}
 \begin{exampleblock}{}
@@ -430,15 +430,23 @@ end
 \end{minted}
 \end{exampleblock}
 
-\column{0.45\textwidth}
+\column{0.55\textwidth}
 
-\begin{exampleblock}{}
-\begin{minted}[fontsize=\footnotesize]{julia}
-while num_nodes(dag) == dag.sz_max[]
-wait(dag.cond_push)
-end
-\end{minted}
-\end{exampleblock}
+\begin{onlyenv}<2>
+\begin{itemize}
+  \item[--] \mintinline{julia}{addnode!(dag,node)} calls
+  \mintinline{julia}{wait(cond_push)} if full
+  \item[--] \mintinline{julia}{removenode!(dag,node)} calls \mintinline{julia}{notify(cond_push)}
+\end{itemize}
+\end{onlyenv}
+
+\begin{onlyenv}<3>
+  \begin{itemize}
+    \item[--] mutating the \texttt{DAG} requires acquiring/releasing the \texttt{lock}
+    \item[--] pattern: \mintinline{julia}{@lock dag.lock code}
+  \end{itemize}
+  \end{onlyenv}
+
 
 \end{columns}
 
@@ -456,14 +464,18 @@ Essentially a \mintinline{julia}{DAG{DataFlowTask}} with
 \end{itemize}
 
 \hrulefill
+
+\begin{columns}
+
+\column{0.45\textwidth}
 \begin{minted}[fontsize=\footnotesize]{julia}
 mutable struct TaskGraph
   dag::DAG{DataFlowTask}
-  finished::FinishedChannel{Stoppable{DataFlowTask}}
+  finished::FinishedChannel
   dag_cleaner::Task
-  function TaskGraph(sz = typemax(Int))
+  function TaskGraph(sz)
     dag = DAG{DataFlowTask}(sz)
-    finished = FinishedChannel{Stoppable{DataFlowTask}}()
+    finished = FinishedChannel()
     tg = new(dag, finished)
     start_dag_cleaner(tg)
     return tg
@@ -471,12 +483,18 @@ mutable struct TaskGraph
 end
 \end{minted}
 
-\begin{alertblock}{}
-\small{Recall that \mintinline{julia}{DataFlowTask} inserts itself in the task
-graph, and its underlying \mintinline{julia}{Task} moves it into the finished
-channel.}
-\end{alertblock}
-  
+\column{0.5\textwidth}
+\begin{itemize}
+  \item[--] Insertion done by \mintinline{julia}{DataFlowTask} constructor
+  \item[--] Removal done in two steps:
+  \begin{enumerate}
+    \item The \mintinline{julia}{node.task} moves the node into the finished channel
+    \item Dedicated task handles finished channel
+  \end{enumerate}
+\end{itemize}  
+
+\end{columns}
+
 \end{frame}
 
 \subsection{Logging}
@@ -484,116 +502,120 @@ channel.}
 \begin{frame}
 \frametitle{Logging}
 
-To help with debugging and performance analysis, \DFT{} provides some logging
-and visualization tools:
+Some logging capabilities available:
 \begin{itemize}
-  \item Use the \mintinline{julia}{@log} macro to log the execution of block
-  \item Once logged, \mintinline{julia}{describe(loginfo)} shows a summary
-  \item If \mintinline{julia}{GraphViz} is installed,
-  \mintinline{julia}{Graph(loginfo)} displays the \mintinline{julia}{DAG}
-  \item If \mintinline{julia}{Makie} is available,
-  \mintinline{julia}{plot(loginfo)} plots the execution trace
+  \item \mintinline{julia}{@log} macro logs the execution of block
+  \item \mintinline{julia}{describe(loginfo)} shows a summary
+  \item \mintinline{julia}{Graph(loginfo)} displays the \mintinline{julia}{DAG}
+  \item \mintinline{julia}{plot(loginfo)} plots the execution trace
 \end{itemize}
 
-The basic logic of logging is as follows:
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Logging}
+
+Basic idea:
 \begin{itemize}
-  \item Create a \mintinline{julia}{LogInfo} object is created at the start of the block  
-  \item Overwrite the function
-  \mintinline{julia}{should_log()} to return \mintinline{julia}{true}
-  \item Create tasks. When tasks are created, they check
-  \mintinline{julia}{should_log()} and log their execution as well as the
-  \mintinline{julia}{DAG} structure
-  \item Set \mintinline{julia}{should_log()} to \mintinline{julia}{false}
+  \item Redefine the function
+  \mintinline{julia}{should_log()} to control logging
+  \item Tasks conditionally create a \mintinline{julia}{TaskLog} object
+  \item Information dumped into \mintinline{julia}{LogInfo} object
+  \item Logging should have zero overhead when disabled
 \end{itemize}
 
-\begin{alertblock}{}
-  Note: because \mintinline{julia}{should_log()} is a simple pure function,
-  logging should have zero overhead when disabled.
-\end{alertblock}
+\hrulefill
 
-\end{frame}
+\begin{columns}
 
-\begin{frame}[fragile]
-\frametitle{Logging}
+\column{0.45\textwidth}  
 
 \begin{minted}[fontsize=\footnotesize]{julia}
-function work(A, B)
-    @dspawn init!(@W(A))               label="init A"
-    @dspawn init!(@W(B))               label="init B"
-    @dspawn mutate!(@RW(A))            label="mutate A"
-    @dspawn mutate!(@RW(B))            label="mutate B"
-    res = @dspawn result(@R(A), @R(B)) label="read A,B"
-    fetch(res)
+struct TaskLog
+  tag::Int
+  time_start::UInt64
+  time_finish::UInt64
+  tid::Int
+  inneighbors::Vector{Int64}
+  label::String
 end
-log_info = DataFlowTasks.@log work(A, B)
-DataFlowTasks.describe(log_info; categories=["init", "mutate", "read"])
-
 \end{minted}
 
-\center \includegraphics[width=0.3\textwidth]{figures/unicode-output.png}
-  
+\column{0.45\textwidth}  
+
+Known limitations:
+\begin{itemize}
+  \item[--] If the function \mintinline{julia}{yield}s, logged task time is
+  not representative of execution time
+  \item[--] ...
+\end{itemize}
+
+\end{columns}
+
 \end{frame}
 
-\begin{frame}[fragile]
-\frametitle{Logging}
+% \begin{frame}[fragile]
+% \frametitle{Logging}
 
-\begin{minted}[fontsize=\footnotesize]{julia}
-function work(A, B)
-  @dspawn init!(@W(A))               label="init A"
-  @dspawn init!(@W(B))               label="init B"
-  @dspawn mutate!(@RW(A))            label="mutate A"
-  @dspawn mutate!(@RW(B))            label="mutate B"
-  res = @dspawn result(@R(A), @R(B)) label="read A,B"
-  fetch(res)
-end
-using GraphViz
-GraphViz.Graph(log_info)
+% \begin{minted}[fontsize=\footnotesize]{julia}
+% function work(A, B)
+%     @dspawn init!(@W(A))               label="init A"
+%     @dspawn init!(@W(B))               label="init B"
+%     @dspawn mutate!(@RW(A))            label="mutate A"
+%     @dspawn mutate!(@RW(B))            label="mutate B"
+%     res = @dspawn result(@R(A), @R(B)) label="read A,B"
+%     fetch(res)
+% end
+% log_info = DataFlowTasks.@log work(A, B)
+% DataFlowTasks.describe(log_info; categories=["init", "mutate", "read"])
+
+% \end{minted}
+
+% \center \includegraphics[width=0.3\textwidth]{figures/unicode-output.png}
   
-\end{minted}
+% \end{frame}
+
+% \begin{frame}[fragile]
+% \frametitle{Logging}
+
+% \begin{minted}[fontsize=\footnotesize]{julia}
+% function work(A, B)
+%   @dspawn init!(@W(A))               label="init A"
+%   @dspawn init!(@W(B))               label="init B"
+%   @dspawn mutate!(@RW(A))            label="mutate A"
+%   @dspawn mutate!(@RW(B))            label="mutate B"
+%   res = @dspawn result(@R(A), @R(B)) label="read A,B"
+%   fetch(res)
+% end
+% using GraphViz
+% GraphViz.Graph(log_info)
   
-\center \includegraphics[width=0.3\textwidth]{figures/dag-output.png}
+% \end{minted}
+  
+% \center \includegraphics[width=0.3\textwidth]{figures/dag-output.png}
     
-\end{frame}
+% \end{frame}
 
-\begin{frame}[fragile]
-\frametitle{Logging}
+% \begin{frame}[fragile]
+% \frametitle{Logging}
 
-\begin{minted}[fontsize=\footnotesize]{julia}
-function work(A, B)
-  @dspawn init!(@W(A))               label="init A"
-  @dspawn init!(@W(B))               label="init B"
-  @dspawn mutate!(@RW(A))            label="mutate A"
-  @dspawn mutate!(@RW(B))            label="mutate B"
-  res = @dspawn result(@R(A), @R(B)) label="read A,B"
-  fetch(res)
-end
-using CairoMakie # or GLMakie to benefit from more interactivity
-plot(log_info; categories=["init", "mutate", "read"])
+% \begin{minted}[fontsize=\footnotesize]{julia}
+% function work(A, B)
+%   @dspawn init!(@W(A))               label="init A"
+%   @dspawn init!(@W(B))               label="init B"
+%   @dspawn mutate!(@RW(A))            label="mutate A"
+%   @dspawn mutate!(@RW(B))            label="mutate B"
+%   res = @dspawn result(@R(A), @R(B)) label="read A,B"
+%   fetch(res)
+% end
+% using CairoMakie # or GLMakie to benefit from more interactivity
+% plot(log_info; categories=["init", "mutate", "read"])
     
-  \end{minted}
+%   \end{minted}
     
-  \center \includegraphics[width=0.8\textwidth]{figures/trace-output.png}
+%   \center \includegraphics[width=0.8\textwidth]{figures/trace-output.png}
       
-  \end{frame}
-
-\subsection{Summary}
-
-\begin{frame}
-\frametitle{Summary}  
-
-\begin{itemize}
-  \item When \DFT{} is loaded a default \mintinline{julia}{TaskGraph}, with an
-  internal \mintinline{julia}{DAG}, is instantiated.
-  \item Upon creation, each \mintinline{julia}{DataFlowTask} object inserts
-  itself in the task graph.
-  \item Upon completion, each \mintinline{julia}{DataFlowTask} object inserts
-  itself in a finished channel
-  \item An asynchronous task is responsible for removing finished jobs from the graph
-  \item The \mintinline{julia}{@dspawn} macro provides a very convenient way to
-  create \mintinline{julia}{DataFlowTask}s
-  \item Logging is enabled using the \mintinline{julia}{@log} macro
-\end{itemize} 
-\end{frame}
+%   \end{frame}
 
 \section{Live examples}
 
@@ -611,6 +633,33 @@ plot(log_info; categories=["init", "mutate", "read"])
 \end{frame}
 
 \section{Roadmap}
+
+% \begin{frame}
+% \frametitle{Summary}  
+
+% \begin{itemize}
+%   \item When \DFT{} is loaded a default \mintinline{julia}{TaskGraph}, with an
+%   internal \mintinline{julia}{DAG}, is instantiated.
+%   \item Upon creation, each \mintinline{julia}{DataFlowTask} object inserts
+%   itself in the task graph.
+%   \item Upon completion, each \mintinline{julia}{DataFlowTask} object inserts
+%   itself in a finished channel
+%   \item An asynchronous task is responsible for removing finished jobs from the graph
+%   \item The \mintinline{julia}{@dspawn} macro provides a very convenient way to
+%   create \mintinline{julia}{DataFlowTask}s
+%   \item Logging is enabled using the \mintinline{julia}{@log} macro
+% \end{itemize} 
+% \end{frame}
+
+\begin{frame}
+\frametitle{Roadmap}  
+
+\begin{itemize}
+  \item Priority scheduling
+  \item Nesting \mintinline{julia}{DataFlowTask}s
+  \item ...
+\end{itemize} 
+\end{frame}
 
 
 \end{document}
