@@ -134,20 +134,46 @@ end
 \end{itemize}
 
 \begin{columns}
-\column{0.7\textwidth}    
+\column{0.8\textwidth}    
 
-\begin{example}[Synchronizing tasks]
-\begin{minted}{julia}    
-A = rand(4)
-t1 = @spawn fill!(A,0)
-t2 = @spawn (wait(t1); view(A,1:2) += 2)
-t3 = @spawn (wait(t1); view(A,3:4) += 3)
-t4 = @spawn (wait(t2); wait(t3); sum(A))
-fetch(t4)
+\begin{example}[%
+  \only<1>{Sequential}%
+  \only<2>{Synchronizing tasks with return values}%
+  \only<3>{Synchronizing tasks with explicit barriers}%
+  ]
+\begin{onlyenv}<1>
+\begin{minted}[beameroverlays]{julia}
+              # Task
+A = zeros(4)     # 1 - Initialization
+A[1:2] .+= 2     # 2 - Work on first half
+A[3:4] .+= 3     # 3 - Work on second half
+res = sum(A)     # 4 - Reduction
+                 #
 \end{minted}
+\end{onlyenv}
+\begin{onlyenv}<2>
+\begin{minted}[beameroverlays]{julia}
+                                         # Task
+t1 = @spawn zeros(4)                        # 1
+t2 = @spawn (A = fetch(t1); A[1:2] .+ 2)    # 2
+t3 = @spawn (A = fetch(t1); A[3:4] .+ 3)    # 3
+t4 = @spawn sum(fetch(t2)) + sum(fetch(t3)) # 4
+fetch(t4) # get result
+\end{minted}
+\end{onlyenv}
+\begin{onlyenv}<3>
+\begin{minted}[beameroverlays]{julia}    
+A = rand(4)                              # Task
+t1 = @spawn fill!(A,0)                      # 1
+t2 = @spawn (wait(t1); view(A,1:2) += 2)    # 2
+t3 = @spawn (wait(t1); view(A,3:4) += 3)    # 3
+t4 = @spawn (wait(t2); wait(t3); sum(A))    # 4
+fetch(t4) # get result
+\end{minted}
+\end{onlyenv}
 \end{example}
 
-\column{0.2\textwidth}
+\column{0.15\textwidth}
 
 \begin{tikzpicture}
     % Nodes
@@ -175,7 +201,7 @@ fetch(t4)
     \item Reasoning about \mintinline{julia}{Task} interdependencies can be
     challenging
     \item Specially for algorithms making constant re-use of data   
-    \item Sometimes, simpler to reason about how \mintinline{julia}{Task}s depends on data than how \mintinline{julia}{Task}s depend on each other
+    \item Sometimes, it is simpler to reason about how \mintinline{julia}{Task}s depend on data than how \mintinline{julia}{Task}s depend on each other
 \end{itemize}
 
 \begin{example}[Synchronizing tasks]
@@ -190,7 +216,7 @@ fetch(t4)
 \end{example}
 
 \begin{itemize}
-  \item<2-> \alert{Would like to declared only the task-to-data dependencies}
+  \item<2-> \alert{Would like to declare only the task-to-data dependencies}
 \end{itemize}
 
 \end{frame}
@@ -224,7 +250,7 @@ fetch(t4)
   \node<7->[circle, draw, fill=themegreen, text=white] (4) at (4,  0) {4};
   
   % Data
-  \node<1->[rectangle, draw, fill=themelightgreen, anchor=west] (A)  at (-3.5,  0)   {A};
+  \node<1->[rectangle, draw, fill=themelightgreen, anchor=west] (A)  at (-3.5,  0) {\texttt{A}};
   \node<3->[rectangle, draw, fill=themelightgreen, anchor=west] (A1) at (-3.5,  1) {\texttt{view(A,1:2)}};
   \node<5->[rectangle, draw, fill=themelightgreen, anchor=west] (A2) at (-3.5, -1) {\texttt{view(A,3:4)}};
   
@@ -241,13 +267,19 @@ fetch(t4)
   \draw<7->[->, thick] (3) -- (4);
   
   % Data <-> Data dependencies
-  \draw<4,8>[<->, thick, red] (A.west)  -- ++(-0.5,0) |- (A1.west);
-  \draw<6,7>[<->, thick, red] (A.west)  -- ++(-0.5,0) |- (A2.west);
-  \draw<5>[<->, thick, themegreen] (A1.west) -- ++(-0.5,0) |- (A2.west);
+  \draw<1-> (A.west)  ++(-0.5,0) node (Aw)  {};
+  \draw<3-> (A1.west) ++(-0.5,0) node (A1w) {};
+  \draw<5-> (A2.west) ++(-0.5,0) node (A2w) {};
+  \draw<4,8>[<->, thick, red] (A.west)  -- (Aw.center)
+  -- node[midway,left,text width=8em,align=center]{\scriptsize\ttfamily memory\_overlap(...) = true} (A1w.center) -- (A1.west);
+  \draw<6,7>[<->, thick, red] (A.west)  -- (Aw.center)
+  -- node[midway,left,text width=8em,align=center]{\scriptsize\ttfamily memory\_overlap(...) = true} (A2w.center) -- (A2.west);
+  \draw<5>[<->, thick, themegreen] (A1.west) -- (A1w.center)
+  -- node[midway,left,text width=8em,align=center]{\scriptsize\ttfamily memory\_overlap(...) = false} (A2w.center) -- (A2.west);
   \draw<9>[<->, thick, red] (A.south west) -- ++(-0.5,0) |- (A.north west);
 
   % Bounding box
-  \node at (-4,-1.3) {};
+  \node at (-7.3,-1.3) {};
   \node at (4.5,1.3) {};
 \end{tikzpicture}
 
@@ -259,8 +291,8 @@ fetch(t4)
 |\onslide<2->|@dspawn fill!(@W(A),0)
 |\onslide<3->|@dspawn @RW(view(A,1:2)) += 2
 |\onslide<5->|@dspawn @RW(view(A,3:4)) += 3
-|\onslide<7->|@dspawn sum(@R(A))
-|\onslide<1->|
+|\onslide<7->|t4 = @dspawn sum(@R(A))
+|\onslide<7->|fetch(t4)|\onslide<1->|
 \end{minted}    
 \end{exampleblock}
   
