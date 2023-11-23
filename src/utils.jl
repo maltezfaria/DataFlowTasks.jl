@@ -1,3 +1,20 @@
+# FIXME: should we be able to iterate over an ordered dictionary in reverse
+# order? For some reason that does not work (it does not work either for a
+# regular `Dict`), so the lines below commit type piracy to make `OrderedDict`
+# be "reverse iterable".
+function Base.iterate(rt::Iterators.Reverse{<:OrderedDict})
+    t = rt.itr
+    t.ndel > 0 && OrderedCollections.rehash!(t)
+    n = length(t.keys)
+    n < 1 && return nothing
+    return (Pair(t.keys[n], t.vals[n]), n - 1)
+end
+function Base.iterate(rt::Iterators.Reverse{<:OrderedDict}, i)
+    t = rt.itr
+    i < 1 && return nothing
+    return (Pair(t.keys[i], t.vals[i]), i - 1)
+end
+
 """
     enable_log(mode = true)
 
