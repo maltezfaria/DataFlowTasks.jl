@@ -1,6 +1,6 @@
 name = "DataFlowTasks"
 uuid = "d1549cb6-e9f4-42f8-98cc-ffc8d067ff5b"
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
