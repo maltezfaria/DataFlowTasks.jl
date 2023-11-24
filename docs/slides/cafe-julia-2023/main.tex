@@ -365,16 +365,16 @@ The package revolves around three main types:
 does the following:
 
 \begin{itemize}
-    \item <2->Scan the \mintinline{julia}{Expr} for \mintinline{julia}{@R, @W, @RW} annotations
-    \item <3->Create a \mintinline{julia}{data} and \mintinline{julia}{access_mode}
-    tuple
-    \item <4->Remove annotations from the \mintinline{julia}{Expr}
-    \item <5->Parse keyword arguments    
-    \item <6->Create an anonymous function wrapping the new \mintinline{julia}{Expr}
-    \item <7->Insert a call to \mintinline{julia}{DataFlowTask} constructor
+    \item Scan the \mintinline{julia}{Expr} for \mintinline{julia}{@R, @W, @RW} annotations
+    \item Create a \mintinline{julia}{data} and \mintinline{julia}{mode}
+    tuples
+    \item Remove annotations from the \mintinline{julia}{Expr}
+    \item Parse keyword arguments    
+    \item Create an anonymous function wrapping the new \mintinline{julia}{Expr}
+    \item Insert a call to \mintinline{julia}{DataFlowTask} constructor
 \end{itemize}
 
-\begin{columns}[T]
+\begin{columns}
 
 \column{0.45\textwidth}    
 \begin{exampleblock}{User-written code}    
@@ -384,9 +384,9 @@ does the following:
 \end{minted}
 \end{exampleblock}
 
-\column{0.4\textwidth}    
+\column{0.45\textwidth}    
 
-\begin{exampleblock}<8->{Macro expansion (approx.)}    
+\begin{exampleblock}{Macro expansion (approx.)}
 \begin{minted}{julia}
 _t = DataFlowTask(
        () -> foo!(B, A),
@@ -467,16 +467,16 @@ end
 
 \begin{onlyenv}<2>
 \begin{itemize}
-  \item[--] \mintinline{julia}{addnode!(dag,node)} calls
+  \item[$\triangleright$] \mintinline{julia}{addnode!(dag,node)} calls
   \mintinline{julia}{wait(cond_push)} if full
-  \item[--] \mintinline{julia}{removenode!(dag,node)} calls \mintinline{julia}{notify(cond_push)}
+  \item[$\triangleright$] \mintinline{julia}{removenode!(dag,node)} calls \mintinline{julia}{notify(cond_push)}
 \end{itemize}
 \end{onlyenv}
 
 \begin{onlyenv}<3>
   \begin{itemize}
-    \item[--] mutating the \texttt{DAG} requires acquiring/releasing the \texttt{lock}
-    \item[--] pattern: \mintinline{julia}{@lock dag.lock code}
+    \item[$\triangleright$] mutating the \texttt{DAG} requires acquiring/releasing the \texttt{lock}
+    \item[$\triangleright$] pattern: \mintinline{julia}{@lock dag.lock code}
   \end{itemize}
   \end{onlyenv}
 
@@ -518,8 +518,8 @@ end
 
 \column{0.5\textwidth}
 \begin{itemize}
-  \item[--] Insertion done by \mintinline{julia}{DataFlowTask} constructor
-  \item[--] Removal done in two steps:
+  \item[$\triangleright$] Insertion done by \mintinline{julia}{DataFlowTask} constructor
+  \item[$\triangleright$] Removal done in two steps:
   \begin{enumerate}
     \item The \mintinline{julia}{node.task} moves the node into the finished channel
     \item Dedicated task handles finished channel
@@ -578,9 +578,8 @@ end
 
 Known limitations:
 \begin{itemize}
-  \item[--] If the function \mintinline{julia}{yield}s, logged task time is
+  \item[$\triangleright$] If the function \mintinline{julia}{yield}s, logged task time is
   not representative of execution time
-  \item[--] ...
 \end{itemize}
 
 \end{columns}
@@ -653,8 +652,10 @@ Known limitations:
 \section{Real use case: tiled Cholesky}
 
 \begin{frame}{Live examples}
+Some example use cases of \DFT{}:  
+
   \begin{itemize} 
-    \item \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/cholesky/cholesky/}{Tiled cholesky factorization}
+    \item \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/cholesky/cholesky/}{\textbf{Tiled cholesky factorization}}
     \item
     \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/blur-roberts/blur-roberts/}{Blur-Roberts filter}
     \item
@@ -663,6 +664,29 @@ Known limitations:
     \item
     \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/sort/sort/}{Merge sort}
   \end{itemize}
+
+\begin{exampleblock}{Tiled Cholesky decomposition}
+  \vspace{-10pt}
+  \begin{align*}
+    \begin{bmatrix}
+      A_{11} & A_{12} \\
+      A_{12}^T & A_{22}
+    \end{bmatrix} = \begin{bmatrix}
+      L_{11} & 0 \\
+      L_{21} & L_{22}
+    \end{bmatrix}
+    \begin{bmatrix}
+      L^\top_{11} & L^\top_{21} \\
+       & L\top_{22}
+    \end{bmatrix}
+  \end{align*}
+\vspace{-10pt}
+\begin{enumerate}
+  \item $A_{11} = L_{11} L^\top_{11}$ (Cholesky factorization)
+  \item $A_{12} = L_{11} L^\top_{21}$ (Triangular solve)
+  \item $A_{22} - L_{21} L^\top_{21} = L_{22} L^\top_{22}$ (multiplication and Cholesky factorization)
+\end{enumerate}
+\end{exampleblock}
 \end{frame}
 
 \section{Roadmap}
