@@ -6,6 +6,7 @@
 \usepackage{listings}
 \usepackage{minted}
 \usepackage{tikz}
+\usepackage{algorithmic}
 
 \usetikzlibrary{graphs,quotes,arrows.meta}
 \definecolor{themegreen}{RGB}{0,100,0}
@@ -325,53 +326,116 @@ end
 
 \end{frame}
 
-\subsection{Simple example: parallel merge sort}
+% \subsection{Simple example: parallel merge sort}
 
-\begin{frame}
-\frametitle{Simple example}
-\center \href{run:./sort.slides.html}{\LARGE{Demo: parallel merge sort}}
+% \begin{frame}
+% \frametitle{Simple example}
+% \center \href{run:./sort.slides.html}{\LARGE{Demo: parallel merge sort}}
 
-\end{frame}
+% \end{frame}
 
 
 \section{Real use case: tiled Cholesky}
 
-\begin{frame}{Live examples}
-Some example use cases of \DFT{}:  
+% Focus on the cholesky example for the remainder of the talk (say to 10 to 15 minutes). IMO it should include:
 
-  \begin{itemize} 
-    \item \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/cholesky/cholesky/}{\textbf<2->{Tiled cholesky factorization}}
-    \item
-    \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/blur-roberts/blur-roberts/}{Blur-Roberts filter}
-    \item
-    \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/lcs/lcs/}{Longest
-    common subsequence}
-    \item
-    \href{https://maltezfaria.github.io/DataFlowTasks.jl/dev/examples/sort/sort/}{Merge sort}
+%     why this example is a good benchmark (e.g. a good arithmetic intensity since you do $n^3$ flops for $n^2$ bytes, so you can expect to gain from "good" parallelism since you are compute-bound). For some of the other examples we have in the docs we are most likely memory-bound.
+%     A discussion of the tiled algorithm. It is not hard, but we need to show where it comes from. I would map each operation to the corresponding julia function at some point (e.g. mul!, cholesky!, ldiv!). Discuss that we call OpenBLAS for simplicity, but having those kernels efficiently done in julia is relatively simple if one uses LoopVectorization.
+%     Then show how to parallelize it using DFT
+%     Explore the @log information, and how to read/interpret it
+%     Comparison to OpenBLAS
+
+\begin{frame}{Tiled Cholesky factorization}
+  \begin{itemize}
+  \item Objective: take a SDP matrix $A$, find lower triangular $L$ such
+    that \[A=LL^\top\]
+  \item Idea for a tiled algorithm:
+    \begin{align*}
+      \begin{bmatrix}
+        A_{11} & A_{12} \\
+        A_{12}^\top & A_{22}
+      \end{bmatrix} = \begin{bmatrix}
+        L_{11} & \\
+        L_{21} & L_{22}
+      \end{bmatrix}
+                 \begin{bmatrix}
+                   L^\top_{11} & L^\top_{21} \\
+                   & L^\top_{22}
+                 \end{bmatrix}
+    \end{align*}
+    \vspace{-10pt}
+    \begin{enumerate}
+    \item<2-> $A_{11} = L_{11} L^\top_{11}$\\
+      $\vartriangleright$ Cholesky factorization to get $L_{11}$\hfill\texttt{cholesky!}\medskip
+    \item<3-> $A_{12} = L_{11} L^\top_{21}$\\
+      $\vartriangleright$ Triangular solve to get $L_{21}$\hfill\texttt{ldiv!}\medskip
+    \item<4-> $A_{22} - L_{21} L^\top_{21} = L_{22} L^\top_{22}$\\
+      $\vartriangleright$ Matmul to get $A_{22} - L_{21} L^\top_{21}$\hfill\texttt{mul!}\\
+      $\vartriangleright$ Cholesky factorization to get $L_{22}$
+    \end{enumerate}
   \end{itemize}
+\end{frame}
 
-\begin{exampleblock}<2>{Tiled Cholesky decomposition}
-  \vspace{-10pt}
-  \begin{align*}
-    \begin{bmatrix}
-      A_{11} & A_{12} \\
-      A_{12}^T & A_{22}
-    \end{bmatrix} = \begin{bmatrix}
-      L_{11} & 0 \\
-      L_{21} & L_{22}
-    \end{bmatrix}
-    \begin{bmatrix}
-      L^\top_{11} & L^\top_{21} \\
-       & L\top_{22}
-    \end{bmatrix}
-  \end{align*}
-\vspace{-10pt}
-\begin{enumerate}
-  \item $A_{11} = L_{11} L^\top_{11}$ (Cholesky factorization)
-  \item $A_{12} = L_{11} L^\top_{21}$ (Triangular solve)
-  \item $A_{22} - L_{21} L^\top_{21} = L_{22} L^\top_{22}$ (multiplication and Cholesky factorization)
-\end{enumerate}
-\end{exampleblock}
+
+\begin{frame}
+  \frametitle{Tiled Cholesky factorization: algorithm}
+
+  \begin{columns}[T]
+    \column{0.50\textwidth}
+    \includegraphics[width=\textwidth]{Cholesky_2ndStep.png}
+    
+    \column{0.50\textwidth}
+    \begin{onlyenv}<1>
+      $N$ steps for an $N \times N$ block matrix;\\
+      each step $i$ performs:
+      \begin{itemize}
+      \item $1$ Cholesky factorization of the $(i,i)$ tile,
+      \item $(i-1)$ triangular solves (one for each tile in the $i$-th row of the upper triangular matrix),
+      \item $i(i-1)/2$ matrix multiplications to update the submatrix.
+      \end{itemize}
+    \end{onlyenv}
+    \begin{onlyenv}<2>
+      For an $N \times N$ block matrix:\\
+      \begin{itemize}
+      \item $\mathcal{O}(N)$ cholesky factorizations,
+      \item $\mathcal{O}(N^2)$ triangular solves,
+      \item $\mathcal{O}(N^3)$ matrix multiplications.
+        \medskip
+      \end{itemize}
+      Globally compute-bound:
+      \begin{itemize}
+      \item $\mathcal{O}(N^3)$ flops for
+      \item $\mathcal{O}(N^2)$ bytes
+      \item[$\Rightarrow$] potential for efficient parallelism
+      \end{itemize}
+    \end{onlyenv}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Tiled Cholesky factorization: sequential implementation}
+  \begin{minted}[fontsize=\footnotesize]{julia}
+function cholesky_tiled!(A, ts)
+  m = size(A, 1); n = m ÷ ts      # Matrix size & number of tiles
+  T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
+
+  for i in 1:n
+    cholesky!(T[i,i])             # Diagonal cholesky serial factorization
+
+    U = UpperTriangular(T[i,i])   # Left tiles update
+    for j in i+1:n
+      ldiv!(U', T[i,j])
+    end
+
+    for j in i+1:n, k in j:n      # Submatrix update
+      mul!(T[j,k], T[i,j]', T[i,k], -1, 1)
+    end
+  end
+
+  # Build the factorized object
+  return Cholesky(A, 'U', zero(LinearAlgebra.BlasInt))
+end
+ 
+  \end{minted}
 \end{frame}
 
 \section{Roadmap}
@@ -404,6 +468,12 @@ Some example use cases of \DFT{}:
 \end{frame}
 
 \appendix
+
+\begin{frame}
+  \begin{center}
+    \Huge Appendix
+  \end{center}
+\end{frame}
 
 \section{\mintinline{julia}{Implementation details}}
 
