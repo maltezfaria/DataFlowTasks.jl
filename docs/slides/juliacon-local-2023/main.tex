@@ -196,7 +196,7 @@ fetch(t4) # get result
 \subsection{Motivation}
 
 \begin{frame}[fragile]
-\frametitle{Motivation}
+\frametitle{Motivation for \texttt{DataFlowTasks}}
 
 \begin{itemize}
     \item Reasoning about \mintinline{julia}{Task} interdependencies can be
@@ -337,9 +337,11 @@ end
 
 \section{Real use case: tiled Cholesky}
 
+\subsection{Algorithm}
+
 \begin{frame}{Tiled Cholesky factorization}
   \begin{itemize}
-  \item Objective: take a SDP matrix $A$, find lower triangular $L$ such
+  \item Objective: take a SPD matrix $A$, find lower triangular $L$ such
     that \[A=LL^\top\]
   \item Idea for a tiled algorithm:
     \begin{align*}
@@ -404,6 +406,8 @@ end
   \end{columns}
 \end{frame}
 
+\subsection{Sequential \& parallel implementation}
+
 \begin{frame}[fragile]{Tiled Cholesky factorization: sequential implementation}
   \begin{minted}[fontsize=\footnotesize]{julia}
 function cholesky_tiled!(A, ts)
@@ -457,11 +461,13 @@ end
   \end{minted}
 \end{frame}
 
+\subsection{Profiling \& debugging tools}
+
 \begin{frame}[fragile]{Tiled Cholesky factorization: profiling \& debugging}
   \begin{minted}[fontsize=\footnotesize]{jlcon}
 julia> n = 4096; ts = 512;
     
-julia> A = sdp_matrix(n);
+julia> A = spd_matrix(n);
     
 julia> log_info = DataFlowTasks.@log cholesky_dft!(Ac, ts)
 LogInfo with 121 logged tasks
@@ -508,11 +514,11 @@ julia> using BenchmarkTools
 julia> n = 4096; ts = 512;
 
 julia> t_seq = @belapsed(cholesky_tiled!(A, ts),
-                         setup=(A=sdp_matrix(n)), evals=1)
+                         setup=(A=spd_matrix(n)), evals=1)
 0.559141485
 
 julia> t_par = @belapsed(cholesky_dft!(A, ts),
-                         setup=(A=sdp_matrix(n)), evals=1)
+                         setup=(A=spd_matrix(n)), evals=1)
 0.108479304
 
 julia> (; threads = Threads.nthreads(),
@@ -521,6 +527,7 @@ julia> (; threads = Threads.nthreads(),
 \end{minted}
 \end{frame}
 
+\subsection{Performance}
 
 \begin{frame}{Tiled Cholesky factorization: performance}
 \centering\includegraphics[width=0.92\textwidth]{Cholesky_perf.png}
