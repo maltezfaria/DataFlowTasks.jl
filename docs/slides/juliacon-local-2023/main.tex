@@ -337,14 +337,6 @@ end
 
 \section{Real use case: tiled Cholesky}
 
-% Focus on the cholesky example for the remainder of the talk (say to 10 to 15 minutes). IMO it should include:
-
-%     why this example is a good benchmark (e.g. a good arithmetic intensity since you do $n^3$ flops for $n^2$ bytes, so you can expect to gain from "good" parallelism since you are compute-bound). For some of the other examples we have in the docs we are most likely memory-bound.
-%     A discussion of the tiled algorithm. It is not hard, but we need to show where it comes from. I would map each operation to the corresponding julia function at some point (e.g. mul!, cholesky!, ldiv!). Discuss that we call OpenBLAS for simplicity, but having those kernels efficiently done in julia is relatively simple if one uses LoopVectorization.
-%     Then show how to parallelize it using DFT
-%     Explore the @log information, and how to read/interpret it
-%     Comparison to OpenBLAS
-
 \begin{frame}{Tiled Cholesky factorization}
   \begin{itemize}
   \item Objective: take a SDP matrix $A$, find lower triangular $L$ such
@@ -431,12 +423,118 @@ function cholesky_tiled!(A, ts)
     end
   end
 
-  # Build the factorized object
+  # Construct the factorized object
   return Cholesky(A, 'U', zero(LinearAlgebra.BlasInt))
 end
- 
+  
   \end{minted}
 \end{frame}
+
+
+\begin{frame}[fragile]{Tiled Cholesky factorization: parallel implementation}
+  \begin{minted}[fontsize=\footnotesize]{julia}
+function cholesky_dft!(A, ts)
+  m = size(A, 1); n = m ÷ ts      # Matrix size & number of tiles
+  T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
+
+  for i in 1:n
+    @dspawn cholesky!(@RW(T[i,i]))    label="chol ($i,$i)"
+
+    U = UpperTriangular(T[i,i])
+    for j in i+1:n
+      @dspawn ldiv!(@R(U)', @RW(T[i,j]))    label="ldiv ($i,$j)"
+    end
+
+    for j in i+1:n, k in j:n
+      @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+    end
+  end
+
+  # Construct the factorized object
+  r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
+  return fetch(r)
+end 
+  \end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Tiled Cholesky factorization: profiling \& debugging}
+  \begin{minted}[fontsize=\footnotesize]{jlcon}
+julia> n = 4096; ts = 512;
+    
+julia> A = sdp_matrix(n);
+    
+julia> log_info = DataFlowTasks.@log cholesky_dft!(Ac, ts)
+LogInfo with 121 logged tasks
+
+julia> DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
+• Elapsed time           : 0.297
+  +  Critical Path       : 0.253
+  +  No-Wait             : 0.188
+
+• Run time               : 2.379
+  +  Computing           :   1.507
+     o  chol             :     0.061
+     o  ldiv             :     0.414
+     o  schur            :     1.032
+     o  unlabeled        :     0.000
+  +  Task Insertion      :   0.003
+  +  Other (idle)        :   0.870
+\end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Tiled Cholesky factorization: profiling \& debugging}
+\begin{minted}[fontsize=\footnotesize]{jlcon}
+julia> DataFlowTasks.stack_weakdeps_env!()
+julia> using GraphViz
+[ Info: Loading DataFlowTasks dag plot utilities
+julia> GraphViz.Graph(log_info)
+\end{minted}
+\includegraphics[width=\textwidth]{Cholesky_dag.png}
+\end{frame}
+
+\begin{frame}[fragile]{Tiled Cholesky factorization: profiling \& debugging}
+\begin{minted}[fontsize=\footnotesize]{jlcon}
+julia> using CairoMakie # or GLMakie for more interactivity
+[ Info: Loading DataFlowTasks profile plot utilities
+julia> plot(log_info; categories=["chol", "ldiv", "schur"])
+\end{minted}
+\includegraphics[width=\textwidth]{Cholesky_profile.png}
+\end{frame}
+
+\begin{frame}[fragile]{Tiled Cholesky factorization: performance}
+\begin{minted}[fontsize=\footnotesize]{jlcon}
+julia> using BenchmarkTools
+
+julia> n = 4096; ts = 512;
+
+julia> t_seq = @belapsed(cholesky_tiled!(A, ts),
+                         setup=(A=sdp_matrix(n)), evals=1)
+0.559141485
+
+julia> t_par = @belapsed(cholesky_dft!(A, ts),
+                         setup=(A=sdp_matrix(n)), evals=1)
+0.108479304
+
+julia> (; threads = Threads.nthreads(),
+          speedup = bench_tiled(4096) / bench_dft(4096))
+(threads = 8, speedup = 5.15436089063056)
+\end{minted}
+\end{frame}
+
+
+\begin{frame}{Tiled Cholesky factorization: performance}
+\centering\includegraphics[width=0.92\textwidth]{Cholesky_perf.png}
+\end{frame}
+
+% Focus on the cholesky example for the remainder of the talk (say to 10 to 15 minutes). IMO it should include:
+
+%     why this example is a good benchmark (e.g. a good arithmetic intensity since you do $n^3$ flops for $n^2$ bytes, so you can expect to gain from "good" parallelism since you are compute-bound). For some of the other examples we have in the docs we are most likely memory-bound.
+%     A discussion of the tiled algorithm. It is not hard, but we need to show where it comes from. I would map each operation to the corresponding julia function at some point (e.g. mul!, cholesky!, ldiv!). Discuss that we call OpenBLAS for simplicity, but having those kernels efficiently done in julia is relatively simple if one uses LoopVectorization.
+%     Then show how to parallelize it using DFT
+%     Explore the @log information, and how to read/interpret it
+%     Comparison to OpenBLAS
+
+
 
 \section{Roadmap}
 
