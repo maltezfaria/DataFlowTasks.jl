@@ -414,7 +414,7 @@ end
       \pic[fill=white] at (4,2) {square};
 
       % diagonal 1,1
-      \only<2,3,4>{\pic[fill=yellow] at (1,4) {square};}
+      \only<2,3,4>{\pic[fill=themegreen] at (1,4) {square};}
       \only<3,4>{
         % first row
         \pic[fill=orange] at (1,3) {square};
@@ -468,8 +468,8 @@ end
     \column{0.55\textwidth}
     \only<2->{\texttt{i = 1}}
     \begin{enumerate}
-      % cholesky in yellow
-      \item<2-> \textcolor{yellow}{\texttt{cholesky!}}: \\
+      % cholesky in themegreen
+      \item<2-> \textcolor{themegreen}{\texttt{cholesky!}}: \\
       $A_{i,i} \leftarrow \texttt{chol!}(A_{i,i})$ 
       \item<3-> \textcolor{orange}{\texttt{ldiv!}}: \texttt{for k in 2:N} 
       $A_{k,i} \leftarrow \texttt{ldiv!}(L_{i,i}, A_{k,i}),$
@@ -507,7 +507,7 @@ end
       \pic[fill=white] at (4,2) {square};
 
       % diagonal 1,1
-      \pic[fill=yellow] at (1,4) {square};
+      \pic[fill=themegreen] at (1,4) {square};
       % first col
       \pic[fill=orange] at (1,3) {square};
       \pic[fill=orange] at (1,2) {square};
@@ -544,7 +544,7 @@ end
     \begin{onlyenv}<1>
       For an $N \times N$ block matrix:\\
       \begin{itemize}
-      \item $\mathcal{O}(N)$ \textcolor{yellow}{cholesky factorizations}
+      \item $\mathcal{O}(N)$ \textcolor{themegreen}{cholesky factorizations}
       \item $\mathcal{O}(N^2)$ \textcolor{orange}{triangular solves}
       \item $\mathcal{O}(N^3)$ \textcolor{red}{matrix multiplications}
         \medskip
