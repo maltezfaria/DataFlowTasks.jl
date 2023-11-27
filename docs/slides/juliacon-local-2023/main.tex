@@ -390,7 +390,7 @@ end
 \begin{frame}
   \frametitle{Tiled Cholesky factorization: algorithm}
   \begin{itemize}
-    \item Input: $N \times N$ symmetric (block) matrix $A$
+    \item Input: symmetric positive-definite matrix $A$ with $N \times N$ blocks
     \item Goal: compute lower-triangular $L$ such that $A = L L^\top$
   \end{itemize}
 
@@ -398,7 +398,7 @@ end
 
   \begin{columns}
     \column{0.45\textwidth}
-    \begin{tikzpicture}[thick, scale=1, transform shape]
+    \centering \begin{tikzpicture}[thick, scale=1, transform shape]
       \foreach \y in {1,2,...,4}  {
         \foreach \x in {1,2,...,4} {
           % fill with blue if above diagonal, with white otherwise
@@ -461,21 +461,25 @@ end
         \pic[fill=gray!30] at (3,2) {square};
         \pic[fill=gray!30] at (4,1) {square};
       }
-      
-
    \end{tikzpicture}
+
+   \medskip   
+   \center \only<2-4>{\texttt{i=1}}
+   \center \only<5>{\texttt{i=2}, repeat}
     
     \column{0.55\textwidth}
-    \only<2->{\texttt{i = 1}}
+    \only<2->{\texttt{for i in 1:N}}
     \begin{enumerate}
       % cholesky in themegreen
-      \item<2-> \textcolor{themegreen}{\texttt{cholesky!}}: \\
-      $A_{i,i} \leftarrow \texttt{chol!}(A_{i,i})$ 
-      \item<3-> \textcolor{orange}{\texttt{ldiv!}}: \texttt{for k in 2:N} 
-      $A_{k,i} \leftarrow \texttt{ldiv!}(L_{i,i}, A_{k,i}),$
-      \item<4-> \textcolor{red}{\texttt{mul!}} \texttt{for k in 2:N, j in 2:i}
-      $A_{k,j} \leftarrow A_{k,j} - L_{k,i}L^\top_{k,i}$
-      \item<5-> \texttt{i += 1} and repeat
+      \item<2-> \textcolor{themegreen}{\texttt{cholesky!}} \\
+      $A_{i,i} \leftarrow \texttt{chol!}(A_{i,i})$ \\
+      $L_{i,i} = \texttt{LowerTriangular}(A_{i,i})$
+      \item<3-> \textcolor{orange}{\texttt{ldiv!}} \\
+      \texttt{for k in 2:N}\\
+      \quad $A_{k,i} \leftarrow \texttt{ldiv!}(L_{i,i}, A_{k,i}),$
+      \item<4-> \textcolor{red}{\texttt{mul!}} \\
+      \texttt{for k in i+1:N, j in i+1:k}\\
+      \quad $A_{k,j} \leftarrow A_{k,j} - A_{k,i}A^\top_{k,i}$
     \end{enumerate}
   \end{columns}
   
@@ -491,7 +495,7 @@ end
 
   \begin{columns}[T]
     \column{0.45\textwidth}
-    \begin{tikzpicture}[thick, scale=1, transform shape]
+    \centering \begin{tikzpicture}[thick, scale=1, transform shape]
       \foreach \x in {1,2,...,4}  {
         \foreach \y in {1,2,...,4} {
           % fill with blue if above diagonal, with white otherwise
