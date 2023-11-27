@@ -13,6 +13,15 @@
 \definecolor{themelightgreen}{RGB}{230,239,230}
 \definecolor{themelightblue}{RGB}{215,215,240}
 
+\tikzset{
+  pics/square/.default={1},
+  pics/square/.style = {
+    code = {
+    \draw[pic actions] (0,0) rectangle (#1,#1);
+    }
+  }
+}
+
 % set graphics path to figure
 \graphicspath{{./figures/}}
 
@@ -33,8 +42,8 @@
 \institute[]
 {
     \inst{1}%
-    Chargé de recherche INRIA\\
-    POEMS Laboratory
+    Research scientist\\
+    INRIA
     \and
     \inst{2}%
     Chief Scientist\\
@@ -369,7 +378,7 @@ end
       $\vartriangleright$ Triangular solve to get $L_{21}$\hfill\texttt{ldiv!}\medskip
     \item<4-> $A_{22} - L_{21} L^\top_{21} = L_{22} L^\top_{22}$\\
       $\vartriangleright$ Matmul to get $A_{22} - L_{21} L^\top_{21}$\hfill\texttt{mul!}\\
-      $\vartriangleright$ Cholesky factorization to get $L_{22}$
+      $\vartriangleright$ Cholesky factorization to get $L_{22}$\hfill\texttt{cholesky!}
     \end{enumerate}
   \end{itemize}
 \end{frame}
@@ -378,21 +387,152 @@ end
 \begin{frame}
   \frametitle{Tiled Cholesky factorization: algorithm}
 
-  \begin{columns}[T]
-    \column{0.50\textwidth}
-    \includegraphics[width=\textwidth]{Cholesky_2ndStep.png}
+  \center Input: $N \times N$ symmetric (block) matrix $A$
+  \center Goal: compute upper-triangular $L$ such that $A = L L^\top$
+
+  \bigskip  
+
+  \begin{columns}
+    \column{0.5\textwidth}
+    \begin{tikzpicture}[thick, scale=1, transform shape]
+      \foreach \x in {1,2,...,4}  {
+        \foreach \y in {1,2,...,4} {
+          % fill with blue if above diagonal, with white otherwise
+          \pic[fill=blue!50] at (\x,\y) {square};
+        }
+      }
+      % fill blocks below main diagonal with white
+      \pic[fill=white] at (1,3) {square};
+      \pic[fill=white] at (1,2) {square};
+      \pic[fill=white] at (2,2) {square};
+      \pic[fill=white] at (1,1) {square};
+      \pic[fill=white] at (2,1) {square};
+      \pic[fill=white] at (3,1) {square};
+
+      % diagonal 1,1
+      \only<2,3,4>{\pic[fill=yellow] at (1,4) {square};}
+      \only<3,4>{
+        % first row
+        \pic[fill=orange] at (2,4) {square};
+        \pic[fill=orange] at (3,4) {square};
+        \pic[fill=orange] at (4,4) {square};
+      }
+      % draw an arrow from (1,4) to (2,4), (3,4) and (4,4)
+      \only<3>{
+        \draw[|->, thick] (1.5,4.75) -- (2.5,4.75);
+         \draw[|->, thick] (1.5,4.5) -- (3.5,4.5);
+        \draw[|->, thick] (1.5,4.25) -- (4.5,4.25);
+      }
+      % fill blocks below diagonal 1,1 in green
+      \only<4>{
+      \pic[fill=red] at (2,3) {square};
+      \pic[fill=red] at (3,3) {square};
+      \pic[fill=red] at (4,3) {square};
+      \pic[fill=red] at (3,2) {square};
+      \pic[fill=red] at (4,2) {square};
+      \pic[fill=red] at (4,1) {square};
+      }
+      % draw arrows from first row into green blocks
+      \only<4>{
+        \draw[|->, thick] (2.5,4.5) -- (2.5,3.5);
+        \draw[|->, thick] (3.375,4.5) -- (3.375,3.5);
+        \draw[|->, thick] (3.625,4.5) -- (3.625,2.5);
+        \draw[|->, thick] (4.25,4.5) -- (4.25,3.5);
+        \draw[|->, thick] (4.5,4.5) -- (4.5,2.5);
+        \draw[|->, thick] (4.75,4.5) -- (4.75,1.5);
+      }
+      \only<5->{
+        % start the next iteration
+        \pic[fill=gray!30] at (1,4) {square};
+        \pic[fill=gray!30] at (2,4) {square};
+        \pic[fill=gray!30] at (3,4) {square};
+        \pic[fill=gray!30] at (4,4) {square};
+      }
+      \only<6->{
+        % fill whole matrix with gray
+        \pic[fill=gray!30] at (2,3) {square};
+        \pic[fill=gray!30] at (3,3) {square};
+        \pic[fill=gray!30] at (4,3) {square};
+        \pic[fill=gray!30] at (3,2) {square};
+        \pic[fill=gray!30] at (4,2) {square};
+        \pic[fill=gray!30] at (4,1) {square};
+      }
+      
+
+   \end{tikzpicture}
     
+    \column{0.45\textwidth}
+    \begin{enumerate}
+      % cholesky in yellow
+      \item<2-> \textcolor{yellow}{\texttt{cholesky!}}
+      \item<3-> \textcolor{orange}{\texttt{ldiv!}}
+      \item<4-> \textcolor{red}{\texttt{mul!}}
+      \item<5-> move to next row and repeat
+    \end{enumerate}
+  \end{columns}
+  
+  \bigskip
+  
+  \only<6->{Ouput: $L^\top$ in the upper-triangular part of $A$}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Tiled Cholesky factorization: algorithm}
+
+  \begin{columns}[T]
+    \column{0.45\textwidth}
+    \begin{tikzpicture}[thick, scale=1, transform shape]
+      \foreach \x in {1,2,...,4}  {
+        \foreach \y in {1,2,...,4} {
+          % fill with blue if above diagonal, with white otherwise
+          \pic[fill=blue!50] at (\x,\y) {square};
+        }
+      }
+      % fill blocks below main diagonal with white
+      \pic[fill=white] at (1,3) {square};
+      \pic[fill=white] at (1,2) {square};
+      \pic[fill=white] at (2,2) {square};
+      \pic[fill=white] at (1,1) {square};
+      \pic[fill=white] at (2,1) {square};
+      \pic[fill=white] at (3,1) {square};
+
+      % diagonal 1,1
+      \pic[fill=yellow] at (1,4) {square};
+      % first row
+      \pic[fill=orange] at (2,4) {square};
+      \pic[fill=orange] at (3,4) {square};
+      \pic[fill=orange] at (4,4) {square};
+      % draw an arrow from (1,4) to (2,4), (3,4) and (4,4)
+      % \draw[|->, thick] (1.5,4.75) -- (2.5,4.75);
+      % \draw[|->, thick] (1.5,4.5) -- (3.5,4.5);
+      % \draw[|->, thick] (1.5,4.25) -- (4.5,4.25);
+      % fill blocks below diagonal 1,1 in green
+      \pic[fill=red] at (2,3) {square};
+      \pic[fill=red] at (3,3) {square};
+      \pic[fill=red] at (4,3) {square};
+      \pic[fill=red] at (3,2) {square};
+      \pic[fill=red] at (4,2) {square};
+      \pic[fill=red] at (4,1) {square};
+      % % draw arrows from first row into green blocks
+      % \draw[|->, thick] (2.5,4.5) -- (2.5,3.5);
+      % \draw[|->, thick] (3.375,4.5) -- (3.375,3.5);
+      % \draw[|->, thick] (3.625,4.5) -- (3.625,2.5);
+      % \draw[|->, thick] (4.25,4.5) -- (4.25,3.5);
+      % \draw[|->, thick] (4.5,4.5) -- (4.5,2.5);
+      % \draw[|->, thick] (4.75,4.5) -- (4.75,1.5);
+   \end{tikzpicture}
     \column{0.50\textwidth}
+    % \begin{onlyenv}<1>
+    %   $N$ steps for an $N \times N$ block matrix;\\
+    %   each step $i$ performs:
+    %   \begin{itemize}
+    %   \item $1$ Cholesky factorization of the $(i,i)$ tile,
+    %   \item $(i-1)$ triangular solves (one for each tile in the $i$-th row of the upper triangular matrix),
+    %   \item $i(i-1)/2$ matrix multiplications to update the submatrix.
+    %   \end{itemize}
+    % \end{onlyenv}
     \begin{onlyenv}<1>
-      $N$ steps for an $N \times N$ block matrix;\\
-      each step $i$ performs:
-      \begin{itemize}
-      \item $1$ Cholesky factorization of the $(i,i)$ tile,
-      \item $(i-1)$ triangular solves (one for each tile in the $i$-th row of the upper triangular matrix),
-      \item $i(i-1)/2$ matrix multiplications to update the submatrix.
-      \end{itemize}
-    \end{onlyenv}
-    \begin{onlyenv}<2>
       For an $N \times N$ block matrix:\\
       \begin{itemize}
       \item $\mathcal{O}(N)$ cholesky factorizations,
@@ -526,7 +666,7 @@ julia> t_par = @belapsed(cholesky_dft!(A, ts),
 0.108479304
 
 julia> (; threads = Threads.nthreads(),
-          speedup = bench_tiled(4096) / bench_dft(4096))
+          speedup = t_seq / t_par)
 (threads = 8, speedup = 5.15436089063056)
 \end{minted}
 \end{frame}
@@ -547,7 +687,7 @@ julia> (; threads = Threads.nthreads(),
 
 
 
-\section{Roadmap}
+\section{Concluding remarks}
 
 % \begin{frame}
 % \frametitle{Summary}  
@@ -567,12 +707,16 @@ julia> (; threads = Threads.nthreads(),
 % \end{frame}
 
 \begin{frame}
-\frametitle{Roadmap}  
+\frametitle{Concluding remarks}
+
+\center {\large \url{https://github.com/maltezfaria/DataFlowTasks.jl}}
+
+\bigskip
 
 \begin{itemize}
-  \item Priority scheduling
-  \item Nesting \mintinline{julia}{DataFlowTask}s
-  \item ...
+  \item \DFT{} tries to make parallel programming easier for \emph{certain types of algorithms}
+  \item Simple API: \mintinline{julia}{@dspawn} macro
+  \item Several supplementary examples in the online documentation
 \end{itemize} 
 \end{frame}
 

@@ -29,5 +29,10 @@ docs/slides/cafe-julia-2023/*
 !docs/slides/cafe-julia-2023/main.tex
 !docs/slides/cafe-julia-2023/figures
 
+# Ignore almost everything in slides
+docs/slides/juliacon-local-2023/*
+!docs/slides/juliacon-local-2023/main.tex
+!docs/slides/juliacon-local-2023/figures
+
 
 
