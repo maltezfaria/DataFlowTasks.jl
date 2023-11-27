@@ -352,7 +352,7 @@ end
 
 \subsection{Algorithm}
 
-\begin{frame}{Tiled Cholesky factorization}
+\begin{frame}{Tiled Cholesky factorization: idea}
   \begin{itemize}
   \item Objective: take a SPD matrix $A$, find lower triangular $L$ such
     that \[A=LL^\top\]
@@ -361,14 +361,17 @@ end
       \begin{bmatrix}
         A_{11} & A_{12} \\
         A_{12}^\top & A_{22}
-      \end{bmatrix} = \begin{bmatrix}
-        L_{11} & \\
-        L_{21} & L_{22}
+      \end{bmatrix} = 
+      \textcolor{gray}{
+      \begin{bmatrix}
+        \textcolor<2->{black}{L_{11}} & \\
+        \textcolor<3->{black}{L_{21}} & \textcolor<4->{black}{L_{22}}
       \end{bmatrix}
-                 \begin{bmatrix}
-                   L^\top_{11} & L^\top_{21} \\
-                   & L^\top_{22}
-                 \end{bmatrix}
+      \begin{bmatrix}
+        \textcolor<2->{black}{L^\top_{11}} & \textcolor<3->{black}{L^\top_{21}} \\
+        & \textcolor<4->{black}{L^\top_{22}}
+      \end{bmatrix}
+      }
     \end{align*}
     \vspace{-10pt}
     \begin{enumerate}
@@ -386,9 +389,10 @@ end
 
 \begin{frame}
   \frametitle{Tiled Cholesky factorization: algorithm}
-
-  \center Input: $N \times N$ symmetric (block) matrix $A$
-  \center Goal: compute upper-triangular $L$ such that $A = L L^\top$
+  \begin{itemize}
+    \item Input: $N \times N$ symmetric (block) matrix $A$
+    \item Goal: compute lower-triangular $L$ such that $A = L L^\top$
+  \end{itemize}
 
   \bigskip  
 
@@ -419,9 +423,9 @@ end
       }
       % draw an arrow from (1,4) to (2,4), (3,4) and (4,4)
       \only<3>{
-        \draw[|->, thick] (1.5,4.75) -- (2.5,4.75);
-         \draw[|->, thick] (1.5,4.5) -- (3.5,4.5);
-        \draw[|->, thick] (1.5,4.25) -- (4.5,4.25);
+        \draw[->, thick, gray!30] (1.5,4.75) -- (2.5,4.75);
+        \draw[->, thick, gray!30] (1.5,4.5) -- (3.5,4.5);
+        \draw[->, thick, gray!30] (1.5,4.25) -- (4.5,4.25);
       }
       % fill blocks below diagonal 1,1 in green
       \only<4>{
@@ -434,12 +438,12 @@ end
       }
       % draw arrows from first row into green blocks
       \only<4>{
-        \draw[|->, thick] (2.5,4.5) -- (2.5,3.5);
-        \draw[|->, thick] (3.375,4.5) -- (3.375,3.5);
-        \draw[|->, thick] (3.625,4.5) -- (3.625,2.5);
-        \draw[|->, thick] (4.25,4.5) -- (4.25,3.5);
-        \draw[|->, thick] (4.5,4.5) -- (4.5,2.5);
-        \draw[|->, thick] (4.75,4.5) -- (4.75,1.5);
+        \draw[->, thick, gray!30] (2.5,4.5) -- (2.5,3.5);
+        \draw[->, thick, gray!30] (3.375,4.5) -- (3.375,3.5);
+        \draw[->, thick, gray!30] (3.625,4.5) -- (3.625,2.5);
+        \draw[->, thick, gray!30] (4.25,4.5) -- (4.25,3.5);
+        \draw[->, thick, gray!30] (4.5,4.5) -- (4.5,2.5);
+        \draw[->, thick, gray!30] (4.75,4.5) -- (4.75,1.5);
       }
       \only<5->{
         % start the next iteration
@@ -472,13 +476,14 @@ end
   \end{columns}
   
   \bigskip
-  
-  \only<6->{Ouput: $L^\top$ in the upper-triangular part of $A$}
+  \begin{itemize}  
+    \item<6-> Output: $L^\top$ in the upper-triangular part of $A$
+  \end{itemize}
 
 \end{frame}
 
 \begin{frame}
-  \frametitle{Tiled Cholesky factorization: algorithm}
+  \frametitle{Tiled Cholesky factorization: complexity}
 
   \begin{columns}[T]
     \column{0.45\textwidth}
@@ -535,9 +540,9 @@ end
     \begin{onlyenv}<1>
       For an $N \times N$ block matrix:\\
       \begin{itemize}
-      \item $\mathcal{O}(N)$ cholesky factorizations,
-      \item $\mathcal{O}(N^2)$ triangular solves,
-      \item $\mathcal{O}(N^3)$ matrix multiplications.
+      \item $\mathcal{O}(N)$ \textcolor{yellow}{cholesky factorizations}
+      \item $\mathcal{O}(N^2)$ \textcolor{orange}{triangular solves}
+      \item $\mathcal{O}(N^3)$ \textcolor{red}{matrix multiplications}
         \medskip
       \end{itemize}
       Globally compute-bound:
@@ -553,7 +558,7 @@ end
 \subsection{Sequential \& parallel implementation}
 
 \begin{frame}[fragile]{Tiled Cholesky factorization: sequential implementation}
-  \begin{minted}[fontsize=\footnotesize]{julia}
+  \begin{minted}[fontsize=\scriptsize]{julia}
 function cholesky_tiled!(A, ts)
   m = size(A, 1); n = m ÷ ts      # Matrix size & number of tiles
   T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
@@ -580,7 +585,7 @@ end
 
 
 \begin{frame}[fragile]{Tiled Cholesky factorization: parallel implementation}
-  \begin{minted}[fontsize=\footnotesize]{julia}
+  \begin{minted}[fontsize=\scriptsize]{julia}
 function cholesky_dft!(A, ts)
   m = size(A, 1); n = m ÷ ts      # Matrix size & number of tiles
   T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
@@ -594,7 +599,7 @@ function cholesky_dft!(A, ts)
     end
 
     for j in i+1:n, k in j:n
-      @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+      @dspawn mul!(@RW(T[j,k]),@R(T[i,j])',@R(T[i,k]),-1, 1) label="schur($j,$k)"
     end
   end
 
@@ -603,6 +608,33 @@ function cholesky_dft!(A, ts)
   return fetch(r)
 end 
   \end{minted}
+\end{frame}
+
+\subsection{Performance}
+\begin{frame}[fragile]{Tiled Cholesky factorization: performance}
+\begin{minted}[fontsize=\footnotesize]{jlcon}
+julia> using BenchmarkTools
+
+julia> n = 4096; ts = 512;
+
+julia> t_seq = @belapsed(cholesky_tiled!(A, ts),
+                         setup=(A=spd_matrix(n)), evals=1)
+0.559141485
+
+julia> t_par = @belapsed(cholesky_dft!(A, ts),
+                         setup=(A=spd_matrix(n)), evals=1)
+0.108479304
+
+julia> (; threads = Threads.nthreads(),
+          speedup = t_seq / t_par)
+(threads = 8, speedup = 5.15436089063056)
+\end{minted}
+\end{frame}
+
+
+
+\begin{frame}{Tiled Cholesky factorization: performance}
+\centering\includegraphics[width=0.92\textwidth]{Cholesky_perf.png}
 \end{frame}
 
 \subsection{Profiling \& debugging tools}
@@ -651,32 +683,6 @@ julia> plot(log_info; categories=["chol", "ldiv", "schur"])
 \includegraphics[width=\textwidth]{Cholesky_profile.png}
 \end{frame}
 
-\begin{frame}[fragile]{Tiled Cholesky factorization: performance}
-\begin{minted}[fontsize=\footnotesize]{jlcon}
-julia> using BenchmarkTools
-
-julia> n = 4096; ts = 512;
-
-julia> t_seq = @belapsed(cholesky_tiled!(A, ts),
-                         setup=(A=spd_matrix(n)), evals=1)
-0.559141485
-
-julia> t_par = @belapsed(cholesky_dft!(A, ts),
-                         setup=(A=spd_matrix(n)), evals=1)
-0.108479304
-
-julia> (; threads = Threads.nthreads(),
-          speedup = t_seq / t_par)
-(threads = 8, speedup = 5.15436089063056)
-\end{minted}
-\end{frame}
-
-\subsection{Performance}
-
-\begin{frame}{Tiled Cholesky factorization: performance}
-\centering\includegraphics[width=0.92\textwidth]{Cholesky_perf.png}
-\end{frame}
-
 % Focus on the cholesky example for the remainder of the talk (say to 10 to 15 minutes). IMO it should include:
 
 %     why this example is a good benchmark (e.g. a good arithmetic intensity since you do $n^3$ flops for $n^2$ bytes, so you can expect to gain from "good" parallelism since you are compute-bound). For some of the other examples we have in the docs we are most likely memory-bound.
@@ -709,15 +715,23 @@ julia> (; threads = Threads.nthreads(),
 \begin{frame}
 \frametitle{Concluding remarks}
 
-\center {\large \url{https://github.com/maltezfaria/DataFlowTasks.jl}}
-
-\bigskip
-
 \begin{itemize}
   \item \DFT{} tries to make parallel programming easier for \emph{certain types of algorithms}
   \item Simple API: \mintinline{julia}{@dspawn} macro
   \item Several supplementary examples in the online documentation
 \end{itemize} 
+
+\bigskip
+
+\begin{block}{}
+  \center {\large \url{https://github.com/maltezfaria/DataFlowTasks.jl}}
+\end{block}
+
+\bigskip
+
+\center If you think \DFT{} may help parallelize your algorithm, please give it
+a try or reach out to us!
+
 \end{frame}
 
 \appendix
