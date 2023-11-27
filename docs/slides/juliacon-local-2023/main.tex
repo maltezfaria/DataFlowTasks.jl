@@ -66,9 +66,13 @@
 \frametitle{Overview}
 
 \begin{itemize}
-    \item \DFT{} is a Julia package dedicated to parallel programming on multi-core shared memory CPUs.
+    \item \DFT{} is a Julia package dedicated to parallel programming on
+      \textit{\textbf{multi-core shared memory CPUs}}.
     \item Automatically infer \texttt{Task} interdependencies based on user annotations (\mintinline{julia}{@R, @W, @RW}).
-    \item Heavily inspired by task programming libraries such as StarPU.
+    \item Inspired by task programming libraries such as StarPU / PaRSEC
+      \begin{itemize}
+      \item (in spirit, not in ambition)
+      \end{itemize}
     \item Simple API: \mintinline{julia}{@dspawn} macro.
 \end{itemize}
 %
@@ -76,11 +80,11 @@
 \column{0.3\textwidth}
 \begin{exampleblock}{}
 \begin{minted}[fontsize=\footnotesize]{julia}
-function foo!(A)
-  fill!(A, 0)          
-  view(A, 1:2) .+= 2   
-  view(A, 3:4) .+= 3   
-  sum(A)               
+function foo!(A, b)
+  fill!(b, 0)
+  view(b, 1:2) .+= 2
+  view(b, 3:4) .+= 3
+  A \ b
 end
 \end{minted}
 \end{exampleblock}
@@ -94,11 +98,11 @@ end
 
 \begin{exampleblock}{}
 \begin{minted}[fontsize=\footnotesize]{julia}
-function foo!(A)
-  @dspawn fill!(@W(A), 0)         # task 1
-  @dspawn @RW(view(A, 1:2)) .+= 2 # task 2
-  @dspawn @RW(view(A, 3:4)) .+= 3 # task 3
-  @dspawn sum(@R(A))              # task 4
+function foo!(A, b)
+  @dspawn fill!(@W(b), 0)         # task 1
+  @dspawn @RW(view(b, 1:2)) .+= 2 # task 2
+  @dspawn @RW(view(b, 3:4)) .+= 3 # task 3
+  @dspawn A \ @R(b)               # task 4
 end
 \end{minted}
 \end{exampleblock}
@@ -144,31 +148,31 @@ end
   ]
 \begin{onlyenv}<1>
 \begin{minted}[beameroverlays]{julia}
-              # Task
-A = zeros(4)     # 1 - Initialization
-A[1:2] .+= 2     # 2 - Work on first half
-A[3:4] .+= 3     # 3 - Work on second half
-res = sum(A)     # 4 - Reduction
-                 #
+                   # Task
+b = zeros(4)          # 1 - Initialization
+b[1:2] .+= 2          # 2 - Work on first half
+b[3:4] .+= 3          # 3 - Work on second half
+res = A \ b           # 4 - Use entire vector
+                      #
 \end{minted}
 \end{onlyenv}
 \begin{onlyenv}<2>
 \begin{minted}[beameroverlays]{julia}
                                          # Task
 t1 = @spawn zeros(4)                        # 1
-t2 = @spawn (A = fetch(t1); A[1:2] .+ 2)    # 2
-t3 = @spawn (A = fetch(t1); A[3:4] .+ 3)    # 3
-t4 = @spawn sum(fetch(t2)) + sum(fetch(t3)) # 4
+t2 = @spawn (b = fetch(t1); b[1:2] .+ 2)    # 2
+t3 = @spawn (b = fetch(t1); b[3:4] .+ 3)    # 3
+t4 = @spawn A \ vcat(fetch(t2), fetch(t3))  # 4
 fetch(t4) # get result
 \end{minted}
 \end{onlyenv}
 \begin{onlyenv}<3>
 \begin{minted}[beameroverlays]{julia}    
-A = rand(4)                              # Task
-t1 = @spawn fill!(A,0)                      # 1
-t2 = @spawn (wait(t1); view(A,1:2) += 2)    # 2
-t3 = @spawn (wait(t1); view(A,3:4) += 3)    # 3
-t4 = @spawn (wait(t2); wait(t3); sum(A))    # 4
+b = Vector{Float64}(undef, 4)            # Task
+t1 = @spawn fill!(b, 0)                     # 1
+t2 = @spawn (wait(t1); view(b,1:2) += 2)    # 2
+t3 = @spawn (wait(t1); view(b,3:4) += 3)    # 3
+t4 = @spawn (wait(t2); wait(t3);  A \ b)    # 4
 fetch(t4) # get result
 \end{minted}
 \end{onlyenv}
@@ -207,11 +211,11 @@ fetch(t4) # get result
 
 \begin{example}[Synchronizing tasks]
 \begin{minted}[fontsize=\small]{julia}    
-A = rand(4)
-t1 = @spawn fill!(A,0)                   # RW access to A
-t2 = @spawn (wait(t1); view(A,1:2) += 2) # RW access to A[1:2]   
-t3 = @spawn (wait(t1); view(A,3:4) += 3) # RW access to A[3:4]
-t4 = @spawn (wait(t2); wait(t3); sum(A)) # R access to A
+b = rand(4)
+t1 = @spawn fill!(b,0)                   # RW access to b
+t2 = @spawn (wait(t1); view(b,1:2) += 2) # RW access to b[1:2]
+t3 = @spawn (wait(t1); view(b,3:4) += 3) # RW access to b[3:4]
+t4 = @spawn (wait(t2); wait(t3);  A \ b) # R  access to b
 fetch(t4)
 \end{minted}
 \end{example}
@@ -251,9 +255,9 @@ fetch(t4)
   \node<7->[circle, draw, fill=themegreen, text=white] (4) at (4,  0) {4};
   
   % Data
-  \node<1->[rectangle, draw, fill=themelightgreen, anchor=west] (A)  at (-3.5,  0) {\texttt{A}};
-  \node<3->[rectangle, draw, fill=themelightgreen, anchor=west] (A1) at (-3.5,  1) {\texttt{view(A,1:2)}};
-  \node<5->[rectangle, draw, fill=themelightgreen, anchor=west] (A2) at (-3.5, -1) {\texttt{view(A,3:4)}};
+  \node<1->[rectangle, draw, fill=themelightgreen, anchor=west] (A)  at (-3.5,  0) {\texttt{b}};
+  \node<3->[rectangle, draw, fill=themelightgreen, anchor=west] (A1) at (-3.5,  1) {\texttt{view(b,1:2)}};
+  \node<5->[rectangle, draw, fill=themelightgreen, anchor=west] (A2) at (-3.5, -1) {\texttt{view(b,3:4)}};
   
   % Task -> Data dependencies
   \draw<2->[->, dashed] (1) -- node[midway, below]{\scriptsize\ttfamily W} (A);
@@ -288,11 +292,11 @@ fetch(t4)
   \column{0.42\textwidth}
 \begin{exampleblock}{User-written code}
 \begin{minted}[fontsize=\footnotesize,escapeinside=||,beameroverlays=true]{julia}
-|\onslide<1->|A = rand(4)
-|\onslide<2->|@dspawn fill!(@W(A),0)
-|\onslide<3->|@dspawn @RW(view(A,1:2)) += 2
-|\onslide<5->|@dspawn @RW(view(A,3:4)) += 3
-|\onslide<7->|t4 = @dspawn sum(@R(A))
+|\onslide<1->|b = rand(4)
+|\onslide<2->|@dspawn fill!(@W(b),0)
+|\onslide<3->|@dspawn @RW(view(b,1:2)) += 2
+|\onslide<5->|@dspawn @RW(view(b,3:4)) += 3
+|\onslide<7->|t4 = @dspawn A \ @R(b)
 |\onslide<7->|fetch(t4)|\onslide<1->|
 \end{minted}    
 \end{exampleblock}
@@ -315,7 +319,7 @@ for i in 1:N, j in i:-1:1
 \begin{minted}[fontsize=\footnotesize]{julia}
 t4 = Threads.@spawn begin
   wait(t2); wait(t3)
-  sum(A)
+  A \ b
 end
 \end{minted}
 \end{exampleblock}
