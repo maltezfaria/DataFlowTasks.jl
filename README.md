@@ -305,6 +305,12 @@ Each example comes with a notebook version, which can be downloaded and run
 locally: give it a try, and if `DataFlowTasks` is useful to you, please
 consider submitting your own example application!
 
+In addition to the package documentation, the [slides for various
+talks](https://github.com/maltezfaria/DataFlowTasks.jl/blob/talks/README.md)
+about `DataFlowTasks.jl` are available. Looking at these slides might be a
+good way to quickly get an overview of what `DataFlowTasks.jl` can do and how
+it works.
+
 ---
 
 *This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
