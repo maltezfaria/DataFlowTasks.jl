@@ -39,7 +39,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
   docs:
     name: Documentation
     runs-on: self-hosted
@@ -62,6 +62,6 @@ jobs:
         if: github.ref == 'refs/heads/main' 
         run: julia --project=docs --code-coverage=user docs/run_examples.jl
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
       - name: Check README.md consistency
         run: diff -u README.md docs/src/readme/README.md
