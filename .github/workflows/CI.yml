@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run:  perl -ni -e 'print unless /GLMakie/' ext/Project.toml
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
@@ -53,7 +53,7 @@ jobs:
       statuses: write
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy
