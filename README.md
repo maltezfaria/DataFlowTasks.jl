@@ -20,7 +20,7 @@ This `README` is also available in notebook form:
 
 ```julia
 using Pkg
-Pkd.add("https://github.com/maltezfaria/DataFlowTasks.jl.git")
+Pkg.add(url = "https://github.com/maltezfaria/DataFlowTasks.jl.git")
 ```
 
 ## Basic Usage
