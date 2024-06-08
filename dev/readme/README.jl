@@ -26,7 +26,7 @@ Pkg.activate("../..")    #src
 #
 # ```julia
 # using Pkg
-# Pkd.add("https://github.com/maltezfaria/DataFlowTasks.jl.git")
+# Pkg.add("DataFlowTasks")
 # ```
 
 #-
@@ -71,10 +71,10 @@ fetch(result)
 # macro:
 
 log_info = DataFlowTasks.@log let
-    @dspawn fill!(@W(A), 0)             label="write whole"
-    @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
-    @dspawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
-    res = @dspawn @R(A)                 label="read whole"
+    @dspawn fill!(@W(A), 0) label = "write whole"
+    @dspawn @RW(view(A, 1:2)) .+= 2 label = "write 1:2"
+    @dspawn @RW(view(A, 3:4)) .+= 3 label = "write 3:4"
+    res = @dspawn @R(A) label = "read whole"
     fetch(res)
 end
 
@@ -129,26 +129,27 @@ using LinearAlgebra
 tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
 
 function cholesky_tiled!(A, ts)
-    m = size(A, 1); @assert m==size(A, 2)
-    m%ts != 0 && error("Tilesize doesn't fit the matrix")
-    n = m÷ts  # number of tiles in each dimension
+    m = size(A, 1)
+    @assert m == size(A, 2)
+    m % ts != 0 && error("Tilesize doesn't fit the matrix")
+    n = m ÷ ts  # number of tiles in each dimension
 
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
         ## Diagonal Cholesky serial factorization
-        cholesky!(T[i,i])
+        cholesky!(T[i, i])
 
         ## Left blocks update
-        U = UpperTriangular(T[i,i])
+        U = UpperTriangular(T[i, i])
         for j in i+1:n
-            ldiv!(U', T[i,j])
+            ldiv!(U', T[i, j])
         end
 
         ## Submatrix update
         for j in i+1:n
             for k in j:n
-                mul!(T[j,k], T[i,j]', T[i,k], -1, 1)
+                mul!(T[j, k], T[i, j]', T[i, k], -1, 1)
             end
         end
     end
@@ -163,32 +164,33 @@ end
 using DataFlowTasks
 
 function cholesky_dft!(A, ts)
-    m = size(A, 1); @assert m==size(A, 2)
-    m%ts != 0 && error("Tilesize doesn't fit the matrix")
-    n = m÷ts  # number of tiles in each dimension
+    m = size(A, 1)
+    @assert m == size(A, 2)
+    m % ts != 0 && error("Tilesize doesn't fit the matrix")
+    n = m ÷ ts  # number of tiles in each dimension
 
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
         ## Diagonal Cholesky serial factorization
-        @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
+        @dspawn cholesky!(@RW(T[i, i])) label = "chol ($i,$i)"
 
         ## Left blocks update
-        U = UpperTriangular(T[i,i])
+        U = UpperTriangular(T[i, i])
         for j in i+1:n
-            @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
+            @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
         end
 
         ## Submatrix update
         for j in i+1:n
             for k in j:n
-                @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+                @dspawn mul!(@RW(T[j, k]), @R(T[i, j])', @R(T[i, k]), -1, 1) label = "schur ($j,$k)"
             end
         end
     end
 
     ## Construct the factorized object
-    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
+    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label = "result"
     return fetch(r)
 end
 
@@ -206,16 +208,16 @@ end
 ## Context
 n  = 2048
 ts = 512
-A = rand(n, n)
-A = (A + adjoint(A))/2
-A = A + n*I;
+A  = rand(n, n)
+A  = (A + adjoint(A)) / 2
+A = A + n * I;
 
 #-
 println("Testing sequential Cholesky factorization")       #hide
 F = cholesky_tiled!(copy(A), ts)                           #hide
-                                                           #hide
+#hide
 ## Check results                                            #hide
-err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))       #hide
+err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))       #hide
 @show err                                                  #hide
 @assert err < eps(Float64)                                 #hide
 #-
@@ -226,10 +228,9 @@ println("Testing parallel Cholesky factorization")         #hide
 F = cholesky_dft!(copy(A), ts)
 
 ## Check results
-err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
+err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))
 @show err                   #hide
 @assert err < eps(Float64)  #hide
-
 
 # ## Debugging and Profiling
 #
@@ -245,7 +246,7 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 GC.gc()
 
 ## Profile the code and return a `LogInfo` object:
-log_info = DataFlowTasks.@log cholesky_dft!(A ,ts);
+log_info = DataFlowTasks.@log cholesky_dft!(A, ts);
 
 # Visualizing the DAG can be helpful. When debugging, this representation of
 # dependencies between tasks as inferred by `DataFlowTasks` can help identify
@@ -265,7 +266,7 @@ DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
 # application. A summary of the profiling information can be displayed in the
 # REPL using the `DataFlowTasks.describe` function:
 
-DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
+DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 
 # but it is often more convenient to see this information in a graphical
 # way. The parallel trace plot shows a timeline of the tasks execution on
@@ -274,7 +275,7 @@ DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
 # understand the performance limiting factors:
 
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = plot(log_info; categories=["chol", "ldiv", "schur"])
+trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 save("cholesky_trace.svg", trace) #src
 
 #md # ![](cholesky_trace.svg)
