@@ -65,10 +65,10 @@ macro:
 
 ````julia
 log_info = DataFlowTasks.@log let
-    @dspawn fill!(@W(A), 0)             label="write whole"
-    @dspawn @RW(view(A, 1:2)) .+= 2     label="write 1:2"
-    @dspawn @RW(view(A, 3:4)) .+= 3     label="write 3:4"
-    res = @dspawn @R(A)                 label="read whole"
+    @dspawn fill!(@W(A), 0) label = "write whole"
+    @dspawn @RW(view(A, 1:2)) .+= 2 label = "write 1:2"
+    @dspawn @RW(view(A, 3:4)) .+= 3 label = "write 3:4"
+    res = @dspawn @R(A) label = "read whole"
     fetch(res)
 end
 ````
@@ -120,26 +120,27 @@ using LinearAlgebra
 tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
 
 function cholesky_tiled!(A, ts)
-    m = size(A, 1); @assert m==size(A, 2)
-    m%ts != 0 && error("Tilesize doesn't fit the matrix")
-    n = m÷ts  # number of tiles in each dimension
+    m = size(A, 1)
+    @assert m == size(A, 2)
+    m % ts != 0 && error("Tilesize doesn't fit the matrix")
+    n = m ÷ ts  # number of tiles in each dimension
 
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
         # Diagonal Cholesky serial factorization
-        cholesky!(T[i,i])
+        cholesky!(T[i, i])
 
         # Left blocks update
-        U = UpperTriangular(T[i,i])
+        U = UpperTriangular(T[i, i])
         for j in i+1:n
-            ldiv!(U', T[i,j])
+            ldiv!(U', T[i, j])
         end
 
         # Submatrix update
         for j in i+1:n
             for k in j:n
-                mul!(T[j,k], T[i,j]', T[i,k], -1, 1)
+                mul!(T[j, k], T[i, j]', T[i, k], -1, 1)
             end
         end
     end
@@ -156,32 +157,33 @@ calls within `@dspawn`, and adding annotations describing data access modes:
 using DataFlowTasks
 
 function cholesky_dft!(A, ts)
-    m = size(A, 1); @assert m==size(A, 2)
-    m%ts != 0 && error("Tilesize doesn't fit the matrix")
-    n = m÷ts  # number of tiles in each dimension
+    m = size(A, 1)
+    @assert m == size(A, 2)
+    m % ts != 0 && error("Tilesize doesn't fit the matrix")
+    n = m ÷ ts  # number of tiles in each dimension
 
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
         # Diagonal Cholesky serial factorization
-        @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
+        @dspawn cholesky!(@RW(T[i, i])) label = "chol ($i,$i)"
 
         # Left blocks update
-        U = UpperTriangular(T[i,i])
+        U = UpperTriangular(T[i, i])
         for j in i+1:n
-            @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
+            @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
         end
 
         # Submatrix update
         for j in i+1:n
             for k in j:n
-                @dspawn mul!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k]), -1, 1) label="schur ($j,$k)"
+                @dspawn mul!(@RW(T[j, k]), @R(T[i, j])', @R(T[i, k]), -1, 1) label = "schur ($j,$k)"
             end
         end
     end
 
     # Construct the factorized object
-    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
+    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label = "result"
     return fetch(r)
 end
 ````
@@ -199,9 +201,9 @@ how to profile the program and get information about how tasks were scheduled:
 # Context
 n  = 2048
 ts = 512
-A = rand(n, n)
-A = (A + adjoint(A))/2
-A = A + n*I;
+A  = rand(n, n)
+A  = (A + adjoint(A)) / 2
+A = A + n * I;
 ````
 
 
@@ -211,7 +213,7 @@ A = A + n*I;
 F = cholesky_dft!(copy(A), ts)
 
 # Check results
-err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
+err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))
 ````
 
 ## Debugging and Profiling
@@ -229,7 +231,7 @@ been discarded:
 GC.gc()
 
 # Profile the code and return a `LogInfo` object:
-log_info = DataFlowTasks.@log cholesky_dft!(A ,ts);
+log_info = DataFlowTasks.@log cholesky_dft!(A, ts);
 ````
 
 Visualizing the DAG can be helpful. When debugging, this representation of
@@ -252,7 +254,7 @@ application. A summary of the profiling information can be displayed in the
 REPL using the `DataFlowTasks.describe` function:
 
 ````julia
-DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
+DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 ````
 
 but it is often more convenient to see this information in a graphical
@@ -263,7 +265,7 @@ understand the performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = plot(log_info; categories=["chol", "ldiv", "schur"])
+trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 ````
 
 ![](https://maltezfaria.github.io/DataFlowTasks.jl/dev/readme/cholesky_trace.svg)
