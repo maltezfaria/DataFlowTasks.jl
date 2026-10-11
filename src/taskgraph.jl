@@ -80,7 +80,14 @@ To wait on the active `TaskGraph`, use `wait(get_active_taskgraph())`.
 """
 function Base.wait(taskgraph::TaskGraph)
     dag = taskgraph.dag
-    isempty(dag) || wait(dag.cond_empty)
+    lock(dag)
+    try
+        while !isempty(dag)
+            wait(dag.cond_empty)
+        end
+    finally
+        unlock(dag)
+    end
     return taskgraph
 end
 
@@ -123,7 +130,9 @@ Start a task associated with `tg` which takes nodes from its `finished` queue
 and removes them from the `dag`. The task blocks if `finished` is empty.
 """
 function start_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
-    task = @async while true
+    # run on the interactive threadpool (if any) so that the bookkeeping is not
+    # delayed by the computations running on the default threadpool
+    task = Threads.@spawn :interactive while true
         t = take!(tg.finished)
         t == Stop() && break
         # remove task `t` from the dag
@@ -135,13 +144,12 @@ end
 
 function stop_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
     t = tg.dag_cleaner
-    @assert istaskstarted(t)
-    if istaskdone(t)
-        @warn "DAG worker already stopped"
-    elseif istaskfailed(t)
+    # NOTE: `t` may not have started yet, but it will still receive the `Stop`
+    if istaskfailed(t)
         @warn "DAG worker failed"
-        return tg.dag_cleaner
-    else # expected result, task is running
+    elseif istaskdone(t)
+        @warn "DAG worker already stopped"
+    else # expected result, task is running (or about to)
         put!(tg.finished, Stop())
         # wait for t to stop before continuing
         wait(t)
@@ -152,6 +160,10 @@ end
 # interface methods for TaskGraph
 function spawn(tj::DataFlowTask)
     tj.task.sticky = false
+    # A `Task` inherits the threadpool of its parent. Since Julia 1.12 the main
+    # task lives in the `:interactive` pool, so explicitly move `tj` to the
+    # `:default` pool like `Threads.@spawn` does.
+    Threads._spawn_set_thrpool(tj.task, :default)
     return schedule(tj.task)
 end
 

@@ -9,11 +9,14 @@ from `i` can be retrieved using [`outneighbors(dag,i)`](@ref).
 `DAG` is a buffered structure with a buffer of size `sz_max`: calling
 [`addnode!`](@ref) on it will block if the `DAG` has more than `sz_max`
 elements.
+
+The `DAG` is thread-safe: mutating operations acquire `dag.lock`, and the
+conditions `cond_push` and `cond_empty` are associated with that same lock.
 """
 struct DAG{T}
     inoutlist::OrderedDict{T,Tuple{Set{T},Set{T}}}
-    cond_push::Condition
-    cond_empty::Condition
+    cond_push::Threads.Condition
+    cond_empty::Threads.Condition
     lock::ReentrantLock
     sz_max::Base.RefValue{Int}
     counter::Base.RefValue{Int}
@@ -31,9 +34,9 @@ function DAG{T}(sz = typemax(Int)) where {T}
         throw(ArgumentError("DAG buffer size must be a positive integer"))
     end
     inoutlist  = OrderedDict{T,Tuple{Set{T},Set{T}}}()
-    cond_push  = Condition()
-    cond_empty = Condition()
     lock       = ReentrantLock()
+    cond_push  = Threads.Condition(lock)
+    cond_empty = Threads.Condition(lock)
     _buffer    = Set{Int}()
     return DAG{T}(inoutlist, cond_push, cond_empty, lock, Ref(sz), Ref(0), _buffer)
 end
@@ -42,8 +45,16 @@ function Base.resize!(dag::DAG, sz)
     sz = sz == Inf ? typemax(Int) : Int(sz)
     msg = """cannot resize `dag` (desired capacity too small to contain the
     already present nodes)"""
-    num_nodes(dag) > sz && error(msg)
-    return dag.sz_max[] = sz
+    lock(dag)
+    try
+        num_nodes(dag) > sz && error(msg)
+        dag.sz_max[] = sz
+        # wake up tasks waiting for room in the dag
+        notify(dag.cond_push)
+    finally
+        unlock(dag)
+    end
+    return sz
 end
 
 Base.isempty(dag::DAG)     = isempty(dag.inoutlist)
@@ -104,6 +115,8 @@ function Base.empty!(dag::DAG)
     lock(dag)
     try
         empty!(dag.inoutlist)
+        notify(dag.cond_push)
+        notify(dag.cond_empty)
     finally
         unlock(dag)
     end
@@ -140,11 +153,11 @@ end
 
 function addnode!(dag::DAG, kv::Pair, check = false)
     k, v = kv
-    while num_nodes(dag) == dag.sz_max[]
-        wait(dag.cond_push)
-    end
     lock(dag)
     try
+        while num_nodes(dag) >= dag.sz_max[]
+            wait(dag.cond_push)
+        end
         t₀ = time_ns()
         stats = Base.gc_num()
         # -------
@@ -160,10 +173,7 @@ function addnode!(dag::DAG, kv::Pair, check = false)
         tid = Threads.threadid()
         _log_mode() &&
             haslogger() &&
-            push!(
-                _getloginfo().insertionlogs[tid],
-                InsertionLog(t₀, t₁, diff.total_time, tag(k), tid),
-            )
+            record!(_getloginfo(), InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
     finally
         unlock(dag)
     end
@@ -251,6 +261,8 @@ Remove node `i` and all of its edges from `dag`.
 function remove_node!(dag::DAG, i)
     lock(dag)
     try
+        # `i` may have been removed by `empty!` while it was running
+        haskey(dag.inoutlist, i) || return
         if !isempty(inneighbors(dag, i))
             @warn "removing a node with incoming neighbors"
         end

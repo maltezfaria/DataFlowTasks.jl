@@ -46,23 +46,28 @@ end
 """
     struct LogInfo
 
-Contains informations on the program's progress. For thread-safety, the
-`LogInfo` structure uses one vector of [`TaskLog`](@ref) per thread.
+Contains informations on the program's progress. Events are appended to the
+logs under `lock`, so that a `LogInfo` can be safely shared by all threads.
 
 You can visualize and postprocess a `LogInfo` using `GraphViz.Graph` and
 `Makie.plot`.
 """
 struct LogInfo
-    tasklogs::Vector{Vector{TaskLog}}
-    insertionlogs::Vector{Vector{InsertionLog}}
-    function LogInfo()
-        # internal constructor to guarantee that there is always one vector per
-        # thread to do the logging
-        return new(
-            [Vector{TaskLog}() for _ in 1:Threads.nthreads()],
-            [Vector{InsertionLog}() for _ in 1:Threads.nthreads()],
-        )
-    end
+    tasklogs::Vector{TaskLog}
+    insertionlogs::Vector{InsertionLog}
+    lock::ReentrantLock
+end
+
+LogInfo() = LogInfo(TaskLog[], InsertionLog[], ReentrantLock())
+
+#= Append `log` to the logs of `l` in a thread-safe manner =#
+function record!(l::LogInfo, log::TaskLog)
+    @lock l.lock push!(l.tasklogs, log)
+    return l
+end
+function record!(l::LogInfo, log::InsertionLog)
+    @lock l.lock push!(l.insertionlogs, log)
+    return l
 end
 
 #TODO: show more relevant information
@@ -103,7 +108,7 @@ end
 
 #= Utility function to get number of task nodes of the logger =#
 function nbtasknodes(logger)
-    return sum(length(threadlog) for threadlog in logger.tasklogs)
+    return length(logger.tasklogs)
 end
 
 """
@@ -198,8 +203,7 @@ end
 Base.isless(t1::TaskLog, t2::TaskLog) = isless(t1.tag, t2.tag)
 
 function topological_sort(l::LogInfo)
-    tlogs = Iterators.flatten(l.tasklogs) |> collect
-    return sort!(tlogs)
+    return sort(l.tasklogs)
 end
 
 intags(t::TaskLog) = t.inneighbors
@@ -258,7 +262,9 @@ mutable struct ExtendedLogInfo
 
     function ExtendedLogInfo(logger::LogInfo, categories, path)
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
-        othertime = (lasttime - firsttime) * length(logger.tasklogs)
+        # all threads able to run tasks (the interactive ones insert tasks)
+        nthreads = Threads.nthreads(:default) + Threads.nthreads(:interactive)
+        othertime = (lasttime - firsttime) * nthreads
 
         normalize_category(x) = x
         normalize_category(x::String) = (x => Regex(x))
@@ -288,8 +294,9 @@ Passing a `categories` argument allows grouping tasks by category. The
 `categories` can be a vector of `String`s or a vector of `String => Regex`
 pairs, which will be matched against the tasks' labels.
 """
-describe(loginfo::LogInfo; categories = String[]) =
-    describe(stdout, loginfo; categories = categories)
+function describe(loginfo::LogInfo; categories = String[])
+    return describe(stdout, loginfo; categories = categories)
+end
 
 function describe(io::IO, loginfo::LogInfo; categories = String[])
     extloginfo, _ = extractloggerinfo(loginfo; categories = categories)
@@ -316,8 +323,8 @@ end
 
 #= Gives minimum and maximum times the logger has measured. =#
 function timelimits(logger::LogInfo)
-    iter = Iterators.flatten(logger.tasklogs)
-    return minimum(t -> t.time_start, iter), maximum(t -> t.time_finish, iter)
+    logs = logger.tasklogs
+    return minimum(t -> t.time_start, logs), maximum(t -> t.time_finish, logs)
 end
 
 #= Considering a `label` and a the full list of labels `categories`,
@@ -342,7 +349,7 @@ end
 function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Gantt)
     # Gantt data : Initialization TASKLOGS
     # ------------------------------------
-    for tasklog in Iterators.flatten(logger.tasklogs)
+    for tasklog in logger.tasklogs
         # Gantt data
         # ----------
         push!(gantt.threads, tasklog.tid)
@@ -365,7 +372,7 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
 
     # Gantt data : Initialization INSERTIONLOGS
     # -----------------------------------------
-    for insertionlog in Iterators.flatten(logger.insertionlogs)
+    for insertionlog in logger.insertionlogs
         if insertionlog.gc_time != 0
             gc_start = insertionlog.time_start * 10^(-9) - loginfo.firsttime
             gc_finish = gc_start + insertionlog.gc_time * 10^(-9)
@@ -396,7 +403,7 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
         loginfo.insertingtime += task_duration
     end
 
-    loginfo.t_nowait /= length(logger.tasklogs)
+    loginfo.t_nowait /= Threads.nthreads(:default)
 
     return gantt
 end
@@ -419,7 +426,7 @@ function loggertodot(logger)
     str = "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;"
     str *= """concentrate=true;"""
 
-    for tasklog in Iterators.flatten(logger.tasklogs)
+    for tasklog in logger.tasklogs
         # Tasklog.tag node attributes
         str *= """ $(tasklog.tag) """
         tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)

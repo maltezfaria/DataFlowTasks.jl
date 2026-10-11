@@ -32,28 +32,34 @@ mutable struct DataFlowTask
         @assert length(data) == N
         taskcounter = 0 # not yet inserted in a dag. This will be modified upon insertion.
         tj = new(data, mode, taskcounter, priority, label)
-        addnode!(sch, tj, true)
-
-        deps = inneighbors(sch.dag, tj) |> copy
+        # hold the lock so that the dag cleaner cannot modify the dependencies of
+        # `tj` before they are copied
+        deps = @lock sch.dag.lock begin
+            addnode!(sch, tj, true)
+            copy(inneighbors(sch.dag, tj))
+        end
         tj.task = @task handle_errors() do
-            for ti in deps
-                wait(ti)
-            end
-            # run the underlying code block and time its execution for logging
-            t₀ = time_ns()
-            res = code()
-            t₁ = time_ns()
-            # Push new TaskLog if logging activated
-            if _log_mode() && haslogger()
-                tid = Threads.threadid()
-                task_log = TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
-                push!(_getloginfo().tasklogs[tid], task_log)
-                if Threads.threadid() != tid
-                    @warn "Thread migration occurred while inserting a TaskLog"
+            try
+                for ti in deps
+                    wait(ti)
                 end
+                # run the underlying code block and time its execution for logging
+                t₀ = time_ns()
+                res = code()
+                t₁ = time_ns()
+                # Push new TaskLog if logging activated
+                if _log_mode() && haslogger()
+                    tid = Threads.threadid()
+                    task_log =
+                        TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
+                    record!(_getloginfo(), task_log)
+                end
+                return res
+            finally
+                # also on failure, so that the node is removed from the dag (tasks
+                # depending on `tj` still fail since waiting on `tj` rethrows)
+                put!(sch.finished, tj)
             end
-            put!(sch.finished, tj)
-            return res
         end
         tj.data = (tj.data..., tj.task)
         tj.access_mode = (tj.access_mode..., READWRITE)

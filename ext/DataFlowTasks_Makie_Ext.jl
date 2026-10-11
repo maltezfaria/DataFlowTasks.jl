@@ -22,7 +22,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     xlims!(ax, 0, loginfo.lasttime - loginfo.firsttime)
 
     if length(loginfo.categories) ≥ 4
-        grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+        grad = cgrad(:tab10)[1:(length(loginfo.categories)+1)]
         deleteat!(grad, 4)
     else
         grad = cgrad(:tab10)[1:length(loginfo.categories)]
@@ -46,7 +46,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
 
     # Check if we measured some gc
     didgc = false
-    for insertionlog in Iterators.flatten(logger.insertionlogs)
+    for insertionlog in logger.insertionlogs
         insertionlog.gc_time != 0 && (didgc = true)
     end
 
@@ -124,7 +124,7 @@ function categoriesplot(ax, loginfo::ExtendedLogInfo)
 
     # Colors
     if length(loginfo.categories) ≥ 4
-        grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+        grad = cgrad(:tab10)[1:(length(loginfo.categories)+1)]
         deleteat!(grad, 4)
     else
         grad = cgrad(:tab10)[1:length(loginfo.categories)]
@@ -134,7 +134,7 @@ function categoriesplot(ax, loginfo::ExtendedLogInfo)
     # Barplot
     # -------
     y = loginfo.timespercat[1:end]
-    !hasdefault && (y = y[1:end-1])
+    !hasdefault && (y = y[1:(end-1)])
     return barplot!(ax, 1:lengthx, y; color = grad)
 end
 
@@ -147,7 +147,7 @@ function react(ax, logger::LogInfo, gantt::Gantt)
 
         k = 1
         match = false
-        for tasklog in Iterators.flatten(logger.tasklogs)
+        for tasklog in logger.tasklogs
             condx = gantt.starts[k] <= pos[1] <= gantt.stops[k]
             condy = gantt.threads[k] - 0.3 <= pos[2] <= gantt.threads[k] + 0.3
             if condx && condy
@@ -186,7 +186,7 @@ for more information on how to profile and visualize `DataFlowTasks`.
 function Makie.plot(loginfo::LogInfo; categories = String[])
     # Figure
     # ------
-    fig = Figure(; backgroundcolor = RGBf(0.98, 0.98, 0.98), resolution = (1280, 720))
+    fig = Figure(; backgroundcolor = RGBf(0.98, 0.98, 0.98), size = (1280, 720))
 
     # Extract logger informations
     # ---------------------------

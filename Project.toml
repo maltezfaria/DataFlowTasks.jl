@@ -3,7 +3,6 @@ uuid = "d1549cb6-e9f4-42f8-98cc-ffc8d067ff5b"
 version = "0.2.0"
 
 [deps]
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -21,17 +20,16 @@ DataFlowTasks_Makie_Ext = "Makie"
 
 [compat]
 Aqua = "0.8"
-Compat = "3.42, 4"
-GraphViz = "0.2"
+GraphViz = "0.3"
 LinearAlgebra = "1"
-Makie = "0.19, 0.20"
+Makie = "0.24"
 OrderedCollections = "1.6.3"
 Pkg = "1.6"
 Printf = "1"
 Scratch = "1"
 Test = "1"
 TOML = "1"
-julia = "1.6"
+julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
