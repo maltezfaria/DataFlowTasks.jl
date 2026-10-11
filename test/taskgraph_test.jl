@@ -55,6 +55,13 @@ end
     @test fetch(t) == n
 end
 
+@testset "Dag cleaner threadpool" begin
+    tg = DFT.TaskGraph()
+    expected = Threads.nthreads(:interactive) > 0 ? :interactive : :default
+    @test Threads.threadpool(tg.dag_cleaner) == expected
+    DFT.stop_dag_cleaner(tg)
+end
+
 @testset "Capacity back-pressure" begin
     # a small capacity forces constant hand-offs between the inserting task and
     # the dag cleaner

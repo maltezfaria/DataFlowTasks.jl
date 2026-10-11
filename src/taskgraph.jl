@@ -130,7 +130,9 @@ Start a task associated with `tg` which takes nodes from its `finished` queue
 and removes them from the `dag`. The task blocks if `finished` is empty.
 """
 function start_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
-    task = @async while true
+    # run on the interactive threadpool (if any) so that the bookkeeping is not
+    # delayed by the computations running on the default threadpool
+    task = Threads.@spawn :interactive while true
         t = take!(tg.finished)
         t == Stop() && break
         # remove task `t` from the dag
