@@ -186,7 +186,7 @@ for more information on how to profile and visualize `DataFlowTasks`.
 function Makie.plot(loginfo::LogInfo; categories = String[])
     # Figure
     # ------
-    fig = Figure(; backgroundcolor = RGBf(0.98, 0.98, 0.98), resolution = (1280, 720))
+    fig = Figure(; backgroundcolor = RGBf(0.98, 0.98, 0.98), size = (1280, 720))
 
     # Extract logger informations
     # ---------------------------
