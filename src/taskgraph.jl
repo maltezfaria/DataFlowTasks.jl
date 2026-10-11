@@ -152,6 +152,10 @@ end
 # interface methods for TaskGraph
 function spawn(tj::DataFlowTask)
     tj.task.sticky = false
+    # A `Task` inherits the threadpool of its parent. Since Julia 1.12 the main
+    # task lives in the `:interactive` pool, so explicitly move `tj` to the
+    # `:default` pool like `Threads.@spawn` does.
+    Threads._spawn_set_thrpool(tj.task, :default)
     return schedule(tj.task)
 end
 
