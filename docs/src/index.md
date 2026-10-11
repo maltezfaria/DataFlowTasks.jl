@@ -233,7 +233,8 @@ A = ones(5)
     @RW A
     A .= 2 .* A
 end
-@dspawn sum(@R A)
+d = @dspawn sum(@R A)
+wait(d) # make sure both tasks are finished
 taskgraph
 ```
 
