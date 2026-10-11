@@ -50,7 +50,8 @@ mutable struct DataFlowTask
                 # Push new TaskLog if logging activated
                 if _log_mode() && haslogger()
                     tid = Threads.threadid()
-                    task_log = TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
+                    task_log =
+                        TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
                     record!(_getloginfo(), task_log)
                 end
                 return res
