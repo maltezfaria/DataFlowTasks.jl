@@ -46,7 +46,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
 
     # Check if we measured some gc
     didgc = false
-    for insertionlog in Iterators.flatten(logger.insertionlogs)
+    for insertionlog in logger.insertionlogs
         insertionlog.gc_time != 0 && (didgc = true)
     end
 
@@ -147,7 +147,7 @@ function react(ax, logger::LogInfo, gantt::Gantt)
 
         k = 1
         match = false
-        for tasklog in Iterators.flatten(logger.tasklogs)
+        for tasklog in logger.tasklogs
             condx = gantt.starts[k] <= pos[1] <= gantt.stops[k]
             condy = gantt.threads[k] - 0.3 <= pos[2] <= gantt.threads[k] + 0.3
             if condx && condy

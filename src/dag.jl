@@ -160,10 +160,7 @@ function addnode!(dag::DAG, kv::Pair, check = false)
         tid = Threads.threadid()
         _log_mode() &&
             haslogger() &&
-            push!(
-                _getloginfo().insertionlogs[tid],
-                InsertionLog(t₀, t₁, diff.total_time, tag(k), tid),
-            )
+            record!(_getloginfo(), InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
     finally
         unlock(dag)
     end

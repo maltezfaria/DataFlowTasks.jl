@@ -26,9 +26,8 @@ DFT.set_active_taskgraph!(tg)
 
 logger = DFT.@log work(A, B)
 
-@test length(logger.tasklogs) == Threads.nthreads()
 nbtasks = DFT.nbtasknodes(logger)
-nbinsertion = sum(length(insertionlog) for insertionlog in logger.insertionlogs)
+nbinsertion = length(logger.insertionlogs)
 @test nbtasks == 5
 @test nbinsertion == 5
 
@@ -71,12 +70,27 @@ end
 
 # do not reset the counter and make sure things still work
 logger = DFT.@log work(A, B)
-@test length(logger.tasklogs) == Threads.nthreads()
 nbtasks = DFT.nbtasknodes(logger)
-nbinsertion = sum(length(insertionlog) for insertionlog in logger.insertionlogs)
+nbinsertion = length(logger.insertionlogs)
 @test nbtasks == 5
 @test nbinsertion == 5
 
 # Critical Path
 path = DFT.longest_path(logger)
 @test path == [5, 3, 2, 1] .+ nbtasks
+
+@testset "Concurrent logging" begin
+    # many independent tasks finishing concurrently on different threads
+    n = 500
+    xs = [zeros(Int, 1) for _ in 1:n]
+    logger = DFT.@log begin
+        for x in xs
+            @dspawn (@W(x); x[1] = Threads.threadid())
+        end
+        wait(DFT.get_active_taskgraph())
+    end
+    @test DFT.nbtasknodes(logger) == n
+    @test length(logger.insertionlogs) == n
+    @test allunique(DFT.tag.(logger.tasklogs))
+    @test Set(t.tid for t in logger.tasklogs) == Set(x[1] for x in xs)
+end

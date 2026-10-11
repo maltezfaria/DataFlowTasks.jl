@@ -47,10 +47,7 @@ mutable struct DataFlowTask
             if _log_mode() && haslogger()
                 tid = Threads.threadid()
                 task_log = TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
-                push!(_getloginfo().tasklogs[tid], task_log)
-                if Threads.threadid() != tid
-                    @warn "Thread migration occurred while inserting a TaskLog"
-                end
+                record!(_getloginfo(), task_log)
             end
             put!(sch.finished, tj)
             return res
