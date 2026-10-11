@@ -3,17 +3,21 @@ using LinearAlgebra
 using DataFlowTasks
 import DataFlowTasks as DFT
 
-# NOTE: the functions below call sleep to make sure the computation does not finish
-# before full dag is created. Otherwise the critical path may be "incomplete"
-# and the tests on `longest_path` will fail
+# NOTE: the dag cleaner is stopped while the tasks are spawned, so that finished
+# tasks stay in the dag until the full dag is created. Otherwise a task could be
+# removed before the tasks depending on it are inserted, and the critical path
+# would be "incomplete". The sleep makes the weights of the critical path
+# predictable.
 computing(A) = (sleep(0.01); A * A)
 computing(A, B) = (sleep(0.01); A * B)
 function work(A, B)
+    DFT.stop_dag_cleaner()
     @dspawn computing(@RW(A)) label = "A²"
     @dspawn computing(@RW(A)) label = "A²"
     @dspawn computing(@RW(A)) label = "A²"
     @dspawn computing(@RW(B)) label = "B²"
     res = @dspawn computing(@RW(A), @RW(B)) label = "A*B"
+    DFT.start_dag_cleaner()
     return fetch(res)
 end
 
