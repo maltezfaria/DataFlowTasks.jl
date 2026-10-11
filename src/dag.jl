@@ -261,6 +261,8 @@ Remove node `i` and all of its edges from `dag`.
 function remove_node!(dag::DAG, i)
     lock(dag)
     try
+        # `i` may have been removed by `empty!` while it was running
+        haskey(dag.inoutlist, i) || return
         if !isempty(inneighbors(dag, i))
             @warn "removing a node with incoming neighbors"
         end

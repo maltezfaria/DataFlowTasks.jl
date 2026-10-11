@@ -39,21 +39,26 @@ mutable struct DataFlowTask
             copy(inneighbors(sch.dag, tj))
         end
         tj.task = @task handle_errors() do
-            for ti in deps
-                wait(ti)
+            try
+                for ti in deps
+                    wait(ti)
+                end
+                # run the underlying code block and time its execution for logging
+                t₀ = time_ns()
+                res = code()
+                t₁ = time_ns()
+                # Push new TaskLog if logging activated
+                if _log_mode() && haslogger()
+                    tid = Threads.threadid()
+                    task_log = TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
+                    record!(_getloginfo(), task_log)
+                end
+                return res
+            finally
+                # also on failure, so that the node is removed from the dag (tasks
+                # depending on `tj` still fail since waiting on `tj` rethrows)
+                put!(sch.finished, tj)
             end
-            # run the underlying code block and time its execution for logging
-            t₀ = time_ns()
-            res = code()
-            t₁ = time_ns()
-            # Push new TaskLog if logging activated
-            if _log_mode() && haslogger()
-                tid = Threads.threadid()
-                task_log = TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
-                record!(_getloginfo(), task_log)
-            end
-            put!(sch.finished, tj)
-            return res
         end
         tj.data = (tj.data..., tj.task)
         tj.access_mode = (tj.access_mode..., READWRITE)

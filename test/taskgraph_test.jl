@@ -41,9 +41,10 @@ end
 @testset "Restart dag worker" begin
     n = 10
     A = ones(n)
-    # a first task that errors
-    t1 = @dspawn error() (@RW A)
-    # a second task that hangs
+    blocker = Channel{Nothing}()
+    # a first task that never finishes
+    t1 = @dspawn take!(blocker) (@RW A)
+    # a second task that waits on it
     t2 = @dspawn identity(@RW A)
     # check that scheduler is in limbo
     tg = DFT.get_active_taskgraph()
@@ -51,8 +52,16 @@ end
     # restart scheduler and make sure it runs again
     empty!(tg)
     @test DFT.num_nodes(tg.dag) == 0
+    # the tasks removed by `empty!` may still finish (here they fail), which
+    # must not break the dag cleaner
+    @suppress_err begin
+        close(blocker)
+        @test timedwait(() -> istaskdone(t2), 5) == :ok
+    end
     t = @dspawn sum(@R A)
     @test fetch(t) == n
+    @test timedwait(() -> isempty(tg), 5) == :ok
+    @test !istaskdone(tg.dag_cleaner)
 end
 
 @testset "Dag cleaner threadpool" begin
@@ -100,14 +109,31 @@ end
 @testset "wait returns after empty!" begin
     tg = DFT.TaskGraph()
     A = ones(2)
+    blocker = Channel{Nothing}()
     DFT.with_taskgraph(tg) do
-        @dspawn error() (@RW A) # errors: node is never removed
-        return @dspawn identity(@RW A) # hangs waiting on the failed task
+        @dspawn take!(blocker) (@RW A) # never finishes
+        return @dspawn identity(@RW A) # waits on the blocked task
     end
     waiter = Threads.@spawn wait(tg)
     sleep(0.1)
     @test !istaskdone(waiter)
     @suppress_err empty!(tg)
     @test timedwait(() -> istaskdone(waiter), 5) == :ok
+    DFT.stop_dag_cleaner(tg)
+    close(blocker) # release the blocked tasks
+end
+
+@testset "Failed tasks are removed from the dag" begin
+    tg = DFT.TaskGraph()
+    A = ones(2)
+    t1, t2 = DFT.with_taskgraph(tg) do
+        t1 = @dspawn error() (@RW A)
+        t2 = @dspawn sum(@R A) # depends on `t1`, so it fails too
+        return t1, t2
+    end
+    waiter = Threads.@spawn wait(tg)
+    @test @suppress_err(timedwait(() -> istaskdone(waiter), 5)) == :ok
+    @test istaskfailed(t1) && istaskfailed(t2)
+    @test isempty(tg)
     DFT.stop_dag_cleaner(tg)
 end
