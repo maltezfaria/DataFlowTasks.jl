@@ -80,7 +80,14 @@ To wait on the active `TaskGraph`, use `wait(get_active_taskgraph())`.
 """
 function Base.wait(taskgraph::TaskGraph)
     dag = taskgraph.dag
-    isempty(dag) || wait(dag.cond_empty)
+    lock(dag)
+    try
+        while !isempty(dag)
+            wait(dag.cond_empty)
+        end
+    finally
+        unlock(dag)
+    end
     return taskgraph
 end
 
@@ -135,13 +142,12 @@ end
 
 function stop_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
     t = tg.dag_cleaner
-    @assert istaskstarted(t)
-    if istaskdone(t)
-        @warn "DAG worker already stopped"
-    elseif istaskfailed(t)
+    # NOTE: `t` may not have started yet, but it will still receive the `Stop`
+    if istaskfailed(t)
         @warn "DAG worker failed"
-        return tg.dag_cleaner
-    else # expected result, task is running
+    elseif istaskdone(t)
+        @warn "DAG worker already stopped"
+    else # expected result, task is running (or about to)
         put!(tg.finished, Stop())
         # wait for t to stop before continuing
         wait(t)

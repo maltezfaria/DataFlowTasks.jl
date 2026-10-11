@@ -32,9 +32,12 @@ mutable struct DataFlowTask
         @assert length(data) == N
         taskcounter = 0 # not yet inserted in a dag. This will be modified upon insertion.
         tj = new(data, mode, taskcounter, priority, label)
-        addnode!(sch, tj, true)
-
-        deps = inneighbors(sch.dag, tj) |> copy
+        # hold the lock so that the dag cleaner cannot modify the dependencies of
+        # `tj` before they are copied
+        deps = @lock sch.dag.lock begin
+            addnode!(sch, tj, true)
+            copy(inneighbors(sch.dag, tj))
+        end
         tj.task = @task handle_errors() do
             for ti in deps
                 wait(ti)
