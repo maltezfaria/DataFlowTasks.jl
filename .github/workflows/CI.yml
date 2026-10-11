@@ -21,7 +21,6 @@ jobs:
           - x64
     steps:
       - uses: actions/checkout@v4
-      - run:  perl -ni -e 'print unless /GLMakie/' ext/Project.toml
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}

@@ -281,7 +281,6 @@ resize!(DFT.get_active_taskgraph(), 300)
 GC.gc()
 log_info = DFT.@log LCS_par(x, y, nx, ny)
 
-DFT.stack_weakdeps_env!()
 using GraphViz
 dag = GraphViz.Graph(log_info)
 DFT.savedag("lcs-dag.svg", dag) #src

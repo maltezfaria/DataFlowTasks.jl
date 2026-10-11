@@ -237,7 +237,6 @@ t_dft = @belapsed wait(blur_roberts_dft!(x, ts; width=$width, tmp=$tmp)) setup=(
 
 # ## Performance analysis
 
-DataFlowTasks.stack_weakdeps_env!()
 using CairoMakie
 
 barplot([t_seq, t_tiled, t_dft],

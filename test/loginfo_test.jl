@@ -35,37 +35,34 @@ nbinsertion = length(logger.insertionlogs)
 path = DFT.longest_path(logger)
 @test path == [5, 3, 2, 1]
 
-if isdefined(Base, :get_extension)
-    DFT.stack_weakdeps_env!(; verbose = true)
-    using GraphViz, CairoMakie
+using GraphViz, CairoMakie
 
-    @testset "DataFlowTasks_GraphVizExt" begin
-        # Check that the extension has been loaded correctly
-        GraphVizExt = Base.get_extension(DFT, :DataFlowTasks_GraphViz_Ext)
-        @test GraphVizExt isa Module
+@testset "DataFlowTasks_GraphVizExt" begin
+    # Check that the extension has been loaded correctly
+    GraphVizExt = Base.get_extension(DFT, :DataFlowTasks_GraphViz_Ext)
+    @test GraphVizExt isa Module
 
-        # DOT Format File
-        dotstr = DataFlowTasks.loggertodot(logger)
-        @test occursin("strict digraph dag", dotstr)
-        @test occursin("1 -> 2", dotstr)
-        @test occursin("2 -> 3", dotstr)
-        @test occursin("3 -> 5", dotstr)
-        @test occursin("4 -> 5", dotstr)
+    # DOT Format File
+    dotstr = DataFlowTasks.loggertodot(logger)
+    @test occursin("strict digraph dag", dotstr)
+    @test occursin("1 -> 2", dotstr)
+    @test occursin("2 -> 3", dotstr)
+    @test occursin("3 -> 5", dotstr)
+    @test occursin("4 -> 5", dotstr)
 
-        # GraphViz.Graph creation
-        graph = GraphViz.Graph(logger)
-        @test graph isa GraphViz.Graph
-    end
+    # GraphViz.Graph creation
+    graph = GraphViz.Graph(logger)
+    @test graph isa GraphViz.Graph
+end
 
-    @testset "DataFlowTasks_Makie_Ext" begin
-        # Check that the extension has been loaded correctly
-        MakieExt = Base.get_extension(DFT, :DataFlowTasks_Makie_Ext)
-        @test MakieExt isa Module
+@testset "DataFlowTasks_Makie_Ext" begin
+    # Check that the extension has been loaded correctly
+    MakieExt = Base.get_extension(DFT, :DataFlowTasks_Makie_Ext)
+    @test MakieExt isa Module
 
-        # Trace visualization
-        plt = plot(logger; categories = ["A²", "B²", "A*B"])
-        @test plt isa Makie.Figure
-    end
+    # Trace visualization
+    plt = plot(logger; categories = ["A²", "B²", "A*B"])
+    @test plt isa Makie.Figure
 end
 
 # do not reset the counter and make sure things still work
