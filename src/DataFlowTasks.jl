@@ -48,7 +48,8 @@ function __init__()
     return _setloginfo!(nothing)
 end
 
-const WEAKDEPS_PROJ = let
+# read at runtime (rather than at precompilation) so that it is never stale
+function weakdeps_project()
     deps = TOML.parse(read(joinpath(@__DIR__, "..", "ext", "Project.toml"), String))["deps"]
     filter!(deps) do (pkg, _)
         return pkg != String(nameof(@__MODULE__))
@@ -59,7 +60,7 @@ const WEAKDEPS_PROJ = let
         pkg ∈ keys(deps) || continue
         compat[pkg] = bound
     end
-    Dict("deps" => deps, "compat" => compat)
+    return Dict("deps" => deps, "compat" => compat)
 end
 
 """
@@ -89,7 +90,7 @@ using GraphViz
 function stack_weakdeps_env!(; verbose = false, update = false)
     weakdeps_env = Scratch.@get_scratch!("weakdeps-$(VERSION.major).$(VERSION.minor)")
     open(joinpath(weakdeps_env, "Project.toml"), "w") do f
-        return TOML.print(f, WEAKDEPS_PROJ)
+        return TOML.print(f, weakdeps_project())
     end
 
     cpp = Pkg.project().path
@@ -97,8 +98,17 @@ function stack_weakdeps_env!(; verbose = false, update = false)
 
     try
         Pkg.activate(weakdeps_env; io)
-        update && Pkg.update(; io)
-        Pkg.resolve(; io)
+        if update
+            Pkg.update(; io)
+        else
+            # the manifest may be stale if the compat bounds of DataFlowTasks
+            # changed since the environment was created
+            try
+                Pkg.resolve(; io)
+            catch
+                Pkg.update(; io)
+            end
+        end
         Pkg.instantiate(; io)
         Pkg.status()
     finally
