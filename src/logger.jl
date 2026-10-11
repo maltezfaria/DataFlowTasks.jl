@@ -262,7 +262,9 @@ mutable struct ExtendedLogInfo
 
     function ExtendedLogInfo(logger::LogInfo, categories, path)
         (firsttime, lasttime) = timelimits(logger) .* 10^(-9)
-        othertime = (lasttime - firsttime) * length(logger.tasklogs)
+        # all threads able to run tasks (the interactive ones insert tasks)
+        nthreads = Threads.nthreads(:default) + Threads.nthreads(:interactive)
+        othertime = (lasttime - firsttime) * nthreads
 
         normalize_category(x) = x
         normalize_category(x::String) = (x => Regex(x))
@@ -400,7 +402,7 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
         loginfo.insertingtime += task_duration
     end
 
-    loginfo.t_nowait /= length(logger.tasklogs)
+    loginfo.t_nowait /= Threads.nthreads(:default)
 
     return gantt
 end
