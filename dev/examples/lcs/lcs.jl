@@ -80,8 +80,8 @@ using PrettyTables
 function display(L, x, y)
     return pretty_table(
         hcat(['∅', x...], L);
-        header = [' ', '∅', y...],
-        formatters = (v, i, j) -> v == -1 ? "" : v,
+        column_labels = [' ', '∅', y...],
+        formatters = [(v, i, j) -> v == -1 ? "" : v],
     )
 end
 
