@@ -8,7 +8,6 @@ module DataFlowTasks
 const PROJECT_ROOT = pkgdir(DataFlowTasks)
 
 using OrderedCollections
-using Compat
 import Pkg
 import TOML
 import Scratch
