@@ -294,8 +294,9 @@ Passing a `categories` argument allows grouping tasks by category. The
 `categories` can be a vector of `String`s or a vector of `String => Regex`
 pairs, which will be matched against the tasks' labels.
 """
-describe(loginfo::LogInfo; categories = String[]) =
-    describe(stdout, loginfo; categories = categories)
+function describe(loginfo::LogInfo; categories = String[])
+    return describe(stdout, loginfo; categories = categories)
+end
 
 function describe(io::IO, loginfo::LogInfo; categories = String[])
     extloginfo, _ = extractloggerinfo(loginfo; categories = categories)

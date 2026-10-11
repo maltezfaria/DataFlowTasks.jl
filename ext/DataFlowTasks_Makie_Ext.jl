@@ -22,7 +22,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     xlims!(ax, 0, loginfo.lasttime - loginfo.firsttime)
 
     if length(loginfo.categories) ≥ 4
-        grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+        grad = cgrad(:tab10)[1:(length(loginfo.categories)+1)]
         deleteat!(grad, 4)
     else
         grad = cgrad(:tab10)[1:length(loginfo.categories)]
@@ -124,7 +124,7 @@ function categoriesplot(ax, loginfo::ExtendedLogInfo)
 
     # Colors
     if length(loginfo.categories) ≥ 4
-        grad = cgrad(:tab10)[1:length(loginfo.categories)+1]
+        grad = cgrad(:tab10)[1:(length(loginfo.categories)+1)]
         deleteat!(grad, 4)
     else
         grad = cgrad(:tab10)[1:length(loginfo.categories)]
@@ -134,7 +134,7 @@ function categoriesplot(ax, loginfo::ExtendedLogInfo)
     # Barplot
     # -------
     y = loginfo.timespercat[1:end]
-    !hasdefault && (y = y[1:end-1])
+    !hasdefault && (y = y[1:(end-1)])
     return barplot!(ax, 1:lengthx, y; color = grad)
 end
 
