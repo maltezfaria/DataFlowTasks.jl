@@ -15,10 +15,3 @@ versioninfo()
 using Hwloc
 topology_info()
 ```
-
-## CPU
-
-```@example
-using CpuId
-printstyled(cpuinfo())
-```
