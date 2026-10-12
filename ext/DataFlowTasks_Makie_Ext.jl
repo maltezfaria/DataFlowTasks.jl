@@ -1,32 +1,36 @@
 module DataFlowTasks_Makie_Ext
 
 using Makie
-using DataFlowTasks: LogInfo, longest_path, ExtendedLogInfo, extractloggerinfo, Gantt
+using DataFlowTasks: LogInfo, LogSummary, Gantt, summarize, idle, nowait
 
 function __init__()
     return @info "Loading DataFlowTasks general plot utilities"
 end
 
-#= Handles the gantt chart trace part of the global plot =#
-function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
-    hasdefault = (loginfo.timespercat[end] != 0 ? true : false)
+#= Colors of the categories =#
+function category_colors(summary::LogSummary)
+    n = length(summary.categories)
+    if n ≥ 4
+        grad = cgrad(:tab10)[1:(n + 1)]
+        deleteat!(grad, 4)
+    else
+        grad = cgrad(:tab10)[1:n]
+    end
+    return [grad...]
+end
 
-    lengthx = length(loginfo.categories) + 1
-    hasdefault && (lengthx += 1)
+#= Handles the gantt chart trace part of the global plot =#
+function traceplot(ax, logger::LogInfo, gantt::Gantt, summary::LogSummary)
+    hasdefault = (summary.running_per_category[end] != 0 ? true : false)
 
     # Axis attributes
     # ---------------
     ax.xlabel = "Time (s)"
     ax.ylabel = "Thread"
     ax.yticks = 1:max(gantt.threads...)
-    xlims!(ax, 0, loginfo.lasttime - loginfo.firsttime)
+    xlims!(ax, 0, summary.elapsed)
 
-    if length(loginfo.categories) ≥ 4
-        grad = cgrad(:tab10)[1:(length(loginfo.categories) + 1)]
-        deleteat!(grad, 4)
-    else
-        grad = cgrad(:tab10)[1:length(loginfo.categories)]
-    end
+    grad = category_colors(summary)
     colors = [grad..., :black, :red, cgrad(:sun)[1]]
 
     # Barplot
@@ -37,7 +41,8 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
         gantt.stops;
         fillto = gantt.starts,
         direction = :x,
-        color = colors[gantt.jobids],
+        # tasks are shaded by the fraction of their duration they were running
+        color = [(colors[j], α) for (j, α) in zip(gantt.jobids, gantt.running_fraction)],
         gap = 0.5,
         strokewidth = 0.5,
         strokecolor = :grey,
@@ -58,8 +63,7 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     elements = [PolyElement(; polycolor = i) for i in c]
 
     y = String[]
-    push!(y, first.(loginfo.categories)...)
-    # y = [first.(loginfo.categories)...]
+    push!(y, first.(summary.categories)...)
     hasdefault && push!(y, "default")
     push!(y, "insertion")
     didgc && push!(y, "gc")
@@ -75,25 +79,26 @@ function traceplot(ax, logger::LogInfo, gantt::Gantt, loginfo::ExtendedLogInfo)
     )
 end
 
-#= Handles the plot that indicates the repartition between computing, inserting, and other times =#
-function activityplot(ax, loginfo::ExtendedLogInfo)
+#= Handles the plot of the time of the workers (running or idle), and of the
+time spent blocked in tasks and inserting them =#
+function activityplot(ax, summary::LogSummary)
     # Axis attributes
     # ---------------
-    ax.xticks = (1:3, ["Computing", "Task\nInsertion", "Other\n(idle)"])
+    ax.xticks = (1:4, ["Running", "Idle", "Blocked\nin tasks", "Task\ninsertion"])
     ax.ylabel = "Time (s)"
 
     # Barplot
     # -------
     return barplot!(
         ax,
-        1:3,
-        [loginfo.computingtime, loginfo.insertingtime, loginfo.othertime];
-        color = cgrad(:PRGn)[1:3],
+        1:4,
+        [summary.running, idle(summary), summary.blocked, summary.insertion];
+        color = cgrad(:PRGn)[1:4],
     )
 end
 
 #= Handles the time boundaries part of the global plot =#
-function boundsplot(ax, loginfo::ExtendedLogInfo)
+function boundsplot(ax, summary::LogSummary)
     # Axis attributes
     # ---------------
     ax.xticks = (1:3, ["Critical\nPath", "No-Wait", "Elapsed"])
@@ -104,15 +109,15 @@ function boundsplot(ax, loginfo::ExtendedLogInfo)
     return barplot!(
         ax,
         1:3,
-        [loginfo.t∞, loginfo.t_nowait, (loginfo.lasttime - loginfo.firsttime)];
+        [summary.critical_path, nowait(summary), summary.elapsed];
         color = cgrad(:sun)[1:3],
     )
 end
 
 #= Handles the sorting by labeled categories part of the plot =#
-function categoriesplot(ax, loginfo::ExtendedLogInfo)
-    categories = loginfo.categories
-    hasdefault = (loginfo.timespercat[end] != 0 ? true : false)
+function categoriesplot(ax, summary::LogSummary)
+    categories = summary.categories
+    hasdefault = (summary.running_per_category[end] != 0 ? true : false)
 
     # Axis attributes
     lengthx = length(categories)
@@ -123,17 +128,12 @@ function categoriesplot(ax, loginfo::ExtendedLogInfo)
     ax.ylabel = "Time (s)"
 
     # Colors
-    if length(loginfo.categories) ≥ 4
-        grad = cgrad(:tab10)[1:(length(loginfo.categories) + 1)]
-        deleteat!(grad, 4)
-    else
-        grad = cgrad(:tab10)[1:length(loginfo.categories)]
-    end
+    grad = category_colors(summary)
     hasdefault && (grad = [grad..., :black])
 
     # Barplot
     # -------
-    y = loginfo.timespercat[1:end]
+    y = summary.running_per_category[1:end]
     !hasdefault && (y = y[1:(end - 1)])
     return barplot!(ax, 1:lengthx, y; color = grad)
 end
@@ -190,32 +190,27 @@ function Makie.plot(loginfo::LogInfo; categories = String[])
 
     # Extract logger informations
     # ---------------------------
-    extloginfo, gantt = extractloggerinfo(loginfo; categories)
+    summary = summarize(loginfo; categories)
+    gantt = Gantt(loginfo, summary)
 
     # Layouts
     # --------------------------------------------
     axtrc = Axis(fig[1, 1]; title = "Parallel Trace\n Task Label")
-    axact = Axis(fig[2, 1][1, 1]; title = "Run time: breakdown by activity")
+    axact = Axis(fig[2, 1][1, 1]; title = "Time: breakdown by activity")
     axinf = Axis(fig[2, 1][1, 2]; title = "Elapsed time & bounds")
-    axcat = Axis(fig[2, 1][1, 3]; title = "Computing time: breakdown by category")
+    axcat = Axis(fig[2, 1][1, 3]; title = "Running time: breakdown by category")
     # -------
     rowsize!(fig.layout, 1, Relative(2 / 3))
 
     # Plot each part
     # --------------
-    traceplot(axtrc, loginfo, gantt, extloginfo)
-    activityplot(axact, extloginfo)
-    boundsplot(axinf, extloginfo)
-    categoriesplot(axcat, extloginfo)
+    traceplot(axtrc, loginfo, gantt, summary)
+    activityplot(axact, summary)
+    boundsplot(axinf, summary)
+    categoriesplot(axcat, summary)
 
     # Events management
     react(axtrc, loginfo, gantt)
-
-    # Terminal Informations
-    # ---------------------
-    @info "Computing    : $(extloginfo.computingtime)"
-    @info "Inserting    : $(extloginfo.insertingtime)"
-    @info "Other        : $(extloginfo.othertime)"
 
     return fig
 end
