@@ -173,13 +173,18 @@ end
     else
         tg = DFT.TaskGraph()
         release = Threads.Atomic{Bool}(false)
-        spin(r) = (
-            while !r[]
+        spinning = Threads.Atomic{Int}(0)
+        function spin(release)
+            Threads.atomic_add!(spinning, 1)
+            while !release[]
                 GC.safepoint()
             end
-        )
+            return
+        end
         # occupy all the workers, so that the tasks below wait for a thread
-        blockers = [Threads.@spawn spin(release) for _ in 1:Threads.nthreads(:default)]
+        nworkers = Threads.nthreads(:default)
+        blockers = [Threads.@spawn spin(release) for _ in 1:nworkers]
+        @test timedwait(() -> spinning[] == nworkers, 5) == :ok
         xs = [zeros(1) for _ in 1:5]
         ts = DFT.with_taskgraph(tg) do
             [@dspawn fill!(@W(x), 1) for x in xs]
@@ -281,14 +286,18 @@ end
     if Threads.nthreads(:default) > 1
         n = 100
         release = Threads.Atomic{Bool}(false)
+        spinning = Threads.Atomic{Int}(0)
         function spin(release)
+            Threads.atomic_add!(spinning, 1)
             while !release[]
                 GC.safepoint() # let the garbage collector run
             end
             return
         end
         # occupy all the workers, so that the tasks below wait for a thread
-        blockers = [Threads.@spawn spin(release) for _ in 1:Threads.nthreads(:default)]
+        nworkers = Threads.nthreads(:default)
+        blockers = [Threads.@spawn spin(release) for _ in 1:nworkers]
+        @test timedwait(() -> spinning[] == nworkers, 5) == :ok
         order = Threads.Atomic{Int}(0)
         starts = zeros(Int, 2n)
         xs = [zeros(1) for _ in 1:2n]
