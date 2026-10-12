@@ -262,10 +262,10 @@ DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 ````
 
 but it is often more convenient to see this information in a graphical
-way. The parallel trace plot shows a timeline of the tasks execution on
-available threads. It helps in understanding how tasks were scheduled. The
-same window also carries other general information allowing to better
-understand the performance limiting factors:
+way. The parallel trace plot shows a timeline of the tasks execution, each task
+being a bar from its start to its end. It helps in understanding how tasks were
+scheduled. The same window also carries other general information allowing to
+better understand the performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
@@ -274,9 +274,10 @@ trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 
 ![](https://maltezfaria.github.io/DataFlowTasks.jl/dev/readme/cholesky_trace.svg)
 
-We see here that the execution time is bounded by the length of the critical
-path: with this block size and matrix size, the algorithm does not expose
-enough parallelism to occupy all threads without waiting periods.
+We see here that the longest path accounts for a large part of the execution
+time: with this block size and matrix size, the algorithm does not expose
+enough parallelism to occupy all threads without waiting periods (and this
+gets worse as the number of threads increases).
 
 We'll cover in detail the usage and possibilities of the visualization in the
 documentation.

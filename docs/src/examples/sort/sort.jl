@@ -451,11 +451,7 @@ v = rand(N)
 # The task graph is now a bit more complicated. Here we see for example that the
 # last level of merge has been split into 2 parts (labelled "merge A" and "merge B"):
 
-## Temporarily stop the DAG cleaner from dynamically removing nodes from the task
-## graph in order to obtain the full "static graph".
-DataFlowTasks.stop_dag_cleaner()
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(v))
-DataFlowTasks.start_dag_cleaner()
 
 using GraphViz
 dag = GraphViz.Graph(log_info)
@@ -486,8 +482,8 @@ plot(log_info, categories = ["sort", "merge", "copy", "result", "split"])
 
 bench_seq
 
-# to the cumulated run time of the tasks (shown as "Computing" in the `log_info`
-# description):
+# to the cumulated run time of the tasks (shown as "Running tasks" in the
+# description of `log_info`):
 
 #md s = DataFlowTasks.summarize(log_info) #hide
 #md @assert s.running > time(minimum(bench_seq)) * 1.0e-9 "the tasks run for less than the sequential version" #hide

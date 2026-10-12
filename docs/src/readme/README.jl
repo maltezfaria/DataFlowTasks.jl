@@ -273,10 +273,10 @@ DataFlowTasks.savedag("cholesky_dag.svg", dag) #src
 DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 
 # but it is often more convenient to see this information in a graphical
-# way. The parallel trace plot shows a timeline of the tasks execution on
-# available threads. It helps in understanding how tasks were scheduled. The
-# same window also carries other general information allowing to better
-# understand the performance limiting factors:
+# way. The parallel trace plot shows a timeline of the tasks execution, each task
+# being a bar from its start to its end. It helps in understanding how tasks were
+# scheduled. The same window also carries other general information allowing to
+# better understand the performance limiting factors:
 
 using CairoMakie # or GLMakie in order to have more interactivity
 trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
@@ -284,9 +284,14 @@ save("cholesky_trace.svg", trace) #src
 
 #md # ![](cholesky_trace.svg)
 
-# We see here that the execution time is bounded by the length of the critical
-# path: with this block size and matrix size, the algorithm does not expose
-# enough parallelism to occupy all threads without waiting periods.
+s = DataFlowTasks.summarize(log_info) #src
+@assert s.longest_path_length > 0.5 * s.elapsed "the longest path is not a large part of the elapsed time" #src
+@assert DataFlowTasks.idle(s) > 0.1 * DataFlowTasks.capacity(s) "the threads are not idle" #src
+
+# We see here that the longest path accounts for a large part of the execution
+# time: with this block size and matrix size, the algorithm does not expose
+# enough parallelism to occupy all threads without waiting periods (and this
+# gets worse as the number of threads increases).
 
 #-
 
