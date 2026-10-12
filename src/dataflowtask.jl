@@ -77,6 +77,14 @@ mutable struct DataFlowTask
         end
         tj.data = (tj.data..., tj.task)
         tj.access_mode = (tj.access_mode..., READWRITE)
+        if _log_mode()
+            # record the data accesses to compute the complete dependencies
+            logger = _getloginfo()
+            isnothing(logger) || record!(
+                logger,
+                LoggedAccess(tj.tag, objectid(sch.dag), tj.data, tj.access_mode, _linear_dag()),
+            )
+        end
         return tj
     end
 end
