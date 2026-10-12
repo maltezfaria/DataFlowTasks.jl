@@ -177,7 +177,7 @@ which draws the trace in any `Makie` axis.
 The bottom lane shows the insertion of the tasks in the DAG (which is part of
 the overhead incurred by the use of `DataFlowTasks`): the analysis of the data
 dependencies is shown in red, and the time spent waiting for the DAG (locked, or
-at full capacity) in grey. Inserting tasks involves memory allocations, and may
+at full capacity) in light red. Inserting tasks involves memory allocations, and may
 thus trigger garbage collector sweeps: the time spent in the garbage collector
 during an insertion is shown in yellow. These are not visible for such a small
 example, but the interactive visualization allows zooming on the plot to search
