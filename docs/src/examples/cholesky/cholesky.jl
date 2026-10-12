@@ -192,6 +192,10 @@ dag = GraphViz.Graph(log_info)
 
 # We can also readily get more details about the performance limiting factors:
 
+#md s = DataFlowTasks.summarize(log_info; categories = ["chol", "ldiv", "schur"]) #hide
+#md @assert s.insertion < 0.05 * s.elapsed "the insertion of the tasks is not negligible" #hide
+#md @assert s.elapsed < 1.3 * DataFlowTasks.nowait(s) "the elapsed time is not close to No-Wait" #hide
+#md @assert s.running_per_category[3] > 0.5 * s.running "the schur tasks are not the majority of the running time" #hide
 DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 
 # and, at the price of loading `Makie`, display these in a more convenient
