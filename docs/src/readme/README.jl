@@ -44,9 +44,9 @@ Pkg.activate("../..")    #src
 # When creating a `Task` using `@dspawn`, the following
 # annotations can be used to declare how the `Task` accesses the data:
 
-# - read-only: `@R` or `@READ`
-# - write-only: `@W` or `@WRITE`
-# - read-write: `@RW` or `@READWRITE`
+# - read-only: `@R`
+# - write-only: `@W`
+# - read-write: `@RW`
 
 # An `@R(A)` annotation for example implies that `A` will be accessed in
 # read-only mode by the *task*.

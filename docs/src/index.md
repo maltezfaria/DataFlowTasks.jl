@@ -18,9 +18,9 @@ how *tasks depend on each other*.
 When creating a `Task` using [`@dspawn`](@ref), the following annotations can be
 used to declare how the `Task` accesses the data:
 
-- read-only: `@R` or `@READ`
-- write-only: `@W` or `@WRITE`
-- read-write: `@RW` or `@READWRITE`
+- read-only: `@R`
+- write-only: `@W`
+- read-write: `@RW`
 
 An `@R(A)` annotation for example implies that *data* `A` will be accessed in
 read-only mode by the *task*. Here is a simple example:
