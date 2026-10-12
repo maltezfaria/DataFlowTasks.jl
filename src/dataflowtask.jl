@@ -214,8 +214,9 @@ _linear_dag() = false
     force_sequential(mode = true)
 
 If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
-code is simply run as it appears in the sources. In effect, this makes `@dspawn`
-a no-op.
+code is simply run as it appears in the sources. In effect, `@dspawn expr`
+evaluates `expr` and returns its value instead of a `Task` (`fetch` still works
+on it, but `wait` does not).
 
 By default, sequential mode is disabled when the program starts.
 

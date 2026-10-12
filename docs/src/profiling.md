@@ -186,7 +186,8 @@ for those small bars.
 ### Time: breakdown by activity
 
 A barplot in the bottom left corner of the window gives us information on how
-the time was spent (summed over all threads):
+the time was spent. Each bar is a total over the workers or the tasks, so it
+can be larger than the elapsed time:
 
 * `Running` represents the total time the tasks spent running (i.e. "useful"
   work);

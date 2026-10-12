@@ -244,7 +244,7 @@ following:
    parallel. If it works as expected, you are done; otherwise, continue to the
    next step.
 3. Run [`DataFlowTasks.force_sequential(true)`](@ref) (this will make `@dspawn`
-   a no-op) and try your code again. If you are getting the wrong results,
+   run its code immediately) and try your code again. If you are getting the wrong results,
    return to step 1.
 4. Enable `@dspawn` once more with `force_sequential(false)`, and run
    [`DataFlowTasks.force_linear_dag`](@ref)`(true)`. This makes sure

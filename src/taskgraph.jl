@@ -1,7 +1,7 @@
 """
     struct TaskGraph
 
-A directed acyclic graph used to reprenset the dependencies between
+A directed acyclic graph used to represent the dependencies between
 [`DataFlowTask`](@ref)s.
 
 `TaskGraph(sz)` creates a task graph that can hold at most `sz` elements at any
@@ -71,7 +71,7 @@ dag(sch::TaskGraph) = sch.dag
 """
     wait(tg::TaskGraph)
 
-Wait for all nodes in `tg` to be finished before continuining.
+Wait for all nodes in `tg` to be finished before continuing.
 
 To wait on the active `TaskGraph`, use `wait(get_active_taskgraph())`.
 """
@@ -199,7 +199,7 @@ end
     @dspawn expr [kwargs...]
 
 Spawn a Julia `Task` to execute the code given by `expr`, and schedule it to
-run on any available thread.
+run on the `:default` threadpool.
 
 Annotate the code in `expr` with `@R`, `@W` and/or `@RW` to indicate how it
 accesses data (see examples below). This information is used to automatically
