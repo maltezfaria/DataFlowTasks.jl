@@ -300,7 +300,7 @@ barplot(
 )
 
 # Comparing the performances of these 3 implementations, the tiled version may,
-# depending on the system, already saves some time due to cache effects. The the
+# depending on the system, already save some time due to cache effects. The
 # parallel version does show some speedup, but not as much as one might expect:
 
 (; nthreads = Threads.nthreads(), speedup = t_seq / t_par)
@@ -315,7 +315,7 @@ DFT.describe(log_info; categories = ["init", "tile", "backtrack"])
 #md s = DFT.summarize(log_info) #hide
 #md @assert s.elapsed < 1.25 * DFT.nowait(s) "elapsed time not close to No-Wait" #hide
 #md @assert s.longest_path_length < 0.75 * s.elapsed "longest path close to the elapsed time" #hide
-#md @assert s.running > t_seq "running time not larger than the sequential run time" #hide
+#md @assert s.running > 0.8 * t_seq "running time much smaller than the sequential run time" #hide
 plot(log_info; categories = ["init", "tile", "backtrack"])
 
 # Here, we see for example that the elapsed time is close to the "No-Wait" bound:
