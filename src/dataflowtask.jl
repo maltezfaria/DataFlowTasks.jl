@@ -20,6 +20,8 @@ mutable struct DataFlowTask
     tag::Int
     priority::UInt16
     label::String
+    # the active logger when the task was created (if any)
+    logger::Maybe{LogInfo}
     task::Task
     function DataFlowTask(
             code,
@@ -36,15 +38,20 @@ mutable struct DataFlowTask
             ),
         )
         taskcounter = 0 # not yet inserted in a dag. This will be modified upon insertion.
-        tj = new(data, mode, taskcounter, priority, label)
+        logger = _log_mode() ? _getloginfo() : nothing
+        # the insertion is requested before waiting for the lock of the dag
+        time_request = isnothing(logger) ? UInt64(0) : time_ns()
+        tj = new(data, mode, taskcounter, priority, label, logger)
         # hold the lock so that the dag cleaner cannot modify the dependencies of
         # `tj` before they are copied
         deps = @lock sch.dag.lock begin
-            addnode!(sch, tj, true)
+            addnode!(sch, tj, true, logger, time_request)
             copy(inneighbors(sch.dag, tj))
         end
         tj.task = @task handle_errors() do
-            logger = _log_mode() ? _getloginfo() : nothing
+            # read from `tj`: capturing the local `logger` (of type
+            # `Maybe{LogInfo}`) makes the creation of the task measurably slower
+            logger = tj.logger
             # time the execution of the body for logging (the running time
             # excludes the time the task is descheduled)
             t₀ = r₀ = UInt64(0)
@@ -85,14 +92,11 @@ mutable struct DataFlowTask
         tj.task.priority = tj.priority
         tj.data = (tj.data..., tj.task)
         tj.access_mode = (tj.access_mode..., READWRITE)
-        if _log_mode()
-            # record the data accesses to compute the complete dependencies
-            logger = _getloginfo()
-            isnothing(logger) || record!(
-                logger,
-                LoggedAccess(tj.tag, objectid(sch.dag), tj.data, tj.access_mode, _linear_dag()),
-            )
-        end
+        # record the data accesses to compute the complete dependencies
+        isnothing(logger) || record!(
+            logger,
+            LoggedAccess(tj.tag, objectid(sch.dag), tj.data, tj.access_mode, _linear_dag()),
+        )
         return tj
     end
 end

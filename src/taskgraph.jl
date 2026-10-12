@@ -60,11 +60,11 @@ concurrently are not affected.
 """
 with_taskgraph(f, tg) = with(f, TASKGRAPH => tg)
 
-function addnode!(taskgraph::TaskGraph, tj, check = true)
-    addnode!(taskgraph.dag, tj, check)
+function addnode!(taskgraph::TaskGraph, tj, check = true, logger = nothing, time_request = UInt64(0))
+    addnode!(taskgraph.dag, tj, check, logger, time_request)
     return taskgraph
 end
-remove_node!(taskgraph::TaskGraph, tj) = remove_node!(taskgraph.dag, tj)
+remove_node!(taskgraph::TaskGraph, tj, logger = nothing) = remove_node!(taskgraph.dag, tj, logger)
 
 dag(sch::TaskGraph) = sch.dag
 
@@ -131,9 +131,9 @@ function start_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
     # delayed by the computations running on the default threadpool
     task = Threads.@spawn :interactive while true
         t = take!(tg.finished)
-        t == Stop() && break
-        # remove task `t` from the dag
-        remove_node!(tg, t)
+        t isa Stop && break
+        # remove task `t` from the dag (the removal is logged if `t` is)
+        remove_node!(tg, t, t.logger)
     end
     tg.dag_cleaner = task
     return tg.dag_cleaner

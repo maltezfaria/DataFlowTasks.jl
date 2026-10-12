@@ -19,8 +19,8 @@ function hand_built_log()
     DFT.record!(log, DFT.TaskLog(1, t0, t0 + s ÷ 2, s ÷ 2, 2, 2, Int[], "a", false))
     DFT.record!(log, DFT.TaskLog(2, t0 + s ÷ 2, t0 + 3s ÷ 2, s ÷ 4, 2, 3, [1], "b", false))
     DFT.record!(log, DFT.TaskLog(3, t0 + s ÷ 5, t0 + 2s ÷ 5, s ÷ 5, 3, 3, Int[], "a", true))
-    DFT.record!(log, DFT.InsertionLog(t0, t0 + s ÷ 100, 0, 1, 1))
-    DFT.record!(log, DFT.InsertionLog(t0, t0 + s ÷ 100, s ÷ 200, 2, 1))
+    DFT.record!(log, DFT.InsertionLog(t0, t0, t0 + s ÷ 100, 0, 1, 1))
+    DFT.record!(log, DFT.InsertionLog(t0, t0, t0 + s ÷ 100, s ÷ 200, 2, 1))
     return log
 end
 

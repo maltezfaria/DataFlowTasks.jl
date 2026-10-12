@@ -40,21 +40,46 @@ task_duration(t::TaskLog) = t.time_finish - t.time_start
 Logs the execution trace of a [`DataFlowTask`](@ref) insertion.
 
 ## Fields:
-- `time_start`  : time the insertion began
-- `time_finish` : time the insertion finished
-- `gc_time`     : time spent in garbage collection during the insertion
-- `taskid`      : the task it is inserting
-- `tid`         : the thread on which the insertion is happening
+- `time_request` : time the insertion was requested, before waiting for the
+  DAG to be available (i.e. not locked, and not at full capacity)
+- `time_start`   : time the insertion began, i.e. the data-flow analysis
+- `time_finish`  : time the insertion finished
+- `gc_time`      : time spent in garbage collection during the insertion
+- `taskid`       : the task it is inserting
+- `tid`          : the thread on which the insertion is happening
 
 All times are in nanoseconds.
 """
 struct InsertionLog
+    time_request::UInt64
     time_start::UInt64
     time_finish::UInt64
     gc_time::Int64
     taskid::Int
     tid::Int
 end
+
+"""
+    struct CleanupLog
+
+Logs the removal of a finished [`DataFlowTask`](@ref) from its DAG by the
+`dag_cleaner`.
+
+## Fields:
+- `tag`         : task id in DAG
+- `time_start`  : time the removal began (the task waits to be removed since it
+  finished, see [`TaskLog`](@ref))
+- `time_finish` : time the removal finished
+
+All times are in nanoseconds.
+"""
+struct CleanupLog
+    tag::Int64
+    time_start::UInt64
+    time_finish::UInt64
+end
+
+tag(c::CleanupLog) = c.tag
 
 #=
 Data accesses of a `DataFlowTask`, recorded at its insertion while logging, from
@@ -81,7 +106,8 @@ end
 Contains informations on the program's progress. Events are appended to the
 logs under `lock`, so that a `LogInfo` can be safely shared by all threads.
 
-Besides the logs of the tasks and of their insertion, a `LogInfo` records the
+Besides the logs of the tasks, of their insertion and of their removal from the
+DAG, a `LogInfo` records the
 logging window (`time_start` and `time_finish`, in nanoseconds), the number of
 threads available to run the tasks (`nworkers`), and the time spent in garbage
 collection and compilation during the window (`gc_time` and `compile_time`, in
@@ -91,6 +117,11 @@ Use [`DataFlowTasks.describe`](@ref) or [`DataFlowTasks.summarize`](@ref) to
 analyze a `LogInfo`, and `GraphViz.Graph` or `Makie.plot` to visualize it.
 
 !!! note
+    The removals from the DAG are only recorded during the logging window: the
+    last tasks to finish are usually removed after the window closes, and have no
+    [`CleanupLog`](@ref).
+
+!!! note
     A `LogInfo` keeps references to the data accessed by the logged tasks until
     their dependencies are first needed (e.g. by `describe`), so that the
     complete dependency graph of the tasks can be computed.
@@ -98,6 +129,7 @@ analyze a `LogInfo`, and `GraphViz.Graph` or `Makie.plot` to visualize it.
 mutable struct LogInfo
     const tasklogs::Vector{TaskLog}
     const insertionlogs::Vector{InsertionLog}
+    const cleanuplogs::Vector{CleanupLog}
     const lock::ReentrantLock
     # tasks scheduled while logging, which the logging window waits for
     const tasks::Vector{Task}
@@ -107,6 +139,9 @@ mutable struct LogInfo
     # complete dependencies of the logged tasks (tag => tags of predecessors),
     # computed lazily
     dependencies::Dict{Int64, Vector{Int64}}
+    # number of open logging windows: removals from the DAG, which happen
+    # asynchronously, are only recorded while a window is open
+    active::Int
     time_start::UInt64
     time_finish::UInt64
     nworkers::Int
@@ -118,10 +153,12 @@ function LogInfo()
     return LogInfo(
         TaskLog[],
         InsertionLog[],
+        CleanupLog[],
         ReentrantLock(),
         Task[],
         LoggedAccess[],
         Dict{Int64, Vector{Int64}}(),
+        0,
         0,
         0,
         0,
@@ -137,6 +174,10 @@ function record!(l::LogInfo, log::TaskLog)
 end
 function record!(l::LogInfo, log::InsertionLog)
     @lock l.lock push!(l.insertionlogs, log)
+    return l
+end
+function record!(l::LogInfo, log::CleanupLog)
+    @lock l.lock l.active > 0 && push!(l.cleanuplogs, log)
     return l
 end
 function record!(l::LogInfo, t::Task)
@@ -247,7 +288,10 @@ function with_logging!(f, l::LogInfo)
     # gives the running time of the tasks (calls are counted, so this nests)
     Base.Experimental.task_metrics(true)
     l.nworkers = Threads.nthreads(:default)
-    l.time_start == 0 && (l.time_start = time_ns())
+    @lock l.lock begin
+        l.active += 1
+        l.time_start == 0 && (l.time_start = time_ns())
+    end
     try
         stats = @timed with(LOGINFO => l) do
             res = f()
@@ -259,7 +303,10 @@ function with_logging!(f, l::LogInfo)
         l.compile_time += stats.compile_time
         return stats.value, l
     finally
-        l.time_finish = time_ns()
+        @lock l.lock begin
+            l.active -= 1
+            l.time_finish = time_ns()
+        end
         Base.Experimental.task_metrics(false)
     end
 end

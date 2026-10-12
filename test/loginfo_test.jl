@@ -218,3 +218,38 @@ end
     @test DFT.nbtasknodes(logger) == 1
     wait(background)
 end
+
+@testset "Insertion requests and removals" begin
+    # with a capacity of 1, the second insertion waits for the first task to be
+    # removed from the dag
+    tg = DFT.TaskGraph(1)
+    A, B = zeros(1), zeros(1)
+    logger = DFT.with_taskgraph(tg) do
+        DFT.@log begin
+            @dspawn (@W(A); sleep(0.2))
+            @dspawn (@W(B); nothing)
+            wait(tg)
+        end
+    end
+    i₁, i₂ = sort(logger.insertionlogs; by = i -> i.taskid)
+    @test i₁.time_request <= i₁.time_start <= i₁.time_finish
+    @test i₂.time_start - i₂.time_request >= 0.1e9
+    # waiting for the dag to be empty waits for the removals to be logged
+    @test length(logger.cleanuplogs) == 2
+    for t in logger.tasklogs
+        c = only(c for c in logger.cleanuplogs if DFT.tag(c) == DFT.tag(t))
+        @test t.time_finish <= c.time_start <= c.time_finish
+    end
+    # the second insertion happens once the first task is removed
+    c₁ = only(c for c in logger.cleanuplogs if DFT.tag(c) == i₁.taskid)
+    @test c₁.time_finish <= i₂.time_start
+
+    # removals are not logged outside of the logging window, and logging does
+    # not wait for them (here, the dag cleaner is stopped)
+    DFT.stop_dag_cleaner(tg)
+    logger = DFT.with_taskgraph(() -> DFT.@log(@dspawn (@W(A); nothing)), tg)
+    @test isempty(logger.cleanuplogs)
+    DFT.start_dag_cleaner(tg)
+    wait(tg)
+    @test isempty(logger.cleanuplogs)
+end
