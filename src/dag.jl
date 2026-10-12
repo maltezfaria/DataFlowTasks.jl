@@ -159,7 +159,7 @@ function addnode!(dag::DAG{T}, i::T, check = false, logger = nothing, time_reque
 end
 
 function addnode!(dag::DAG, kv::Pair, check = false, logger = nothing, time_request = UInt64(0))
-    k, v = kv
+    k, _ = kv
     lock(dag)
     try
         while num_nodes(dag) >= dag.sz_max[]
@@ -293,7 +293,7 @@ function remove_node!(dag::DAG, i, logger = nothing)
         if !isempty(inneighbors(dag, i))
             @warn "removing a node with incoming neighbors"
         end
-        (inlist, outlist) = pop!(dag.inoutlist, i)
+        (_, outlist) = pop!(dag.inoutlist, i)
         # remove i from the inlist of all its outneighbors
         for j in outlist
             pop!(inneighbors(dag, j), i)

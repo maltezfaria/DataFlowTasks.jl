@@ -16,7 +16,7 @@ See also: [`@dtask`](@ref), [`@dspawn`](@ref).
 """
 mutable struct DataFlowTask
     data::Tuple
-    access_mode::NTuple{<:Any, AccessMode}
+    access_mode::Tuple{Vararg{AccessMode}}
     tag::Int
     priority::UInt16
     label::String
@@ -44,9 +44,9 @@ mutable struct DataFlowTask
         tj = new(data, mode, taskcounter, priority, label, logger)
         # hold the lock so that the dag cleaner cannot modify the dependencies of
         # `tj` before they are copied
-        deps = @lock sch.dag.lock begin
+        deps = @lock dag(sch).lock begin
             addnode!(sch, tj, true, logger, time_request)
-            copy(inneighbors(sch.dag, tj))
+            copy(inneighbors(dag(sch), tj))
         end
         tj.task = @task handle_errors() do
             # read from `tj`: capturing the `logger` of the constructor (of type
@@ -104,7 +104,7 @@ mutable struct DataFlowTask
         # record the data accesses to compute the complete dependencies
         isnothing(logger) || record!(
             logger,
-            LoggedAccess(tj.tag, objectid(sch.dag), tj.data, tj.access_mode, _linear_dag()),
+            LoggedAccess(tj.tag, objectid(dag(sch)), tj.data, tj.access_mode, _linear_dag()),
         )
         return tj
     end

@@ -219,25 +219,26 @@ It runs without holding `l.lock`, so that events can still be recorded meanwhile
 function dependencies(l::LogInfo)
     @lock l.dependencies_lock begin
         accesses = @lock l.lock copy(l.accesses)
-        isempty(accesses) && return l.dependencies
-        deps = Dict{Int64, Vector{Int64}}()
-        sort!(accesses; by = tag)
-        for graph in unique(a.graph for a in accesses)
-            dag = DAG{LoggedAccess}()
-            for a in accesses
-                a.graph == graph || continue
-                push!(dag.inoutlist, a => (Set{LoggedAccess}(), Set{LoggedAccess}()))
-                update_edges!(dag, a, a.linear)
-                deps[tag(a)] = [tag(p) for p in inneighbors(dag, a)]
+        if !isempty(accesses)
+            deps = Dict{Int64, Vector{Int64}}()
+            sort!(accesses; by = tag)
+            for graph in unique(a.graph for a in accesses)
+                dag = DAG{LoggedAccess}()
+                for a in accesses
+                    a.graph == graph || continue
+                    push!(dag.inoutlist, a => (Set{LoggedAccess}(), Set{LoggedAccess}()))
+                    update_edges!(dag, a, a.linear)
+                    deps[tag(a)] = [tag(p) for p in inneighbors(dag, a)]
+                end
+            end
+            @lock l.lock begin
+                merge!(l.dependencies, deps)
+                # the accesses recorded meanwhile come after the analysed ones
+                deleteat!(l.accesses, 1:length(accesses))
             end
         end
-        @lock l.lock begin
-            merge!(l.dependencies, deps)
-            # the accesses recorded meanwhile come after the analysed ones
-            deleteat!(l.accesses, 1:length(accesses))
-        end
-        return l.dependencies
     end
+    return l.dependencies
 end
 
 #= Wait for all the tasks recorded in `l`, including the ones recorded while
@@ -640,5 +641,5 @@ function loggertodot(logger)
         end
     end
 
-    return str *= "}"
+    return str * "}"
 end
