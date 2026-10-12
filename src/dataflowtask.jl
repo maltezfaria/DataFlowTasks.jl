@@ -72,16 +72,18 @@ mutable struct DataFlowTask
                 isnothing(err) || throw(err)
                 if !isnothing(logger)
                     tid₀ = Threads.threadid()
-                    r₀ = something(running_time_ns(), UInt64(0))
+                    # the wall time interval encloses the running one, so that
+                    # the running time does not exceed the wall time
                     t₀ = time_ns()
+                    r₀ = something(running_time_ns(), UInt64(0))
                 end
                 res = code()
                 failed = false
                 return res
             finally
                 if !isnothing(logger)
-                    t₁ = time_ns()
                     r₁ = running_time_ns()
+                    t₁ = time_ns()
                     # the body did not start if waiting for a dependency failed
                     t₀ == 0 && (t₀ = t₁; tid₀ = Threads.threadid())
                     # without task metrics, fall back to the wall time

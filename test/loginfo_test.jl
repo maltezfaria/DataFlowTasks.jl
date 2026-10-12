@@ -134,14 +134,16 @@ end
 @testset "Accounting of real runs" begin
     busy(t) = (t₀ = time(); while time() - t₀ < t end)
     xs = [zeros(1) for _ in 1:4]
-    function check_invariants(sm)
+    function check_invariants(log)
+        @test all(t -> t.running_time <= DFT.task_duration(t), log.tasklogs)
+        sm = DFT.summarize(log)
         ε = 1.0e-3 # clock resolution
         @test sm.running <= DFT.capacity(sm) + ε
         @test DFT.idle(sm) >= -ε
         @test sm.longest_path_length <= sm.elapsed + ε
         @test DFT.nowait(sm) <= sm.elapsed + ε
     end
-    check_invariants(DFT.summarize(DFT.@log work(A, B)))
+    check_invariants(DFT.@log work(A, B))
 
     # tasks which only sleep do not run (and `@log` waits for them, although
     # they are not fetched)
@@ -152,7 +154,7 @@ end
     @test sm.ntasks == length(xs)
     @test sm.running < 0.05
     @test sm.blocked > 0.3 # 4 × 0.1 s
-    check_invariants(sm)
+    check_invariants(log)
 
     # tasks which compute run all the time
     log = DFT.@log for x in xs
@@ -161,7 +163,7 @@ end
     sm = DFT.summarize(log)
     @test sm.running > 0.9 * 4 * 0.05
     @test sm.blocked < 0.02
-    check_invariants(sm)
+    check_invariants(log)
 
     # the logging window includes the work of the program itself
     log = DFT.@log begin
