@@ -11,7 +11,7 @@ using OrderedCollections
 using Printf
 using Base.ScopedValues: ScopedValue, with
 
-export @dspawn, @dasync
+export @dspawn
 
 """
     @enum AccessMode READ WRITE READWRITE

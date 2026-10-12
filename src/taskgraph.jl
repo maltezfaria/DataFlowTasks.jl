@@ -290,18 +290,3 @@ macro dspawn(expr, kwargs...)
         return :($spawn($t))
     end
 end
-
-"""
-    @dasync expr [kwargs...]
-
-Like [`@dspawn`](@ref), but schedules the task to run on the current thread.
-
-See also:
-
-[`@dspawn`](@ref), [`@dtask`](@ref)
-"""
-macro dasync(expr, kwargs...)
-    return _dtask(expr, kwargs; source = __source__) do t
-        return :($schedule($t))
-    end
-end

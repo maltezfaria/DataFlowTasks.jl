@@ -12,7 +12,7 @@ those dependencies.
 A `DataFlowTask` behaves much like a Julia `Task`: you can call `wait(t)`,
 `schedule(t)` and `fetch(t)` on it.
 
-See also: [`@dtask`](@ref), [`@dspawn`](@ref), [`@dasync`](@ref).
+See also: [`@dtask`](@ref), [`@dspawn`](@ref).
 """
 mutable struct DataFlowTask
     data::Tuple
@@ -340,7 +340,7 @@ for execution.
 See [`@dspawn`](@ref) for information on how to annotate `expr` to specify data
 dependencies, and a list of supported keyword arguments.
 
-See also: [`@dspawn`](@ref), [`@dasync`](@ref)
+See also: [`@dspawn`](@ref)
 """
 macro dtask(expr, kwargs...)
     return _dtask(expr, kwargs; source = __source__)
