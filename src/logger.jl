@@ -124,13 +124,19 @@ analyze a `LogInfo`, and `GraphViz.Graph` or `Makie.plot` to visualize it.
 !!! note
     A `LogInfo` keeps references to the data accessed by the logged tasks until
     their dependencies are first needed (e.g. by `describe`), so that the
-    complete dependency graph of the tasks can be computed.
+    complete dependency graph of the tasks can be computed. Computing it
+    compares the data of each task with the data of the previous ones: it takes
+    a time growing quadratically with the number of logged tasks (a few seconds
+    for ``10^4`` independent tasks).
 """
 mutable struct LogInfo
     const tasklogs::Vector{TaskLog}
     const insertionlogs::Vector{InsertionLog}
     const cleanuplogs::Vector{CleanupLog}
     const lock::ReentrantLock
+    # held while computing the dependencies, so that `lock` (needed to record
+    # events) is not held during this computation
+    const dependencies_lock::ReentrantLock
     # tasks scheduled while logging, which the logging window waits for
     const tasks::Vector{Task}
     # data accesses of the tasks inserted while logging, released once the
@@ -154,6 +160,7 @@ function LogInfo()
         TaskLog[],
         InsertionLog[],
         CleanupLog[],
+        ReentrantLock(),
         ReentrantLock(),
         Task[],
         LoggedAccess[],
@@ -204,21 +211,31 @@ built.
 The accesses are released once analysed. Dependencies between tasks logged
 before and after a call to `dependencies` (e.g. in separate `with_logging!`
 calls on the same `LogInfo`) are therefore not found.
+
+The analysis compares each task with all the previous ones (unless they are
+already transitively connected), so its cost is quadratic in the number of tasks.
+It runs without holding `l.lock`, so that events can still be recorded meanwhile.
 =#
 function dependencies(l::LogInfo)
-    @lock l.lock begin
-        isempty(l.accesses) && return l.dependencies
-        accesses = sort(l.accesses; by = tag)
+    @lock l.dependencies_lock begin
+        accesses = @lock l.lock copy(l.accesses)
+        isempty(accesses) && return l.dependencies
+        deps = Dict{Int64, Vector{Int64}}()
+        sort!(accesses; by = tag)
         for graph in unique(a.graph for a in accesses)
             dag = DAG{LoggedAccess}()
             for a in accesses
                 a.graph == graph || continue
                 push!(dag.inoutlist, a => (Set{LoggedAccess}(), Set{LoggedAccess}()))
                 update_edges!(dag, a, a.linear)
-                l.dependencies[tag(a)] = [tag(p) for p in inneighbors(dag, a)]
+                deps[tag(a)] = [tag(p) for p in inneighbors(dag, a)]
             end
         end
-        empty!(l.accesses)
+        @lock l.lock begin
+            merge!(l.dependencies, deps)
+            # the accesses recorded meanwhile come after the analysed ones
+            deleteat!(l.accesses, 1:length(accesses))
+        end
         return l.dependencies
     end
 end
