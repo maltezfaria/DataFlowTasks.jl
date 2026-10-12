@@ -9,6 +9,13 @@ include(joinpath(DFT.PROJECT_ROOT, "test", "testutils.jl"))
 tg = DFT.TaskGraph(200)
 DFT.set_active_taskgraph!(tg)
 
+# a type for which the data-flow analysis throws
+struct Faulty
+    data::Vector{Float64}
+end
+DFT.memory_overlap(::Faulty, ::Vector{Float64}) = error("faulty memory_overlap")
+DFT.memory_overlap(v::Vector{Float64}, f::Faulty) = DFT.memory_overlap(f, v)
+
 @testset "Fork-join" begin
     m = 10
     s = 0.1
@@ -136,6 +143,24 @@ end
     waiter = Threads.@spawn wait(tg)
     @test @suppress_err(timedwait(() -> istaskdone(waiter), 5)) == :ok
     @test istaskfailed(t1) && istaskfailed(t2)
+    @test isempty(tg)
+    DFT.stop_dag_cleaner(tg)
+end
+
+@testset "A failed insertion leaves the dag unchanged" begin
+    tg = DFT.TaskGraph(2)
+    A = ones(2)
+    blocker = Channel{Nothing}()
+    t1 = DFT.with_taskgraph(() -> @dspawn((@R(A); take!(blocker))), tg)
+    @test_throws ErrorException DFT.with_taskgraph(() -> @dspawn(fill!(@W(Faulty(A)).data, 0)), tg)
+    @test DFT.num_nodes(tg.dag) == 1
+    # the dag is still usable, and empties once the first task finishes
+    t2 = DFT.with_taskgraph(() -> @dspawn(sum(@R(A))), tg)
+    @test fetch(t2) == 2
+    put!(blocker, nothing)
+    wait(t1)
+    waiter = Threads.@spawn wait(tg)
+    @test timedwait(() -> istaskdone(waiter), 5) == :ok
     @test isempty(tg)
     DFT.stop_dag_cleaner(tg)
 end

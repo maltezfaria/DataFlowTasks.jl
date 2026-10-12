@@ -188,7 +188,18 @@ function _addnode!(dag::DAG, kv::Pair, check)
     k, _ = kv
     k isa DataFlowTask && (k.tag = Threads.atomic_add!(TASK_COUNTER, 1) + 1)
     push!(dag.inoutlist, kv)
-    check && update_edges!(dag, k)
+    check || return dag
+    try
+        update_edges!(dag, k)
+    catch
+        # e.g. `memory_overlap` threw: undo the insertion (the analysis only
+        # adds edges towards `k`), so that the dag is left unchanged
+        for i in inneighbors(dag, k)
+            delete!(outneighbors(dag, i), k)
+        end
+        pop!(dag.inoutlist, k)
+        rethrow()
+    end
     return dag
 end
 
