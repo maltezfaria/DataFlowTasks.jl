@@ -233,6 +233,43 @@ end
 
 _sequential_mode() = (:dyn, :par)
 
+# Try to parse `expr` as an access tag applied to some data
+# - if not successful: return `nothing`
+# - otherwise: register the data and their access mode in `data` and `mode`
+_try_register_access!(_, _, _) = nothing
+function _try_register_access!(data, mode, expr::Expr)
+    if expr.head == :macrocall
+        tags = (READ => ("@R", "@←"), WRITE => ("@W", "@→"), READWRITE => ("@RW", "@↔"))
+        for (m, t) in tags
+            if expr.args[1] ∈ Symbol.(t)
+                # Register access mode `m` for all data listed in `expr`
+                # If multiple data are listed, only return the first one
+                for i in 3:length(expr.args)
+                    push!(data, expr.args[i])
+                    push!(mode, m)
+                end
+                return expr.args[3]
+            end
+        end
+    end
+
+    return nothing
+end
+
+# Detect @R/@W/@RW tags in the task body:
+# 1. register the associated data and mode
+# 2. remove tags from the final expression
+_transform!(_, _, x) = x
+function _transform!(data, mode, x::Expr)
+    ret = _try_register_access!(data, mode, x)
+
+    # `x` was successfully parsed as a mode specification
+    isnothing(ret) || return ret
+
+    # Fallback
+    return Expr(x.head, (_transform!(data, mode, arg) for arg in x.args)...)
+end
+
 function _dtask(
         continuation,
         expr::Expr,
@@ -241,44 +278,7 @@ function _dtask(
     )
     data = []
     mode = []
-
-    # Try to parse `expr` as an access tag applied to some data
-    # - if not successful: return `nothing`
-    # - otherwise: register data access
-    try_register_access(expr) = nothing
-    function try_register_access(expr::Expr)
-        if expr.head == :macrocall
-            tags = (READ => ("@R", "@←"), WRITE => ("@W", "@→"), READWRITE => ("@RW", "@↔"))
-            for (m, t) in tags
-                if expr.args[1] ∈ Symbol.(t)
-                    # Register access mode `m` for all data listed in `expr`
-                    # If multiple data are listed, only return the first one
-                    for i in 3:length(expr.args)
-                        push!(data, expr.args[i])
-                        push!(mode, m)
-                    end
-                    return expr.args[3]
-                end
-            end
-        end
-
-        return nothing
-    end
-
-    # Detect @R/@W/@RW tags in the task body:
-    # 1. register the associated data and mode
-    # 2. remove tags from the final expression
-    transform(x) = x
-    function transform(x::Expr)
-        ret = try_register_access(x)
-
-        # `x` was successfully parsed as a mode specification
-        isnothing(ret) || return ret
-
-        # Fallback
-        return Expr(x.head, transform.(x.args)...)
-    end
-    new_expr = transform(expr)
+    new_expr = _transform!(data, mode, expr)
 
     # Handle optional keyword arguments
     defaults = (
@@ -287,7 +287,7 @@ function _dtask(
     )
 
     params = foldl(kwargs; init = defaults) do params, opt
-        isnothing(try_register_access(opt)) || return params
+        isnothing(_try_register_access!(data, mode, opt)) || return params
 
         if !(opt isa Expr && opt.head == :(=))
             @warn(
@@ -312,8 +312,8 @@ function _dtask(
         return Base.setindex(params, opt_val, opt_name)
     end
 
-    data = Expr(:tuple, data...)
-    mode = Tuple(mode)
+    data_expr = Expr(:tuple, data...)
+    mode_tuple = Tuple(mode)
 
     t = gensym(:task)
     (dyn, par) = _sequential_mode()
@@ -323,8 +323,8 @@ function _dtask(
             if par == :par
                 $t = $DataFlowTask(
                     () -> $(esc(new_expr)),
-                    $(esc(data)),
-                    $(mode),
+                    $(esc(data_expr)),
+                    $(mode_tuple),
                     $(esc(params.priority)),
                     $(esc(params.label)),
                 )
@@ -337,8 +337,8 @@ function _dtask(
         quote
             $t = $DataFlowTask(
                 () -> $(esc(new_expr)),
-                $(esc(data)),
-                $(mode),
+                $(esc(data_expr)),
+                $(mode_tuple),
                 $(esc(params.priority)),
                 $(esc(params.label)),
             )
