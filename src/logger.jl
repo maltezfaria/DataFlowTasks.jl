@@ -220,34 +220,14 @@ function Base.show(io::IO, l::LogInfo)
     return println(io, "LogInfo with $n logged task", n == 1 ? "" : "s")
 end
 
-"""
-    const LOGINFO::Ref{LogInfo}
+# The `LogInfo` of the innermost enclosing logging block (if any). As a
+# `ScopedValue`, it is seen by the code running inside the block and by the tasks
+# created inside the block, so that only those are logged.
+const LOGINFO = ScopedValue{Maybe{LogInfo}}(nothing)
 
-Global `LogInfo` being used to record the events. Can be changed using
-[`_setloginfo!`](@ref).
-"""
-const LOGINFO = Ref{Maybe{LogInfo}}()
-
-"""
-    _setloginfo!(l::LogInfo)
-
-Set the active logger to `l`.
-"""
-function _setloginfo!(l::Maybe{LogInfo})
-    return LOGINFO[] = l
-end
-
-"""
-    _getloginfo()
-
-Return the active logger.
-"""
+#= Return the active logger (or `nothing`) =#
 function _getloginfo()
     return LOGINFO[]
-end
-
-function haslogger()
-    return !isnothing(_getloginfo())
 end
 
 #= Utility function to get number of task nodes of the logger =#
@@ -272,30 +252,25 @@ function with_logging!(f, l::LogInfo)
         wait(tg)
         @warn "done."
     end
-    # check if logger is already active, switch to new logger, record, and
-    # switch back
     _log_mode() == true ||
         error("you must run `enable_log()` to activate the logger before profiling")
-    old_logger = _getloginfo()
     # task metrics are enabled for the tasks created while they are on, which
     # gives the running time of the tasks (calls are counted, so this nests)
     Base.Experimental.task_metrics(true)
-    _setloginfo!(l)
     l.nworkers = Threads.nthreads(:default)
     l.time_start == 0 && (l.time_start = time_ns())
     try
-        stats = @timed begin
+        stats = @timed with(LOGINFO => l) do
             res = f()
             # the logging window ends when all the logged tasks are done
             wait_logged_tasks(l)
-            res
+            return res
         end
         l.gc_time += stats.gctime
         l.compile_time += stats.compile_time
         return stats.value, l
     finally
         l.time_finish = time_ns()
-        _setloginfo!(old_logger)
         Base.Experimental.task_metrics(false)
     end
 end

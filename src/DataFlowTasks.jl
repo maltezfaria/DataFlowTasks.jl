@@ -9,6 +9,7 @@ const PROJECT_ROOT = pkgdir(DataFlowTasks)
 
 using OrderedCollections
 using Printf
+using Base.ScopedValues: ScopedValue, with
 
 export @dspawn, @dasync
 
@@ -40,9 +41,7 @@ function __init__()
     # default scheduler
     capacity = 50
     tg = TaskGraph(capacity)
-    set_active_taskgraph!(tg)
-    # no logger by default
-    return _setloginfo!(nothing)
+    return set_active_taskgraph!(tg)
 end
 
 """
