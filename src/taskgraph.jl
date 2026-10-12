@@ -90,8 +90,6 @@ end
 
 Base.isempty(taskgraph::TaskGraph) = isempty(taskgraph.dag)
 
-capcity(taskgraph) = taskgraph |> dag |> capacity
-
 """
     resize!(tg::TaskGraph, sz)
 

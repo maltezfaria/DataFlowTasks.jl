@@ -247,40 +247,6 @@ function update_transitively_connected!(transitively_connected, node, dag)
 end
 
 """
-    isconnected(dag,i,j)
-
-Check if there is a path in `dag` connecting `i` to `j`.
-"""
-function isconnected(dag::DAG, i, j)
-    for k in inneighbors(dag, j)
-        if k == i
-            return true
-        elseif k < i
-            continue
-        else #k>i
-            isconnected(dag, i, k) && (return true)
-        end
-    end
-    return false
-end
-
-"""
-    addedge_transitive!(dag,i,j)
-
-Add edge connecting nodes `i` and `j` if there is no path connecting them already.
-"""
-function addedge_transitive!(dag, i, j)
-    return isconnected(dag, i, j) ? dag : addedge!(dag, i, j)
-end
-
-"""
-    has_edge(dag,i,j)
-
-Check if there is an edge connecting `i` to `j`.
-"""
-has_edge(dag::DAG, i, j) = j ∈ outneighbors(dag, i)
-
-"""
     remove_node!(dag::DAG,i[, logger=nothing])
 
 Remove node `i` and all of its edges from `dag`. If a `logger` is given, the
