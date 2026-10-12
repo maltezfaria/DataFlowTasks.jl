@@ -225,7 +225,9 @@ tasks `1` and `2`, and an *inner* one, created by task `1`, which spawns tasks
 `1a` and `1b`. The inner task graph is waited on by task `1`, so that task `2`
 will only start after both `1a` and `1b` have completed. Note that because a new
 task graph is created for `1a` and `1b`, they will never depend on task `2`,
-which could create a deadlock!
+which could create a deadlock! Also note that `with_taskgraph` only affects the
+code running inside task `1` (and the tasks it creates): task `2`, spawned
+concurrently by the main program, still goes to the outer task graph.
 
 In the future we may provide a more convenient syntax for creating nested task;
 at present, the suggestion is to avoid them if possible.
