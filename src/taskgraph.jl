@@ -102,19 +102,18 @@ Base.resize!(tg::TaskGraph, sz) = (resize!(tg.dag, sz); tg)
 """
     empty!(tg::TaskGraph)
 
-Interrupt all tasks in `tg` and remove them from the underlying `DAG`.
+Remove all the tasks from `tg`, so that the tasks spawned afterwards do not
+depend on them.
 
-This function is useful to avoid having to restart the REPL when a task in `tg`
-errors.
+This function is useful when tasks in `tg` are blocked (e.g. waiting for a
+resource which is never released), to avoid having to restart the REPL. The
+removed tasks are not interrupted: those which are running or waiting to run
+keep doing so.
 """
 function Base.empty!(tg::TaskGraph)
-    @warn "emptying the tasgraph: pending tasks will be interrupted and lost."
+    @warn "emptying the task graph: its tasks are not interrupted, but new tasks no longer depend on them"
     stop_dag_cleaner(tg)
     empty!(tg.finished)
-    # go over all task in the dag and interrupt them
-    for (t, _) in tg.dag.inoutlist
-        istaskstarted(t.task) || schedule(t.task, :stop; error = true)
-    end
     empty!(tg.dag)
     start_dag_cleaner(tg)
     return tg

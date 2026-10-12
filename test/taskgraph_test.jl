@@ -140,6 +140,37 @@ end
     DFT.stop_dag_cleaner(tg)
 end
 
+@testset "empty! with tasks waiting for a thread" begin
+    # the main task needs a thread of its own while the workers are busy
+    if Threads.nthreads(:interactive) == 0
+        @test_skip false
+    else
+        tg = DFT.TaskGraph()
+        release = Threads.Atomic{Bool}(false)
+        spin(r) = (
+            while !r[]
+                GC.safepoint()
+            end
+        )
+        # occupy all the workers, so that the tasks below wait for a thread
+        blockers = [Threads.@spawn spin(release) for _ in 1:Threads.nthreads(:default)]
+        xs = [zeros(1) for _ in 1:5]
+        ts = DFT.with_taskgraph(tg) do
+            [@dspawn fill!(@W(x), 1) for x in xs]
+        end
+        @test !any(istaskstarted, ts)
+        @suppress_err empty!(tg)
+        @test isempty(tg)
+        release[] = true
+        foreach(wait, blockers)
+        # the removed tasks still run, and the task graph can be used again
+        @test timedwait(() -> all(istaskdone, ts), 5) == :ok
+        @test all(x -> x[1] == 1, xs)
+        @test fetch(DFT.with_taskgraph(() -> @dspawn(sum(@R(xs[1]))), tg)) == 1
+        DFT.stop_dag_cleaner(tg)
+    end
+end
+
 @testset "A failed dependency does not stop the dag cleaner" begin
     # `j` depends on `k`, which fails at once, and on `i`, which is still
     # running: `j` must not leave the dag before `i`. Shifting the tags varies
