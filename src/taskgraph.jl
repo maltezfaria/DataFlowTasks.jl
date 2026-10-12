@@ -226,8 +226,8 @@ Additionally, the following keyword arguments can be provided:
   [`resize!`](@ref)).
 - The task runs on the `:default` threadpool, once all the tasks it depends on
   have finished. If one of them failed, the task fails as well.
-- `@dspawn` returns a [`DataFlowTask`](@ref), which can be `wait`ed on or
-  `fetch`ed like a Julia `Task`.
+- `@dspawn` returns the Julia `Task` running the [`DataFlowTask`](@ref), which
+  can be `wait`ed on or `fetch`ed.
 
 ## Examples:
 
