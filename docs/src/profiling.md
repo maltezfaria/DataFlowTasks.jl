@@ -245,6 +245,33 @@ When trying to optimize the sequential performance of the algorithm, this is
 where one can get data about what actually takes time (and therefore could
 produce large gains in performance if it could be optimized).
 
+## Interacting with and saving the plots
+
+With `GLMakie` (in a window) or `WGLMakie` (in a browser or a notebook), the
+plots are interactive:
+
+- hovering over a task highlights it with its predecessors and successors, and
+  shows its lifecycle in the title of the trace;
+- scrolling zooms in and out, dragging with the left button zooms on a
+  rectangle, dragging with the right button pans, and `Ctrl` + click resets the
+  view. Zooming is the way to see the small insertion bars.
+
+`CairoMakie` produces static images, as in this documentation.
+
+A figure is saved with `save`. With `GLMakie`, this produces a raster image (e.g.
+`.png`) of the window as it is, including the zoom and the highlighted task.
+Vector formats (`.pdf`, `.svg`) are produced by `CairoMakie`, which can be used
+for saving even when another backend is active:
+
+```julia
+fig = plot(log_info; categories = ["init", "mutate", "read"])
+save("trace.png", fig)
+save("trace.pdf", fig; backend = CairoMakie)
+```
+
+The DAG is saved with [`DataFlowTasks.savedag`](@ref), as shown
+[above](@ref visualization-section).
+
 ## [Understanding the numbers](@id understanding-the-numbers)
 
 [`DataFlowTasks.describe`](@ref) and `Makie.plot` both report the quantities of
@@ -329,6 +356,53 @@ descheduled and resumed. Therefore, in the parallel trace:
   on threads: there may be more lanes than threads (as in the second example
   above).
 
-The lifecycle of each task is available with [`DataFlowTasks.timeline`](@ref),
-and the number of tasks in the DAG, ready, and running over time with
-[`DataFlowTasks.concurrency`](@ref).
+See [Building your own plots](@ref custom-plots) for the data available on
+each task.
+
+## [Building your own plots](@id custom-plots)
+
+The data behind the plots is available without `Makie`, so that it can be
+analysed or plotted with any tool. Let us go back to the first example.
+[`DataFlowTasks.timeline`](@ref) gives the lifecycle of each logged task (see
+[`DataFlowTasks.TaskTimeline`](@ref) for the meaning of the fields), in seconds
+since the start of the logging window:
+
+```@example profiling
+tasks = DataFlowTasks.timeline(log_info)
+t = tasks[end]
+(; t.label, t.requested, t.inserted, t.ready, t.started, t.finished, t.predecessors, t.ready_by)
+```
+
+The trace is a `Makie` recipe, [`DataFlowTasks.traceplot`](@ref), which can be
+drawn in any axis. Its `highlight` attribute outlines a task (here, the last one)
+with its predecessors and successors, and the `critical_path` attribute shows or
+hides the realized critical path:
+
+```@example profiling
+fig = Figure(; size = (800, 300))
+ax = Axis(fig[1, 1]; xlabel = "Time (s)", ylabel = "Lane")
+DataFlowTasks.traceplot!(ax, log_info; categories = ["init", "mutate", "read"], highlight = t.tag)
+fig
+```
+
+[`DataFlowTasks.concurrency`](@ref) gives the number of logged tasks in the DAG,
+ready to run (but not started), and running over time, as step functions. When
+tasks are ready while fewer tasks than threads are running, the threads are
+slow to pick them up; when no task is ready, the computation lacks parallelism:
+
+```@example profiling
+c = DataFlowTasks.concurrency(log_info)
+fig = Figure(; size = (800, 300))
+ax = Axis(fig[1, 1]; xlabel = "Time (s)", ylabel = "Tasks")
+stairs!(ax, c.time, c.dag; step = :post, label = "in the DAG")
+stairs!(ax, c.time, c.ready; step = :post, label = "ready")
+stairs!(ax, c.time, c.running; step = :post, label = "running")
+hlines!(ax, log_info.nworkers; color = :black, linestyle = :dash, label = "threads")
+axislegend(ax; position = :rt)
+fig
+```
+
+[`DataFlowTasks.realized_critical_path`](@ref) gives the tags of the tasks of
+the realized critical path, and [`DataFlowTasks.summarize`](@ref) the breakdown
+of the elapsed time along it.
+
