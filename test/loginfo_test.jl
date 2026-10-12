@@ -287,6 +287,28 @@ end
     @test DFT.nbtasknodes(logger) == 0
 end
 
+@testset "Insertions after the logging window" begin
+    x = zeros(1)
+    # a plain task started while logging inherits the logger, but inserts its
+    # task after the window closed: the insertion is not logged
+    local t
+    logger = DFT.@log begin
+        @dspawn fill!(@W(x), 1)
+        t = Threads.@spawn (sleep(0.2); fetch(@dspawn sum(@R(x))))
+        nothing
+    end
+    wait(t)
+    @test length(logger.insertionlogs) == 1
+    @test length(logger.accesses) == 1
+end
+
+@testset "Nested logging windows" begin
+    # the gc time of the process is measured once for nested windows
+    logger = DFT.LogInfo()
+    DFT.with_logging!(() -> DFT.with_logging!(GC.gc, logger), logger)
+    @test 0 < logger.gc_time <= DFT.summarize(logger).elapsed
+end
+
 @testset "Insertion requests and removals" begin
     # with a capacity of 1, the second insertion waits for the first task to be
     # removed from the dag

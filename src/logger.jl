@@ -153,6 +153,10 @@ mutable struct LogInfo
     nworkers::Int
     gc_time::Float64
     compile_time::Float64
+    # cumulated gc and compilation times of the process (in nanoseconds) when
+    # the first window opened: they are measured once for nested windows
+    gc_start::UInt64
+    compile_start::UInt64
 end
 
 function LogInfo()
@@ -171,6 +175,8 @@ function LogInfo()
         0,
         0.0,
         0.0,
+        0,
+        0,
     )
 end
 
@@ -181,7 +187,7 @@ function record!(l::LogInfo, log::TaskLog)
     return l
 end
 function record!(l::LogInfo, log::InsertionLog)
-    @lock l.lock push!(l.insertionlogs, log)
+    @lock l.lock l.active > 0 && push!(l.insertionlogs, log)
     return l
 end
 function record!(l::LogInfo, log::CleanupLog)
@@ -193,7 +199,7 @@ function record!(l::LogInfo, t::Task)
     return l
 end
 function record!(l::LogInfo, a::LoggedAccess)
-    @lock l.lock push!(l.accesses, a)
+    @lock l.lock l.active > 0 && push!(l.accesses, a)
     return l
 end
 
@@ -312,25 +318,33 @@ function with_logging!(f, l::LogInfo)
     Base.Experimental.task_metrics(true)
     l.nworkers = Threads.nthreads(:default)
     @lock l.lock begin
+        if l.active == 0
+            Base.cumulative_compile_timing(true)
+            l.gc_start = Base.gc_time_ns()
+            l.compile_start = first(Base.cumulative_compile_time_ns())
+        end
         l.active += 1
         l.time_start == 0 && (l.time_start = time_ns())
     end
     try
-        stats = @timed with(LOGINFO => l) do
+        res = with(LOGINFO => l) do
             res = f()
             # the logging window ends when all the logged tasks are done
             wait_logged_tasks(l)
             return res
         end
-        l.gc_time += stats.gctime
-        l.compile_time += stats.compile_time
-        return stats.value, l
+        return res, l
     finally
         @lock l.lock begin
             l.active -= 1
             l.time_finish = time_ns()
-            # the tasks were waited for: release them (and the data they capture)
-            l.active == 0 && empty!(l.tasks)
+            if l.active == 0
+                l.gc_time += (Base.gc_time_ns() - l.gc_start) * 1.0e-9
+                l.compile_time += (first(Base.cumulative_compile_time_ns()) - l.compile_start) * 1.0e-9
+                Base.cumulative_compile_timing(false)
+                # the tasks were waited for: release them (and the data they capture)
+                empty!(l.tasks)
+            end
         end
         Base.Experimental.task_metrics(false)
     end
