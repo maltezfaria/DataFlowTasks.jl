@@ -153,24 +153,44 @@ Let us explore the various parts of this graph.
 ### Parallel Trace
 
 The main plot (at the top) is the parallel trace visualization: each task is
-shown as a bar on the thread where it started, from the moment its body started
-to the moment it finished. The bar is shaded according to the fraction of that
-time the task was actually running (see [the limitations of the parallel
-trace](@ref trace-limitations)).
+shown as a bar, from the moment its body started to the moment it finished. The
+bars are packed in *lanes*, such that the bars of a lane do not overlap: the
+number of lanes is the largest number of tasks running at the same time. A lane
+is not a thread (see [the limitations of the parallel
+trace](@ref trace-limitations)). Each bar has the color of the category of its
+task, and is filled from the bottom like a gauge, up to the fraction of its
+duration the task was actually running: a task which only computes is a full
+bar, and a task which only sleeps an empty (light) one. The bars of failed tasks
+are outlined in red.
 
-Even though tasks are grouped in categories by considering substrings in their
-labels, the full label is shown when hovering over a task in the interactive
-visualization (i.e. when using `GLMakie` instead of `CairoMakie`).
+The tasks outlined in black form the *realized critical path* (see
+[`DataFlowTasks.realized_critical_path`](@ref)), which answers the question:
+what made the computation end when it did? Starting from the last task to
+finish, it goes back to what the task was waiting for before it could start: the
+predecessor which finished last, or, if the task was ready as soon as it was
+inserted, its insertion. Each task of the path was therefore waiting for the
+previous one. The legend splits the elapsed time along this path: the time
+before its first task was ready, the time its tasks waited to start once ready
+(e.g. because all the threads were busy), and the time spent in their bodies.
+[`DataFlowTasks.describe`](@ref) reports the same breakdown.
 
-The plot also shows the time spent inserting nodes in the graph (which is part
-of the overhead incurred by the use of `DataFlowTasks`): these insertion times
-are visualized as red tasks. They are not visible for such a small example, but
-the interactive visualization allows zooming on the plot to search for those
-small tasks.
+When hovering over a task in the interactive visualization (i.e. when using
+`GLMakie` instead of `CairoMakie`), the task is outlined in purple, its
+predecessors in blue and its successors in orange, and the title shows its
+label and its lifecycle (see [`DataFlowTasks.TaskTimeline`](@ref)): how long its
+insertion took (and waited for the DAG to be available), what made it ready,
+how long it waited to start, and its duration. The same highlighting is
+available with the `highlight` attribute of [`DataFlowTasks.traceplot`](@ref),
+which draws the trace in any `Makie` axis.
 
-Also note that inserting tasks into the graph involves memory allocations, and
-may thus trigger garbage collector sweeps. When this happens, the time spent in
-the garbage collector is also shown in the plot.
+The bottom lane shows the insertion of the tasks in the DAG (which is part of
+the overhead incurred by the use of `DataFlowTasks`): the analysis of the data
+dependencies is shown in red, and the time spent waiting for the DAG (locked, or
+at full capacity) in grey. Inserting tasks involves memory allocations, and may
+thus trigger garbage collector sweeps: the time spent in the garbage collector
+during an insertion is shown in yellow. These are not visible for such a small
+example, but the interactive visualization allows zooming on the plot to search
+for those small bars.
 
 ### Time: breakdown by activity
 
@@ -225,6 +245,33 @@ When trying to optimize the sequential performance of the algorithm, this is
 where one can get data about what actually takes time (and therefore could
 produce large gains in performance if it could be optimized).
 
+## Interacting with and saving the plots
+
+With `GLMakie` (in a window) or `WGLMakie` (in a browser or a notebook), the
+plots are interactive:
+
+- hovering over a task highlights it with its predecessors and successors, and
+  shows its lifecycle in the title of the trace;
+- scrolling zooms in and out, dragging with the left button zooms on a
+  rectangle, dragging with the right button pans, and `Ctrl` + click resets the
+  view. Zooming is the way to see the small insertion bars.
+
+`CairoMakie` produces static images, as in this documentation.
+
+A figure is saved with `save`. With `GLMakie`, this produces a raster image (e.g.
+`.png`) of the window as it is, including the zoom and the highlighted task.
+Vector formats (`.pdf`, `.svg`) are produced by `CairoMakie`, which can be used
+for saving even when another backend is active:
+
+```julia
+fig = plot(log_info; categories = ["init", "mutate", "read"])
+save("trace.png", fig)
+save("trace.pdf", fig; backend = CairoMakie)
+```
+
+The DAG is saved with [`DataFlowTasks.savedag`](@ref), as shown
+[above](@ref visualization-section).
+
 ## [Understanding the numbers](@id understanding-the-numbers)
 
 [`DataFlowTasks.describe`](@ref) and `Makie.plot` both report the quantities of
@@ -242,6 +289,7 @@ the [`LogSummary`](@ref DataFlowTasks.LogSummary) computed by
 | Task insertion        | total time spent inserting tasks, on the threads calling `@dspawn`         |
 | Critical path         | wall time of the longest chain of dependent tasks                          |
 | No-wait               | ``W / P``                                                                  |
+| Realized path         | chain of tasks each waiting for the previous one, ending with the last task |
 
 Both the critical path and the no-wait time are lower bounds of the elapsed
 time. The tasks run on the `:default` threadpool, while `@dspawn` (and therefore
@@ -249,13 +297,18 @@ the insertion of the tasks) runs on the thread of its caller, which is often
 the interactive thread.
 
 Let us look at a few simple cases to see these numbers at work. The tasks below
-either compute (`busy`), or sleep:
+either compute (`busy`), or sleep. To keep compilation out of the measurements,
+each example is run once before being logged:
 
 ```@example numbers
 using DataFlowTasks, CairoMakie
 busy(t) = (t₀ = time(); while time() - t₀ < t end)
 xs = [zeros(1) for _ in 1:2Threads.nthreads()]
-DataFlowTasks.@log fetch(@dspawn busy(0.01)) # compile
+# run `f` once to compile it, then log a second run
+function profile(f)
+    DataFlowTasks.@log f()
+    return DataFlowTasks.@log f()
+end
 nothing # hide
 ```
 
@@ -263,8 +316,10 @@ Tasks which only sleep do not run: the workers are idle, and the time the tasks
 spend sleeping is reported as blocked.
 
 ```@example numbers
-log_info = DataFlowTasks.@log for x in xs
-    @dspawn (@W(x); sleep(0.1)) label = "sleep"
+log_info = profile() do
+    for x in xs
+        @dspawn (@W(x); sleep(0.1)) label = "sleep"
+    end
 end
 DataFlowTasks.describe(log_info)
 ```
@@ -273,8 +328,10 @@ Tasks which compute and then sleep run half of the time. While a task sleeps,
 its thread runs another task:
 
 ```@example numbers
-log_info = DataFlowTasks.@log for x in xs
-    @dspawn (@W(x); busy(0.05); sleep(0.05)) label = "half"
+log_info = profile() do
+    for x in xs
+        @dspawn (@W(x); busy(0.05); sleep(0.05)) label = "half"
+    end
 end
 DataFlowTasks.describe(log_info)
 ```
@@ -287,7 +344,7 @@ Finally, the logging window includes the work done by the program itself, here
 before spawning any task:
 
 ```@example numbers
-log_info = DataFlowTasks.@log begin
+log_info = profile() do
     busy(0.2)
     for x in xs
         @dspawn (@W(x); busy(0.05)) label = "work"
@@ -301,9 +358,60 @@ DataFlowTasks.describe(log_info)
 Julia measures the time each task spends running, but not *when* it is
 descheduled and resumed. Therefore, in the parallel trace:
 
-- a task which is descheduled is shaded according to the fraction of its
+- a task which is descheduled is filled according to the fraction of its
   duration it was running, but the moments it was not running are not shown;
-- while a task is descheduled, its thread may run other tasks, so that the bars
-  of several tasks may overlap (as in the second example above);
-- a task which is descheduled may resume on another thread: it is shown on the
-  thread where it started.
+- while a task is descheduled, its thread may run other tasks, and the task may
+  resume on another thread. This is why the tasks are shown in lanes rather than
+  on threads: there may be more lanes than threads (as in the second example
+  above).
+
+See [Building your own plots](@ref custom-plots) for the data available on
+each task.
+
+## [Building your own plots](@id custom-plots)
+
+The data behind the plots is available without `Makie`, so that it can be
+analysed or plotted with any tool. Let us go back to the first example.
+[`DataFlowTasks.timeline`](@ref) gives the lifecycle of each logged task (see
+[`DataFlowTasks.TaskTimeline`](@ref) for the meaning of the fields), in seconds
+since the start of the logging window:
+
+```@example profiling
+tasks = DataFlowTasks.timeline(log_info)
+t = tasks[end]
+(; t.label, t.requested, t.inserted, t.ready, t.started, t.finished, t.predecessors, t.ready_by)
+```
+
+The trace is a `Makie` recipe, [`DataFlowTasks.traceplot`](@ref), which can be
+drawn in any axis. Its `highlight` attribute outlines a task (here, the last one)
+with its predecessors and successors, and the `critical_path` attribute shows or
+hides the realized critical path:
+
+```@example profiling
+fig = Figure(; size = (800, 300))
+ax = Axis(fig[1, 1]; xlabel = "Time (s)", ylabel = "Lane")
+DataFlowTasks.traceplot!(ax, log_info; categories = ["init", "mutate", "read"], highlight = t.tag)
+fig
+```
+
+[`DataFlowTasks.concurrency`](@ref) gives the number of logged tasks in the DAG,
+ready to run (but not started), and running over time, as step functions. When
+tasks are ready while fewer tasks than threads are running, the threads are
+slow to pick them up; when no task is ready, the computation lacks parallelism:
+
+```@example profiling
+c = DataFlowTasks.concurrency(log_info)
+fig = Figure(; size = (800, 300))
+ax = Axis(fig[1, 1]; xlabel = "Time (s)", ylabel = "Tasks")
+stairs!(ax, c.time, c.dag; step = :post, label = "in the DAG")
+stairs!(ax, c.time, c.ready; step = :post, label = "ready")
+stairs!(ax, c.time, c.running; step = :post, label = "running")
+hlines!(ax, log_info.nworkers; color = :black, linestyle = :dash, label = "threads")
+axislegend(ax; position = :rt)
+fig
+```
+
+[`DataFlowTasks.realized_critical_path`](@ref) gives the tags of the tasks of
+the realized critical path, and [`DataFlowTasks.summarize`](@ref) the breakdown
+of the elapsed time along it.
+

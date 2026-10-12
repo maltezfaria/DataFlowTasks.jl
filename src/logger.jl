@@ -40,21 +40,46 @@ task_duration(t::TaskLog) = t.time_finish - t.time_start
 Logs the execution trace of a [`DataFlowTask`](@ref) insertion.
 
 ## Fields:
-- `time_start`  : time the insertion began
-- `time_finish` : time the insertion finished
-- `gc_time`     : time spent in garbage collection during the insertion
-- `taskid`      : the task it is inserting
-- `tid`         : the thread on which the insertion is happening
+- `time_request` : time the insertion was requested, before waiting for the
+  DAG to be available (i.e. not locked, and not at full capacity)
+- `time_start`   : time the insertion began, i.e. the data-flow analysis
+- `time_finish`  : time the insertion finished
+- `gc_time`      : time spent in garbage collection during the insertion
+- `taskid`       : the task it is inserting
+- `tid`          : the thread on which the insertion is happening
 
 All times are in nanoseconds.
 """
 struct InsertionLog
+    time_request::UInt64
     time_start::UInt64
     time_finish::UInt64
     gc_time::Int64
     taskid::Int
     tid::Int
 end
+
+"""
+    struct CleanupLog
+
+Logs the removal of a finished [`DataFlowTask`](@ref) from its DAG by the
+`dag_cleaner`.
+
+## Fields:
+- `tag`         : task id in DAG
+- `time_start`  : time the removal began (the task waits to be removed since it
+  finished, see [`TaskLog`](@ref))
+- `time_finish` : time the removal finished
+
+All times are in nanoseconds.
+"""
+struct CleanupLog
+    tag::Int64
+    time_start::UInt64
+    time_finish::UInt64
+end
+
+tag(c::CleanupLog) = c.tag
 
 #=
 Data accesses of a `DataFlowTask`, recorded at its insertion while logging, from
@@ -81,7 +106,8 @@ end
 Contains informations on the program's progress. Events are appended to the
 logs under `lock`, so that a `LogInfo` can be safely shared by all threads.
 
-Besides the logs of the tasks and of their insertion, a `LogInfo` records the
+Besides the logs of the tasks, of their insertion and of their removal from the
+DAG, a `LogInfo` records the
 logging window (`time_start` and `time_finish`, in nanoseconds), the number of
 threads available to run the tasks (`nworkers`), and the time spent in garbage
 collection and compilation during the window (`gc_time` and `compile_time`, in
@@ -91,6 +117,11 @@ Use [`DataFlowTasks.describe`](@ref) or [`DataFlowTasks.summarize`](@ref) to
 analyze a `LogInfo`, and `GraphViz.Graph` or `Makie.plot` to visualize it.
 
 !!! note
+    The removals from the DAG are only recorded during the logging window: the
+    last tasks to finish are usually removed after the window closes, and have no
+    [`CleanupLog`](@ref).
+
+!!! note
     A `LogInfo` keeps references to the data accessed by the logged tasks until
     their dependencies are first needed (e.g. by `describe`), so that the
     complete dependency graph of the tasks can be computed.
@@ -98,6 +129,7 @@ analyze a `LogInfo`, and `GraphViz.Graph` or `Makie.plot` to visualize it.
 mutable struct LogInfo
     const tasklogs::Vector{TaskLog}
     const insertionlogs::Vector{InsertionLog}
+    const cleanuplogs::Vector{CleanupLog}
     const lock::ReentrantLock
     # tasks scheduled while logging, which the logging window waits for
     const tasks::Vector{Task}
@@ -107,6 +139,9 @@ mutable struct LogInfo
     # complete dependencies of the logged tasks (tag => tags of predecessors),
     # computed lazily
     dependencies::Dict{Int64, Vector{Int64}}
+    # number of open logging windows: removals from the DAG, which happen
+    # asynchronously, are only recorded while a window is open
+    active::Int
     time_start::UInt64
     time_finish::UInt64
     nworkers::Int
@@ -118,10 +153,12 @@ function LogInfo()
     return LogInfo(
         TaskLog[],
         InsertionLog[],
+        CleanupLog[],
         ReentrantLock(),
         Task[],
         LoggedAccess[],
         Dict{Int64, Vector{Int64}}(),
+        0,
         0,
         0,
         0,
@@ -137,6 +174,10 @@ function record!(l::LogInfo, log::TaskLog)
 end
 function record!(l::LogInfo, log::InsertionLog)
     @lock l.lock push!(l.insertionlogs, log)
+    return l
+end
+function record!(l::LogInfo, log::CleanupLog)
+    @lock l.lock l.active > 0 && push!(l.cleanuplogs, log)
     return l
 end
 function record!(l::LogInfo, t::Task)
@@ -247,7 +288,10 @@ function with_logging!(f, l::LogInfo)
     # gives the running time of the tasks (calls are counted, so this nests)
     Base.Experimental.task_metrics(true)
     l.nworkers = Threads.nthreads(:default)
-    l.time_start == 0 && (l.time_start = time_ns())
+    @lock l.lock begin
+        l.active += 1
+        l.time_start == 0 && (l.time_start = time_ns())
+    end
     try
         stats = @timed with(LOGINFO => l) do
             res = f()
@@ -259,7 +303,10 @@ function with_logging!(f, l::LogInfo)
         l.compile_time += stats.compile_time
         return stats.value, l
     finally
-        l.time_finish = time_ns()
+        @lock l.lock begin
+            l.active -= 1
+            l.time_finish = time_ns()
+        end
         Base.Experimental.task_metrics(false)
     end
 end
@@ -374,6 +421,11 @@ Summary of the events recorded in a [`LogInfo`](@ref), as computed by
   running time of the tasks in each of them (the last entry gathers the tasks
   matching no category)
 - `path`          : tags of the tasks on the critical path
+- `realized_path` : tags of the tasks on the realized critical path (see
+  [`DataFlowTasks.realized_critical_path`](@ref))
+- `realized_before`, `realized_waiting`, `realized_bodies` : the time before the
+  first task of the realized critical path was ready, the time its tasks waited
+  to start once ready, and the duration of their bodies
 - `ntasks`, `nfailed`, `nmigrated` : number of tasks, of tasks which threw an
   error, and of tasks which finished on another thread than the one they
   started on
@@ -384,7 +436,10 @@ The following quantities are derived from these fields:
 - `nowait(s) = s.running / s.workers`: the elapsed time if the running time were
   perfectly shared between the workers, without ever waiting.
 
-Both `critical_path` and `nowait` are lower bounds of `elapsed`.
+Both `critical_path` and `nowait` are lower bounds of `elapsed`. Along the
+realized critical path, the elapsed time is split in `realized_before`,
+`realized_waiting`, `realized_bodies`, and `realized_after(s)`: the time from the
+end of the last task to the end of the logging window.
 """
 struct LogSummary
     elapsed::Float64
@@ -398,6 +453,10 @@ struct LogSummary
     categories::Vector{Pair{String, Regex}}
     running_per_category::Vector{Float64}
     path::Vector{Int64}
+    realized_path::Vector{Int64}
+    realized_before::Float64
+    realized_waiting::Float64
+    realized_bodies::Float64
     ntasks::Int
     nfailed::Int
     nmigrated::Int
@@ -406,6 +465,7 @@ end
 capacity(s::LogSummary) = s.workers * s.elapsed
 idle(s::LogSummary) = capacity(s) - s.running
 nowait(s::LogSummary) = s.running / s.workers
+realized_after(s::LogSummary) = s.elapsed - s.realized_before - s.realized_waiting - s.realized_bodies
 
 _category(c::Pair{String, Regex}) = c
 _category(c::String) = c => Regex(c)
@@ -452,6 +512,12 @@ function summarize(loginfo::LogInfo; categories = String[])
     path = isempty(loginfo.tasklogs) ? Int64[] : longest_path(loginfo)
     onpath = Set(path)
     critical_path = sum(weight, (t for t in loginfo.tasklogs if tag(t) ∈ onpath); init = 0.0)
+    tasks = Dict(tag(t) => t for t in timeline(loginfo))
+    realized_path = realized_critical_path(loginfo)
+    chain = [tasks[k] for k in realized_path]
+    realized_before = isempty(chain) ? 0.0 : first(chain).ready
+    realized_waiting = sum(t -> t.started - t.ready, chain; init = 0.0)
+    realized_bodies = sum(t -> t.finished - t.started, chain; init = 0.0)
     return LogSummary(
         (loginfo.time_finish - loginfo.time_start) * ns,
         loginfo.nworkers,
@@ -464,6 +530,10 @@ function summarize(loginfo::LogInfo; categories = String[])
         cats,
         running_per_category,
         path,
+        realized_path,
+        realized_before,
+        realized_waiting,
+        realized_bodies,
         length(loginfo.tasklogs),
         nfailed,
         nmigrated,
@@ -498,7 +568,16 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
     println(io)
     line("  ├─ ", "Critical path", s.critical_path)
     println(io)
-    line("  ╰─ ", "No-wait (running / workers)", nowait(s))
+    line("  ├─ ", "No-wait (running / workers)", nowait(s))
+    println(io)
+    println(io, "  ╰─ Along the realized critical path ($(length(s.realized_path)) tasks):")
+    line("     ├─ ", "before its first task", s.realized_before)
+    println(io)
+    line("     ├─ ", "waiting to start", s.realized_waiting)
+    println(io)
+    line("     ├─ ", "task bodies", s.realized_bodies)
+    println(io)
+    line("     ╰─ ", "after its last task", realized_after(s))
     println(io, "\n")
 
     line("• ", "Worker time ($(s.workers) × elapsed)", capacity(s))
@@ -524,48 +603,6 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
     println(io)
     s.nfailed > 0 && println(io, "\n⚠ $(s.nfailed) of the $(s.ntasks) tasks failed")
     return nothing
-end
-
-#= Data of the Gantt chart (parallel trace) of a `LogInfo`, as a struct of
-arrays: entry `i` of each array describes the same bar. The bars of the tasks
-come first, in the order of `loginfo.tasklogs`, followed by the ones of the
-insertions. Times are in seconds, relative to the start of the logging window.
-
-Each task bar spans the body of the task on the thread where it started, and
-`running_fraction` is the fraction of that time the task was running: when it
-was descheduled, it is unknown when, and it may have resumed on another thread. =#
-struct Gantt
-    threads::Vector{Int64}
-    jobids::Vector{Int64}             # category, see `jobid`
-    starts::Vector{Float64}
-    stops::Vector{Float64}
-    running_fraction::Vector{Float64}
-end
-
-function Gantt(loginfo::LogInfo, s::LogSummary)
-    g = Gantt(Int64[], Int64[], Float64[], Float64[], Float64[])
-    t0 = loginfo.time_start
-    ns = 1.0e-9
-    function bar!(tid, jobid, start, stop, fraction)
-        push!(g.threads, tid)
-        push!(g.jobids, jobid)
-        push!(g.starts, (start - t0) * ns)
-        push!(g.stops, (stop - t0) * ns)
-        return push!(g.running_fraction, fraction)
-    end
-    ncat = length(s.categories)
-    for t in loginfo.tasklogs
-        d = task_duration(t)
-        fraction = d == 0 ? 1.0 : min(1.0, t.running_time / d)
-        bar!(t.tid, jobid(t.label, s.categories), t.time_start, t.time_finish, fraction)
-    end
-    for l in loginfo.insertionlogs
-        # garbage collection (if any) is shown at the beginning of the insertion
-        gc_finish = l.time_start + l.gc_time
-        l.gc_time != 0 && bar!(l.tid, ncat + 3, l.time_start, gc_finish, 1.0)
-        bar!(l.tid, ncat + 2, gc_finish, l.time_finish, 1.0)
-    end
-    return g
 end
 
 """

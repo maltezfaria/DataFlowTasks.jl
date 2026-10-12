@@ -19,8 +19,8 @@ function hand_built_log()
     DFT.record!(log, DFT.TaskLog(1, t0, t0 + s ÷ 2, s ÷ 2, 2, 2, Int[], "a", false))
     DFT.record!(log, DFT.TaskLog(2, t0 + s ÷ 2, t0 + 3s ÷ 2, s ÷ 4, 2, 3, [1], "b", false))
     DFT.record!(log, DFT.TaskLog(3, t0 + s ÷ 5, t0 + 2s ÷ 5, s ÷ 5, 3, 3, Int[], "a", true))
-    DFT.record!(log, DFT.InsertionLog(t0, t0 + s ÷ 100, 0, 1, 1))
-    DFT.record!(log, DFT.InsertionLog(t0, t0 + s ÷ 100, s ÷ 200, 2, 1))
+    DFT.record!(log, DFT.InsertionLog(t0, t0, t0 + s ÷ 100, 0, 1, 1))
+    DFT.record!(log, DFT.InsertionLog(t0, t0, t0 + s ÷ 100, s ÷ 200, 2, 1))
     return log
 end
 
@@ -51,21 +51,6 @@ end
     # regex categories, matched in order
     sm = DFT.summarize(log; categories = ["vowel" => r"[aeiou]", "any" => r"."])
     @test sm.running_per_category ≈ [0.7, 0.25, 0.0]
-end
-
-@testset "Gantt data" begin
-    log = hand_built_log()
-    g = DFT.Gantt(log, DFT.summarize(log; categories = ["a", "b"]))
-    # 3 tasks, 2 insertions, 1 gc
-    @test length(g.threads) == 6
-    # task bars, relative to the start of the window, shaded by running fraction
-    @test g.starts[1:3] ≈ [0.0, 0.5, 0.2]
-    @test g.stops[1:3] ≈ [0.5, 1.5, 0.4]
-    @test g.running_fraction[1:3] ≈ [1.0, 0.25, 1.0]
-    @test g.jobids[1:3] == [1, 2, 1]
-    # insertions (category 4) and gc (category 5) on the calling thread
-    @test sort(g.jobids[4:end]) == [4, 4, 5]
-    @test all(==(1), g.threads[4:end])
 end
 
 @testset "describe" begin

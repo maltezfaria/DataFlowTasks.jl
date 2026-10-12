@@ -142,26 +142,29 @@ function addedge!(dag::DAG{T}, i::T, j::T) where {T}
 end
 
 """
-    addnode!(dag,(k,v)::Pair[, check=false])
-    addnode!(dag,k[, check=false])
+    addnode!(dag,(k,v)::Pair[, check=false, logger=nothing, time_request=0])
+    addnode!(dag,k[, check=false, logger=nothing, time_request=0])
 
 Add a node to the `dag`. If passed only a key `k`, the value `v` is initialized
 as empty (no edges added). The `check` flag is used to indicate if a data flow
 analysis should be performed to update the dependencies of the newly inserted
 node.
+
+If a `logger` is given, the insertion is recorded in it as an
+[`InsertionLog`](@ref), requested at `time_request` (by default, when the
+insertion begins).
 """
-function addnode!(dag::DAG{T}, i::T, check = false) where {T}
-    return addnode!(dag, i => (Set{T}(), Set{T}()), check)
+function addnode!(dag::DAG{T}, i::T, check = false, logger = nothing, time_request = UInt64(0)) where {T}
+    return addnode!(dag, i => (Set{T}(), Set{T}()), check, logger, time_request)
 end
 
-function addnode!(dag::DAG, kv::Pair, check = false)
+function addnode!(dag::DAG, kv::Pair, check = false, logger = nothing, time_request = UInt64(0))
     k, v = kv
     lock(dag)
     try
         while num_nodes(dag) >= dag.sz_max[]
             wait(dag.cond_push)
         end
-        logger = _log_mode() ? _getloginfo() : nothing
         # without a logger, the insertion is not timed to avoid any overhead
         if isnothing(logger)
             _addnode!(dag, kv, check)
@@ -172,7 +175,8 @@ function addnode!(dag::DAG, kv::Pair, check = false)
             diff = Base.GC_Diff(Base.gc_num(), stats)
             t₁ = time_ns()
             tid = Threads.threadid()
-            record!(logger, InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
+            time_request == 0 && (time_request = t₀)
+            record!(logger, InsertionLog(time_request, t₀, t₁, diff.total_time, tag(k), tid))
         end
     finally
         unlock(dag)
@@ -263,11 +267,14 @@ Check if there is an edge connecting `i` to `j`.
 has_edge(dag::DAG, i, j) = j ∈ outneighbors(dag, i)
 
 """
-    remove_node!(dag::DAG,i)
+    remove_node!(dag::DAG,i[, logger=nothing])
 
-Remove node `i` and all of its edges from `dag`.
+Remove node `i` and all of its edges from `dag`. If a `logger` is given, the
+removal is recorded in it as a [`CleanupLog`](@ref).
 """
-function remove_node!(dag::DAG, i)
+function remove_node!(dag::DAG, i, logger = nothing)
+    # without a logger, the removal is not timed to avoid any overhead
+    t₀ = isnothing(logger) ? UInt64(0) : time_ns()
     lock(dag)
     try
         # `i` may have been removed by `empty!` while it was running
@@ -280,6 +287,9 @@ function remove_node!(dag::DAG, i)
         for j in outlist
             pop!(inneighbors(dag, j), i)
         end
+        # recorded before notifying, so that the removal is logged once waiting
+        # for the dag to be empty returns
+        isnothing(logger) || record!(logger, CleanupLog(tag(i), t₀, time_ns()))
         # notify a task waiting to push into the dag
         notify(dag.cond_push, nothing; all = false)
         # if dag is empty, notify
