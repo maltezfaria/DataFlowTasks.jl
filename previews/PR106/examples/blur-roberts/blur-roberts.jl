@@ -11,7 +11,7 @@ Pkg.activate("../../..") #src
 #md # [![ipynb](https://img.shields.io/badge/download-ipynb-blue)](blur-roberts.ipynb)
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/blur-roberts/blur-roberts.ipynb)
 #
-# This example illustrate the use of `DataFlowTasks.jl` to parallelize the tiled
+# This example illustrates the use of `DataFlowTasks.jl` to parallelize the tiled
 # application of two kernels used in image processing. The application first
 # applies a blur filter on each pixel of the image; in a second step, the [Roberts
 # cross operator](https://en.wikipedia.org/wiki/Roberts_cross) is applied to
@@ -35,7 +35,7 @@ img = Gray.(load("test-image.jpg"))
 #   Gray-scale image.
 
 contract(range, n) = range[(begin + n):(end - n)]
-expand(range, n) = (range[begin] - n):(range[end] - n)
+expand(range, n) = (range[begin] - n):(range[end] + n)
 
 function img2mat(img)
     PixelType = eltype(img)
@@ -53,7 +53,7 @@ PixelType, mat = img2mat(img);
 # ## Filters implementation
 #
 # The `blur!` function averages the value of each pixel with the values of all
-# pixels less than `width` pixels away in manhattan distance. In order to
+# pixels at most `width` pixels away in each direction (in Chebyshev distance). In order to
 # simplify the implementation, the filter is applied only to pixels that are
 # sufficiently far from the boundary to have all their neighbors correctly
 # defined.

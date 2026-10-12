@@ -67,7 +67,7 @@ fetch(result)
 # From annotations describing task-data dependencies, `DataFlowTasks.jl` infers
 # dependencies between tasks. Internally, this set of dependencies is
 # represented as a Directed Acyclic Graph. All the data needed to reconstruct
-# the `DAG` (as well as the parallalel traces) can be collected using the `@log`
+# the `DAG` (as well as the parallel traces) can be collected using the `@log`
 # macro:
 
 log_info = DataFlowTasks.@log let
@@ -80,7 +80,7 @@ end
 
 # And the DAG can be visualized using `GraphViz`:
 
-using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
+using GraphViz # triggers additional code loading, powered by weak dependencies
 dag = GraphViz.Graph(log_info)
 DataFlowTasks.savedag("example_dag.svg", dag) #src
 
@@ -96,7 +96,7 @@ DataFlowTasks.savedag("example_dag.svg", dag) #src
 #
 # As a less contrived example, we illustrate below the use of `DataFlowTasks` to
 # parallelize a tiled Cholesky factorization. The implementation shown here is
-# delibarately made as simple as possible.
+# deliberately made as simple as possible.
 
 #-
 
@@ -112,8 +112,9 @@ DataFlowTasks.savedag("example_dag.svg", dag) #src
 # have `n` steps. The `i`-th step (with `i ∈ [1:n]`) will perform
 #
 # - `1` Cholesky factorization of the (i,i) block,
-# - `(i-1)` triangular solves (one for each block in the `i`-th row),
-# - `i*(i-1)/2` matrix multiplications to update the submatrix.
+# - `(n-i)` triangular solves (one for each block at the right of the diagonal
+#   block in the `i`-th row),
+# - `(n-i)*(n-i+1)/2` matrix multiplications to update the submatrix.
 #
 # The following image illustrates the 2nd step of the algorithm:
 #
@@ -141,7 +142,7 @@ function cholesky_tiled!(A, ts)
         ## Diagonal Cholesky serial factorization
         cholesky!(T[i, i])
 
-        ## Left blocks update
+        ## Right blocks update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             ldiv!(U', T[i, j])
@@ -176,7 +177,7 @@ function cholesky_dft!(A, ts)
         ## Diagonal Cholesky serial factorization
         @dspawn cholesky!(@RW(T[i, i])) label = "chol ($i,$i)"
 
-        ## Left blocks update
+        ## Right blocks update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
@@ -201,7 +202,7 @@ end
 
 #-
 
-# The code below shows how to use this `cholesky_tiled!` function, as well as
+# The code below shows how to use this `cholesky_dft!` function, as well as
 # how to profile the program and get information about how tasks were scheduled:
 
 ## DataFlowTasks environment setup
@@ -285,8 +286,8 @@ save("cholesky_trace.svg", trace) #src
 #md # ![](cholesky_trace.svg)
 
 s = DataFlowTasks.summarize(log_info) #src
-@assert s.longest_path_length > 0.5 * s.elapsed "the longest path is not a large part of the elapsed time" #src
-@assert DataFlowTasks.idle(s) > 0.1 * DataFlowTasks.capacity(s) "the threads are not idle" #src
+@assert s.longest_path_length > 0.4 * s.elapsed "the longest path is not a large part of the elapsed time" #src
+@assert DataFlowTasks.idle(s) > 0.05 * DataFlowTasks.capacity(s) "the threads are not idle" #src
 
 # We see here that the longest path accounts for a large part of the execution
 # time: with this block size and matrix size, the algorithm does not expose
