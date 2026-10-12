@@ -41,11 +41,11 @@ memory_overlap(di::Array, dj::SubArray) = memory_overlap(dj, di)
 function _memory_overlap(di::SubArray, dj::SubArray)
     idx1 = di.indices
     idx2 = dj.indices
-    msg = """
-        subarrays of different dimensions being compared, assuming by
-        default their memory overlaps.
-    """
-    length(idx1) == length(idx2) || (warn(msg); return true)
+    if length(idx1) != length(idx2)
+        # the analysis compares many pairs of data: warn only once
+        @warn "subarrays of different dimensions being compared, assuming by default that their memory overlaps" maxlog = 1
+        return true
+    end
     N = length(idx1)
     inter = ntuple(i -> idxintersect(idx1[i], idx2[i]), N)
     return all(inter)
