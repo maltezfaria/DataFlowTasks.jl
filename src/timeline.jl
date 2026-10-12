@@ -212,3 +212,17 @@ function realized_critical_path(l::LogInfo)
     end
     return reverse!(path)
 end
+
+"""
+    traceplot(loginfo::LogInfo; categories, highlight, critical_path)
+    traceplot!(ax, loginfo::LogInfo; ...)
+
+Plot the trace of the tasks logged in `loginfo`, packed in lanes. This is the
+top panel of `Makie.plot(loginfo)`.
+
+This function requires `Makie`; see its documentation in the `Makie` extension
+for more details.
+"""
+function traceplot end
+
+@doc (@doc traceplot) function traceplot! end

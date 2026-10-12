@@ -68,6 +68,25 @@ end
     # Trace visualization
     plt = plot(logger; categories = ["A²", "B²", "A*B"])
     @test plt isa Makie.Figure
+
+    # The trace as a recipe, in a user-provided axis
+    tasks = DFT.timeline(logger)
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+    tp = DFT.traceplot!(ax, logger; categories = ["A²", "B²", "A*B"])
+    @test length(tp.bars[]) == length(tasks)
+    # bars are shaded by the fraction of their duration the tasks were running
+    @test [c.alpha for c in tp.colors[]] ≈ [min(1, t.running / (t.finished - t.started)) for t in tasks]
+    @test isempty(tp.highlight_bars[])
+    # highlighting a task outlines it with its predecessors and successors
+    t = tasks[end]
+    tp.highlight = DFT.tag(t)
+    nsucc = count(s -> DFT.tag(t) ∈ s.predecessors, tasks)
+    @test length(tp.highlight_bars[]) == 1 + length(t.predecessors) + nsucc
+    # the task under the mouse is found from its lane and time
+    pos = Point2f((t.started + t.finished) / 2, t.lane)
+    @test MakieExt.task_at(tasks, pos) === t
+    @test isnothing(MakieExt.task_at(tasks, Point2f(-1, t.lane)))
 end
 
 # log again, and make sure things still work

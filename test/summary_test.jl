@@ -53,21 +53,6 @@ end
     @test sm.running_per_category ≈ [0.7, 0.25, 0.0]
 end
 
-@testset "Gantt data" begin
-    log = hand_built_log()
-    g = DFT.Gantt(log, DFT.summarize(log; categories = ["a", "b"]))
-    # 3 tasks, 2 insertions, 1 gc
-    @test length(g.threads) == 6
-    # task bars, relative to the start of the window, shaded by running fraction
-    @test g.starts[1:3] ≈ [0.0, 0.5, 0.2]
-    @test g.stops[1:3] ≈ [0.5, 1.5, 0.4]
-    @test g.running_fraction[1:3] ≈ [1.0, 0.25, 1.0]
-    @test g.jobids[1:3] == [1, 2, 1]
-    # insertions (category 4) and gc (category 5) on the calling thread
-    @test sort(g.jobids[4:end]) == [4, 4, 5]
-    @test all(==(1), g.threads[4:end])
-end
-
 @testset "describe" begin
     out = sprint(io -> DFT.describe(io, hand_built_log(); categories = ["a", "b"]))
     @test occursin(r"Elapsed time\s+: 2.000", out)

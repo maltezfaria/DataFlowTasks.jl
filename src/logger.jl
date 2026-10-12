@@ -573,48 +573,6 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
     return nothing
 end
 
-#= Data of the Gantt chart (parallel trace) of a `LogInfo`, as a struct of
-arrays: entry `i` of each array describes the same bar. The bars of the tasks
-come first, in the order of `loginfo.tasklogs`, followed by the ones of the
-insertions. Times are in seconds, relative to the start of the logging window.
-
-Each task bar spans the body of the task on the thread where it started, and
-`running_fraction` is the fraction of that time the task was running: when it
-was descheduled, it is unknown when, and it may have resumed on another thread. =#
-struct Gantt
-    threads::Vector{Int64}
-    jobids::Vector{Int64}             # category, see `jobid`
-    starts::Vector{Float64}
-    stops::Vector{Float64}
-    running_fraction::Vector{Float64}
-end
-
-function Gantt(loginfo::LogInfo, s::LogSummary)
-    g = Gantt(Int64[], Int64[], Float64[], Float64[], Float64[])
-    t0 = loginfo.time_start
-    ns = 1.0e-9
-    function bar!(tid, jobid, start, stop, fraction)
-        push!(g.threads, tid)
-        push!(g.jobids, jobid)
-        push!(g.starts, (start - t0) * ns)
-        push!(g.stops, (stop - t0) * ns)
-        return push!(g.running_fraction, fraction)
-    end
-    ncat = length(s.categories)
-    for t in loginfo.tasklogs
-        d = task_duration(t)
-        fraction = d == 0 ? 1.0 : min(1.0, t.running_time / d)
-        bar!(t.tid, jobid(t.label, s.categories), t.time_start, t.time_finish, fraction)
-    end
-    for l in loginfo.insertionlogs
-        # garbage collection (if any) is shown at the beginning of the insertion
-        gc_finish = l.time_start + l.gc_time
-        l.gc_time != 0 && bar!(l.tid, ncat + 3, l.time_start, gc_finish, 1.0)
-        bar!(l.tid, ncat + 2, gc_finish, l.time_finish, 1.0)
-    end
-    return g
-end
-
 """
     loggertodot(logger)  --> dagstring
 

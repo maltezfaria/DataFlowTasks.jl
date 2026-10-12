@@ -153,24 +153,38 @@ Let us explore the various parts of this graph.
 ### Parallel Trace
 
 The main plot (at the top) is the parallel trace visualization: each task is
-shown as a bar on the thread where it started, from the moment its body started
-to the moment it finished. The bar is shaded according to the fraction of that
-time the task was actually running (see [the limitations of the parallel
-trace](@ref trace-limitations)).
+shown as a bar, from the moment its body started to the moment it finished. The
+bars are packed in *lanes*, such that the bars of a lane do not overlap: the
+number of lanes is the largest number of tasks running at the same time. A lane
+is not a thread (see [the limitations of the parallel
+trace](@ref trace-limitations)). Each bar is shaded according to the fraction of
+its duration the task was actually running, and the bars of failed tasks are
+outlined in red.
 
-Even though tasks are grouped in categories by considering substrings in their
-labels, the full label is shown when hovering over a task in the interactive
-visualization (i.e. when using `GLMakie` instead of `CairoMakie`).
+The black line going through some of the tasks is the *realized critical path*
+(see [`DataFlowTasks.realized_critical_path`](@ref)): starting from the last
+task to finish, it goes back to the predecessor which made each task ready, i.e.
+the one which finished last. It shows the chain of events which determined the
+end of the computation, and the time spent between the moment a task was ready
+and the moment it started.
 
-The plot also shows the time spent inserting nodes in the graph (which is part
-of the overhead incurred by the use of `DataFlowTasks`): these insertion times
-are visualized as red tasks. They are not visible for such a small example, but
-the interactive visualization allows zooming on the plot to search for those
-small tasks.
+When hovering over a task in the interactive visualization (i.e. when using
+`GLMakie` instead of `CairoMakie`), the task is outlined in black, its
+predecessors in blue and its successors in orange, and the title shows its
+label and its lifecycle (see [`DataFlowTasks.TaskTimeline`](@ref)): how long its
+insertion took (and waited for the DAG to be available), what made it ready,
+how long it waited to start, and its duration. The same highlighting is
+available with the `highlight` attribute of [`DataFlowTasks.traceplot`](@ref),
+which draws the trace in any `Makie` axis.
 
-Also note that inserting tasks into the graph involves memory allocations, and
-may thus trigger garbage collector sweeps. When this happens, the time spent in
-the garbage collector is also shown in the plot.
+The bottom lane shows the insertion of the tasks in the DAG (which is part of
+the overhead incurred by the use of `DataFlowTasks`): the analysis of the data
+dependencies is shown in red, and the time spent waiting for the DAG (locked, or
+at full capacity) in grey. Inserting tasks involves memory allocations, and may
+thus trigger garbage collector sweeps: the time spent in the garbage collector
+during an insertion is shown in yellow. These are not visible for such a small
+example, but the interactive visualization allows zooming on the plot to search
+for those small bars.
 
 ### Time: breakdown by activity
 
@@ -303,7 +317,11 @@ descheduled and resumed. Therefore, in the parallel trace:
 
 - a task which is descheduled is shaded according to the fraction of its
   duration it was running, but the moments it was not running are not shown;
-- while a task is descheduled, its thread may run other tasks, so that the bars
-  of several tasks may overlap (as in the second example above);
-- a task which is descheduled may resume on another thread: it is shown on the
-  thread where it started.
+- while a task is descheduled, its thread may run other tasks, and the task may
+  resume on another thread. This is why the tasks are shown in lanes rather than
+  on threads: there may be more lanes than threads (as in the second example
+  above).
+
+The lifecycle of each task is available with [`DataFlowTasks.timeline`](@ref),
+and the number of tasks in the DAG, ready, and running over time with
+[`DataFlowTasks.concurrency`](@ref).
