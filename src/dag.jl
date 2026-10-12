@@ -14,7 +14,7 @@ The `DAG` is thread-safe: mutating operations acquire `dag.lock`, and the
 conditions `cond_push` and `cond_empty` are associated with that same lock.
 """
 struct DAG{T}
-    inoutlist::OrderedDict{T,Tuple{Set{T},Set{T}}}
+    inoutlist::OrderedDict{T, Tuple{Set{T}, Set{T}}}
     cond_push::Threads.Condition
     cond_empty::Threads.Condition
     lock::ReentrantLock
@@ -33,11 +33,11 @@ function DAG{T}(sz = typemax(Int)) where {T}
     if sz <= 0
         throw(ArgumentError("DAG buffer size must be a positive integer"))
     end
-    inoutlist  = OrderedDict{T,Tuple{Set{T},Set{T}}}()
-    lock       = ReentrantLock()
-    cond_push  = Threads.Condition(lock)
+    inoutlist = OrderedDict{T, Tuple{Set{T}, Set{T}}}()
+    lock = ReentrantLock()
+    cond_push = Threads.Condition(lock)
     cond_empty = Threads.Condition(lock)
-    _buffer    = Set{Int}()
+    _buffer = Set{Int}()
     return DAG{T}(inoutlist, cond_push, cond_empty, lock, Ref(sz), Ref(0), _buffer)
 end
 
@@ -57,10 +57,10 @@ function Base.resize!(dag::DAG, sz)
     return sz
 end
 
-Base.isempty(dag::DAG)     = isempty(dag.inoutlist)
+Base.isempty(dag::DAG) = isempty(dag.inoutlist)
 Base.getindex(dag::DAG, i) = dag.inoutlist[i]
 
-Base.lock(dag::DAG)   = lock(dag.lock)
+Base.lock(dag::DAG) = lock(dag.lock)
 Base.unlock(dag::DAG) = unlock(dag.lock)
 
 """
@@ -230,7 +230,7 @@ function isconnected(dag::DAG, i, j)
             return true
         elseif k < i
             continue
-        else#k>i
+        else #k>i
             isconnected(dag, i, k) && (return true)
         end
     end
@@ -313,7 +313,7 @@ function longest_path(graph)
     # lp[n] = (length, n′)   where:
     # - length is the length of the longest path leading to n
     # - n′ is the predecessor of n in this path (or 0 if n is the first node in the path)
-    lp = Dict{Int64,Tuple{Float64,Int}}()
+    lp = Dict{Int64, Tuple{Float64, Int}}()
 
     for node in topological_sort(graph)
         # Find the predecessor with the longest path leading to it

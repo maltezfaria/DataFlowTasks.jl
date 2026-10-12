@@ -278,7 +278,7 @@ Note that in the example above `t2` waited for `t1` because it read a data field
 that `t1` accessed in a writable manner.
 """
 macro dspawn(expr, kwargs...)
-    _dtask(expr, kwargs; source = __source__) do t
+    return _dtask(expr, kwargs; source = __source__) do t
         return :($spawn($t))
     end
 end
@@ -293,7 +293,7 @@ See also:
 [`@dspawn`](@ref), [`@dtask`](@ref)
 """
 macro dasync(expr, kwargs...)
-    _dtask(expr, kwargs; source = __source__) do t
+    return _dtask(expr, kwargs; source = __source__) do t
         return :($schedule($t))
     end
 end

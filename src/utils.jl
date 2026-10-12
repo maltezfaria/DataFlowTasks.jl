@@ -38,7 +38,7 @@ function _handle_error(exceptions)
 end
 
 function handle_errors(body)
-    if _debug_mode()
+    return if _debug_mode()
         try
             body()
         catch e
@@ -68,7 +68,7 @@ struct FinishedChannel{T} <: AbstractChannel{T}
     end
 end
 
-Base.lock(c::FinishedChannel)   = lock(c.cond_take)
+Base.lock(c::FinishedChannel) = lock(c.cond_take)
 Base.unlock(c::FinishedChannel) = unlock(c.cond_take)
 
 Base.length(c::FinishedChannel) = length(c.data)
@@ -115,4 +115,4 @@ Singleton type used to safely interrupt a task reading from an `AbstractChannel`
 """
 struct Stop end
 
-const Stoppable{T} = Union{T,Stop}
+const Stoppable{T} = Union{T, Stop}

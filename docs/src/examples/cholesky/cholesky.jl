@@ -56,29 +56,29 @@ Pkg.activate("../../..") #src
 using LinearAlgebra
 BLAS.set_num_threads(1) #src
 
-tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
+tilerange(ti, ts) = ((ti - 1) * ts + 1):(ti * ts)
 
 function cholesky_tiled!(A, ts)
-    m = size(A, 1); @assert m==size(A, 2)
-    m%ts != 0 && error("Tilesize doesn't fit the matrix")
-    n = m÷ts  # number of tiles in each dimension
+    m = size(A, 1); @assert m == size(A, 2)
+    m % ts != 0 && error("Tilesize doesn't fit the matrix")
+    n = m ÷ ts  # number of tiles in each dimension
 
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
         ## Diagonal cholesky serial factorization
-        cholesky!(T[i,i])
+        cholesky!(T[i, i])
 
         ## Left tiles update
-        U = UpperTriangular(T[i,i])
-        for j in i+1:n
-            ldiv!(U', T[i,j])
+        U = UpperTriangular(T[i, i])
+        for j in (i + 1):n
+            ldiv!(U', T[i, j])
         end
 
         ## Submatrix update
-        for j in i+1:n
+        for j in (i + 1):n
             for k in j:n
-                mul!(T[j,k], T[i,j]', T[i,k], -1, 1)
+                mul!(T[j, k], T[i, j]', T[i, k], -1, 1)
             end
         end
     end
@@ -91,11 +91,11 @@ end
 # factorization. Here we divide a matrix of size 4096×4096 in 8×8 tiles of size
 # 512×512:
 
-n  = 4096
+n = 4096
 ts = 512
 A = rand(n, n)
-A = (A + adjoint(A))/2
-A = A + n*I;
+A = (A + adjoint(A)) / 2
+A = A + n * I;
 
 # and the results seem to be correct:
 
@@ -104,7 +104,7 @@ F = cholesky_tiled!(copy(A), ts)
 GC.gc(); @time cholesky_tiled!(copy(A), ts) #src
 
 ## Check results
-err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
+err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))
 @show err
 @assert err < eps(Float64)
 
@@ -120,32 +120,32 @@ err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
 using DataFlowTasks
 
 function cholesky_dft!(A, ts)
-    m = size(A, 1); @assert m==size(A, 2)
-    m%ts != 0 && error("Tilesize doesn't fit the matrix")
-    n = m÷ts  # number of tiles in each dimension
+    m = size(A, 1); @assert m == size(A, 2)
+    m % ts != 0 && error("Tilesize doesn't fit the matrix")
+    n = m ÷ ts  # number of tiles in each dimension
 
     T = [view(A, tilerange(i, ts), tilerange(j, ts)) for i in 1:n, j in 1:n]
 
     for i in 1:n
         ## Diagonal cholesky serial factorization
-        @dspawn cholesky!(@RW(T[i,i])) label="chol ($i,$i)"
+        @dspawn cholesky!(@RW(T[i, i])) label = "chol ($i,$i)"
 
         ## Left tiles update
-        U = UpperTriangular(T[i,i])
-        for j in i+1:n
-            @dspawn ldiv!(@R(U)', @RW(T[i,j])) label="ldiv ($i,$j)"
+        U = UpperTriangular(T[i, i])
+        for j in (i + 1):n
+            @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
         end
 
         ## Submatrix update
-        for j in i+1:n
+        for j in (i + 1):n
             for k in j:n
-                @dspawn schur_complement!(@RW(T[j,k]), @R(T[i,j])', @R(T[i,k])) label="schur ($j,$k)"
+                @dspawn schur_complement!(@RW(T[j, k]), @R(T[i, j])', @R(T[i, k])) label = "schur ($j,$k)"
             end
         end
     end
 
     ## Construct the factorized object
-    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label="result"
+    r = @dspawn Cholesky(@R(A), 'U', zero(LinearAlgebra.BlasInt)) label = "result"
     return fetch(r)
 end
 
@@ -157,7 +157,7 @@ schur_complement!(C, A, B) = mul!(C, A, B, -1, 1)
 F = cholesky_dft!(copy(A), ts)
 
 ## Check results
-err = norm(F.L*F.U-A,Inf)/max(norm(A),norm(F.L*F.U))
+err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))
 @show err
 @assert err < eps(Float64)
 
@@ -188,13 +188,13 @@ dag = GraphViz.Graph(log_info)
 
 # We can also readily get more details about the performance limiting factors:
 
-DataFlowTasks.describe(log_info; categories=["chol", "ldiv", "schur"])
+DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 
 # and, at the price of loading `Makie`, display these in a more convenient
 # profile plot:
 
 using CairoMakie # or GLMakie in order to have more interactivity
-trace = plot(log_info; categories=["chol", "ldiv", "schur"])
+trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 
 # The overhead incurred by `DataFlowTasks` seems relatively small here: the time
 # taken inserting tasks is barely measurable, and the scheduling did not lead to
@@ -226,24 +226,24 @@ BenchmarkTools.DEFAULT_PARAMETERS.seconds = 1
 ## n × n symmetric positive definite matrix
 function spd_matrix(n)
     A = rand(n, n)
-    A = (A + adjoint(A))/2
-    return A + n*I
+    A = (A + adjoint(A)) / 2
+    return A + n * I
 end
 
 function bench_blas(n)
     nt = Threads.nthreads()
     BLAS.set_num_threads(nt)
-    return @belapsed cholesky!(A) setup=(A=spd_matrix($n)) evals=1
+    return @belapsed cholesky!(A) setup = (A = spd_matrix($n)) evals = 1
 end
 
-function bench_tiled(n;tilesize=256)
+function bench_tiled(n; tilesize = 256)
     BLAS.set_num_threads(1)
-    return @belapsed cholesky_tiled!(A, $tilesize) setup=(A=spd_matrix($n)) evals=1
+    return @belapsed cholesky_tiled!(A, $tilesize) setup = (A = spd_matrix($n)) evals = 1
 end
 
-function bench_dft(n;tilesize=256)
+function bench_dft(n; tilesize = 256)
     BLAS.set_num_threads(1)
-    return @belapsed cholesky_dft!(A, $tilesize) setup=(A=spd_matrix($n)) evals=1
+    return @belapsed cholesky_dft!(A, $tilesize) setup = (A = spd_matrix($n)) evals = 1
 end
 
 # Let us compare the performances of the default *BLAS*  library and ours for
@@ -254,20 +254,20 @@ BLAS.get_config()
 #-
 
 nsizes = 512 .* (1:1:8)
-tblas  = map(bench_blas, nsizes)
-tdft   = map(bench_dft, nsizes)
-Gflops =  map(n->(1/3*n^3 + 1/2*n^2)/10^9, nsizes)
+tblas = map(bench_blas, nsizes)
+tdft = map(bench_dft, nsizes)
+Gflops = map(n -> (1 / 3 * n^3 + 1 / 2 * n^2) / 10^9, nsizes)
 
 fig = Figure()
-ax  = Axis(fig[1,1], xlabel="Matrix size", ylabel="Time (s)")
-scatterlines!(ax, nsizes, tblas, label= "OpenBLAS", linewidth=2)
-scatterlines!(ax, nsizes, tdft, label="DFT", linewidth=2)
-axislegend(position=:lt)
-ax  = Axis(fig[1,2], xlabel="Matrix size", ylabel="GFlops/second")
-scatterlines!(ax, nsizes, Gflops ./ tblas, label= "OpenBLAS", linewidth=2)
-scatterlines!(ax, nsizes, Gflops ./ tdft, label="DFT", linewidth=2)
-axislegend(position=:lt)
-Label(fig[0,:],  "Cholesky factorization on $(Threads.nthreads()) threads", fontsize=20)
+ax = Axis(fig[1, 1], xlabel = "Matrix size", ylabel = "Time (s)")
+scatterlines!(ax, nsizes, tblas, label = "OpenBLAS", linewidth = 2)
+scatterlines!(ax, nsizes, tdft, label = "DFT", linewidth = 2)
+axislegend(position = :lt)
+ax = Axis(fig[1, 2], xlabel = "Matrix size", ylabel = "GFlops/second")
+scatterlines!(ax, nsizes, Gflops ./ tblas, label = "OpenBLAS", linewidth = 2)
+scatterlines!(ax, nsizes, Gflops ./ tdft, label = "DFT", linewidth = 2)
+axislegend(position = :lt)
+Label(fig[0, :], "Cholesky factorization on $(Threads.nthreads()) threads", fontsize = 20)
 fig
 
 # We see that, despite the simplicity of the implementation, the parallel
@@ -278,6 +278,6 @@ fig
 # a matrix of size $n=4096$:
 
 (;
- threads = Threads.nthreads(),
- speedup = bench_tiled(4096) / bench_dft(4096),
+    threads = Threads.nthreads(),
+    speedup = bench_tiled(4096) / bench_dft(4096),
 )

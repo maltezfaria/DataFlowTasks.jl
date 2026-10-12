@@ -95,8 +95,9 @@ display(L, x, y)
 
 function fill_lengths!(L, x, y, ir = eachindex(x), jr = eachindex(y))
     @inbounds for j in jr, i in ir
-        L[i+1, j+1] = (x[i] == y[j]) ? L[i, j] + 1 : max(L[i+1, j], L[i, j+1])
+        L[i + 1, j + 1] = (x[i] == y[j]) ? L[i, j] + 1 : max(L[i + 1, j], L[i, j + 1])
     end
+    return
 end
 
 fill_lengths!(L, x, y, 1:1)
@@ -122,11 +123,11 @@ function backtrack(L, x, y)
     i = lastindex(x)
     j = lastindex(y)
     subseq = Char[]
-    while L[i+1, j+1] != 0
+    while L[i + 1, j + 1] != 0
         if x[i] == y[j]
             pushfirst!(subseq, x[i])
             (i, j) = (i - 1, j - 1)
-        elseif L[i+1, j] > L[i, j+1]
+        elseif L[i + 1, j] > L[i, j + 1]
             (i, j) = (i, j - 1)
         else
             (i, j) = (i - 1, j)
@@ -246,13 +247,13 @@ using DataFlowTasks
 init_lengths!(L, ir, jr) = fill!(view(L, ir, jr), 0)
 
 function LCS_par!(L, x, y, nx, ny)
-    L[1,1] = 0
+    L[1, 1] = 0
     for (ky, jrange) in enumerate(SplitAxis(eachindex(y), ny))
         L1j = view(L, 1, jrange .+ 1)
-        @dspawn fill!(@W(L1j), 0) label = "init (1, $(ky+1))"
+        @dspawn fill!(@W(L1j), 0) label = "init (1, $(ky + 1))"
         for (kx, irange) in enumerate(SplitAxis(eachindex(x), nx))
             Lx1 = view(L, irange .+ 1, 1)
-            ky == 1 && @dspawn fill!(@W(Lx1), 0) label = "init ($(kx+1), 1)"
+            ky == 1 && @dspawn fill!(@W(Lx1), 0) label = "init ($(kx + 1), 1)"
             @dspawn begin
                 @R view(L, irange, jrange)
                 @W view(L, irange .+ 1, jrange .+ 1)
@@ -298,7 +299,7 @@ barplot(
 # depending on the system, already saves some time due to cache effects. The the
 # parallel version does show some speedup, but not as much as one might expect:
 
-(; nthreads = Threads.nthreads(), speedup  = t_seq / t_par)
+(; nthreads = Threads.nthreads(), speedup = t_seq / t_par)
 
 # Let's try and understand why. The run-time data collected above contains useful information
 

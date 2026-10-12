@@ -31,7 +31,7 @@ sort!(view(v, 1:8))
 sort!(view(v, 9:16))
 sort!(view(v, 17:24))
 sort!(view(v, 25:32))
-barplot(v; color=ceil.(Int, eachindex(v)./8), colormap=:Paired_4, colorrange=(1,4))
+barplot(v; color = ceil.(Int, eachindex(v) ./ 8), colormap = :Paired_4, colorrange = (1, 4))
 
 # Now we can merge the first two 8-element blocks into a sorted 16-element
 # block. And do the same for the 3rd and 4th 8-element blocks. We'll need an
@@ -53,15 +53,16 @@ function merge!(dest, left, right)
         if i <= I && (j > J || left[i] < right[j])
             dest[k] = left[i]; i += 1
         else
-            dest[k] = right[j]; j+=1
+            dest[k] = right[j]; j += 1
         end
     end
+    return
 end
 
 w = similar(v)
-@views merge!(w[1:16],  v[1:8],   v[9:16])
+@views merge!(w[1:16], v[1:8], v[9:16])
 @views merge!(w[17:32], v[17:24], v[25:32])
-barplot(w; color=ceil.(Int, eachindex(v)./16), colormap=:Paired_4, colorrange=(1,4))
+barplot(w; color = ceil.(Int, eachindex(v) ./ 16), colormap = :Paired_4, colorrange = (1, 4))
 
 # Now `w` is sorted in two blocks, which we can merge to get the entire sorted
 # array. Instead of using a new buffer to store the results, let's re-use the
@@ -91,12 +92,12 @@ barplot(v)
 # semantics of `mergesort!` is thus that of an in-place sort: after the call,
 # `v` should be sorted.
 
-function mergesort!(v, buf=similar(v), bs=64)
+function mergesort!(v, buf = similar(v), bs = 64)
     N = length(v)
 
     for i₀ in 1:bs:N
-        i₁ = min(i₀+bs-1, N)
-        sort!(view(v, i₀:i₁), alg=InsertionSort)
+        i₁ = min(i₀ + bs - 1, N)
+        sort!(view(v, i₀:i₁), alg = InsertionSort)
     end
 
     (from, to) = (v, buf)
@@ -104,11 +105,11 @@ function mergesort!(v, buf=similar(v), bs=64)
     while bs < length(v)
         i₀ = 1
         while i₀ < N
-            i₁ = i₀+bs; i₁>N && break
-            i₂ = min(i₀+2bs-1, N)
-            @views merge!(to[i₀:i₂], from[i₀:i₁-1], from[i₁:i₂])
+            i₁ = i₀ + bs; i₁ > N && break
+            i₂ = min(i₀ + 2bs - 1, N)
+            @views merge!(to[i₀:i₂], from[i₀:(i₁ - 1)], from[i₁:i₂])
 
-            i₀ = i₂+1
+            i₀ = i₂ + 1
         end
         if i₀ <= N
             @inbounds @views to[i₀:N] .= from[i₀:N]
@@ -119,7 +120,7 @@ function mergesort!(v, buf=similar(v), bs=64)
     end
 
     v === from || copy!(v, from)
-    v
+    return v
 end
 
 N = 100_000
@@ -145,12 +146,12 @@ buf = similar(v)
 
 using DataFlowTasks
 
-function mergesort_dft!(v, buf=similar(v), bs=16384)
+function mergesort_dft!(v, buf = similar(v), bs = 16384)
     N = length(v)
 
     for i₀ in 1:bs:N
-        i₁ = min(i₀+bs-1, N)
-        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
+        i₁ = min(i₀ + bs - 1, N)
+        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label = "sort\n$i₀:$i₁"
     end
 
     ## WARNING: (from, to) are not local to each task but will later be re-bound
@@ -160,21 +161,21 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
     while bs < N
         i₀ = 1  # WARNING: i₀ is not local to each task; avoid capturing it
         while i₀ < N
-            i₁ = i₀+bs; i₁>N && break
-            i₂ = min(i₀+2bs-1, N)
+            i₁ = i₀ + bs; i₁ > N && break
+            i₂ = min(i₀ + 2bs - 1, N)
             let # Create new bindings which will be captured in the task body
-                left  = @view from[i₀:i₁-1]
+                left = @view from[i₀:(i₁ - 1)]
                 right = @view from[i₁:i₂]
-                dest  = @view to[i₀:i₂]
-                @dspawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$i₀:$i₂"
+                dest = @view to[i₀:i₂]
+                @dspawn merge!(@W(dest), @R(left), @R(right)) label = "merge\n$i₀:$i₂"
             end
-            i₀ = i₂+1
+            i₀ = i₂ + 1
         end
         if i₀ <= N
             let # Create new bindings which will be captured in the task body
-                src  = @view from[i₀:N]
+                src = @view from[i₀:N]
                 dest = @view to[i₀:N]
-                @dspawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
+                @dspawn @W(dest) .= @R(src) label = "copy\n$i₀:$N"
             end
         end
 
@@ -182,10 +183,10 @@ function mergesort_dft!(v, buf=similar(v), bs=16384)
         (from, to) = (to, from)
     end
 
-    final_task = @dspawn @R(from) label="result"
+    final_task = @dspawn @R(from) label = "result"
     fetch(final_task)
     v === from || copy!(v, from)
-    v
+    return v
 end
 
 @assert issorted(mergesort_dft!(copy(v), buf))
@@ -219,21 +220,22 @@ DataFlowTasks.savedag("sort_dag.svg", dag) #src
 
 N = 1_000_000
 data = rand(N);
-buf  = similar(data);
+buf = similar(data);
 
 using BenchmarkTools
-bench_seq = @benchmark mergesort!(x, $buf) setup=(x=copy(data)) evals=1
+bench_seq = @benchmark mergesort!(x, $buf) setup = (x = copy(data)) evals = 1
 
 #-
 
-bench_dft = @benchmark mergesort_dft!(x, $buf) setup=(x=copy(data)) evals=1
+bench_dft = @benchmark mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 1
 
 # The parallel version does exhibit some speed-up, but not as much as one would
 # hope for given the number of threads used in the computation:
 
 (;
- nthreads = Threads.nthreads(),
- speedup = time(minimum(bench_seq)) / time(minimum(bench_dft)))
+    nthreads = Threads.nthreads(),
+    speedup = time(minimum(bench_seq)) / time(minimum(bench_dft)),
+)
 
 # To better understand why the speedup may not be as good as expected, we can
 # inspect the execution trace of the parallel version and visualize it using
@@ -262,16 +264,16 @@ plot(log_info; categories = ["sort", "merge", "copy", "result"])
 ## Assuming we want to sort `v`, and its `left` and `right` halves have already
 ## been sorted, we merge them into `dest`:
 v = randperm(64)
-left  = @views v[1:32]; sort!(left)
+left = @views v[1:32]; sort!(left)
 right = @views v[33:64]; sort!(right)
 dest = similar(v)
 
 (I, J, K) = length(left), length(right), length(dest)
-@assert I+J == K
+@assert I + J == K
 
 ## First we find a pivot value, which splits `left` in two halves:
 i = 1 + I ÷ 2
-pivot = left[i-1]
+pivot = left[i - 1]
 
 ## Next we split `right` into two parts: indices associated to values lower than
 ## the pivot, and indices associated to values larger than the pivot. Since the
@@ -280,8 +282,8 @@ j = searchsortedfirst(right, pivot)
 
 ## We now have both `left` and `right` decomposed into two (hopefully nearly
 ## equal) parts:
-(i₁, i₂) = (1:i-1, i:I)  # partition of `left`
-(j₁, j₂) = (1:j-1, j:J)  # partition of `right`
+(i₁, i₂) = (1:(i - 1), i:I)  # partition of `left`
+(j₁, j₂) = (1:(j - 1), j:J)  # partition of `right`
 
 # Let's visualize this decomposition by plotting four groups `i₁`, `i₂`, `j₁`,
 # `j₂`:
@@ -296,24 +298,24 @@ colors = map(eachindex(v)) do i
     findfirst(∋(i), blocks)
 end
 
-center(r) = (r[1]+r[end]) / 2
+center(r) = (r[1] + r[end]) / 2
 
-fig, ax, _ = barplot(v, color=colors, colormap=:Paired_4, colorrange=(1,4));
+fig, ax, _ = barplot(v, color = colors, colormap = :Paired_4, colorrange = (1, 4));
 
-vertical(x, h) = lines!(ax, [x, x], [-2, h], linestyle=:dash, color=:black)
-vertical(last(left₁)  + 0.5, pivot+10)
-vertical(last(right₁) + 0.5, pivot+10)
-vertical(last(left₂)  + 0.5, M+1)
+vertical(x, h) = lines!(ax, [x, x], [-2, h], linestyle = :dash, color = :black)
+vertical(last(left₁) + 0.5, pivot + 10)
+vertical(last(right₁) + 0.5, pivot + 10)
+vertical(last(left₂) + 0.5, M + 1)
 
-lines!(ax, [0, lastindex(v)+1], [pivot, pivot], linestyle=:dash, color=:black)
+lines!(ax, [0, lastindex(v) + 1], [pivot, pivot], linestyle = :dash, color = :black)
 
-text!(ax, (0, pivot), text="pivot", align=(:left, :bottom))
-text!(ax, (center(left₁),  -1), text="i₁ = $i₁", align=(:center, :top))
-text!(ax, (center(left₂),  -1), text="i₂ = $i₂", align=(:center, :top))
-text!(ax, (center(right₁), -1), text="j₁ = $j₁", align=(:center, :top))
-text!(ax, (center(right₂), -1), text="j₂ = $j₂", align=(:center, :top))
-text!(ax, (center(left₁  ∪ left₂),  M), text="left",  align=(:center, :top), fontsize=24)
-text!(ax, (center(right₁ ∪ right₂), M), text="right", align=(:center, :top), fontsize=24)
+text!(ax, (0, pivot), text = "pivot", align = (:left, :bottom))
+text!(ax, (center(left₁), -1), text = "i₁ = $i₁", align = (:center, :top))
+text!(ax, (center(left₂), -1), text = "i₂ = $i₂", align = (:center, :top))
+text!(ax, (center(right₁), -1), text = "j₁ = $j₁", align = (:center, :top))
+text!(ax, (center(right₂), -1), text = "j₂ = $j₂", align = (:center, :top))
+text!(ax, (center(left₁ ∪ left₂), M), text = "left", align = (:center, :top), fontsize = 24)
+text!(ax, (center(right₁ ∪ right₂), M), text = "right", align = (:center, :top), fontsize = 24)
 fig
 
 # Between them, the first part of `left` and the first part of `right` contain
@@ -328,7 +330,7 @@ fig
 ## Find the index which splits `dest` into two parts, according to the number of
 ## elements in the first parts of `left` and `right`
 k = i + j - 1
-(k₁, k₂) = (1:k-1, k:K)  # partition of `dest`
+(k₁, k₂) = (1:(k - 1), k:K)  # partition of `dest`
 
 ## Merge the first parts
 @views merge!(dest[k₁], left[i₁], right[j₁])
@@ -344,20 +346,20 @@ k = i + j - 1
 
 function split_indices(P, dest, left, right)
     (I, J, K) = length(left), length(right), length(dest)
-    @assert I+J == K
+    @assert I + J == K
 
-    i = ones(Int, P+1)
-    j = ones(Int, P+1)
-    k = ones(Int, P+1)
+    i = ones(Int, P + 1)
+    j = ones(Int, P + 1)
+    k = ones(Int, P + 1)
     for p in 2:P
-        i[p] = 1 + ((p-1)*I) ÷ P
-        j[p] = searchsortedfirst(right, left[i[p]-1])
-        k[p] = k[p-1] + i[p]-i[p-1] + j[p]-j[p-1]
+        i[p] = 1 + ((p - 1) * I) ÷ P
+        j[p] = searchsortedfirst(right, left[i[p] - 1])
+        k[p] = k[p - 1] + i[p] - i[p - 1] + j[p] - j[p - 1]
     end
-    i[P+1] = I+1; j[P+1] = J+1; k[P+1] = K+1
+    i[P + 1] = I + 1; j[P + 1] = J + 1; k[P + 1] = K + 1
 
-    map(1:P) do p
-        (i[p]:i[p+1]-1, j[p]:j[p+1]-1, k[p]:k[p+1]-1)
+    return map(1:P) do p
+        (i[p]:(i[p + 1] - 1), j[p]:(j[p + 1] - 1), k[p]:(k[p + 1] - 1))
     end
 end
 
@@ -368,27 +370,27 @@ split_indices(2, dest, left, right)
 # This can serve as a building block for a parallel merge and new version of the
 # parallel merge sort:
 
-function parallel_merge_dft!(dest, left, right; label="")
+function parallel_merge_dft!(dest, left, right; label = "")
     ## Number of parts in which large blocks will be split
-    P = min(Threads.nthreads(), ceil(Int, length(dest)/65_536))
+    P = min(Threads.nthreads(), ceil(Int, length(dest) / 65_536))
 
     ## Simple sequential merge for small cases
     if P <= 1
-        @dspawn merge!(@W(dest), @R(left), @R(right)) label="merge\n$label"
+        @dspawn merge!(@W(dest), @R(left), @R(right)) label = "merge\n$label"
         return dest
     end
 
     ## Split the arrays into `P` parts. It is important to use `@dspawn` here so
     ## that `split_indices` wait until the previous tasks are finished sorting
-    idxs_t = @dspawn split_indices(P, @R(dest), @R(left), @R(right)) label="split\n$label"
-    idxs   = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
+    idxs_t = @dspawn split_indices(P, @R(dest), @R(left), @R(right)) label = "split\n$label"
+    idxs = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
 
     ## Spawn one task per part
     for p in 1:P
-        part = 'A' + p -1
+        part = 'A' + p - 1
         iₚ, jₚ, kₚ = idxs[p]
         left′, right′, dest′ = @views left[iₚ], right[jₚ], dest[kₚ]
-        @dspawn merge!(@W(dest′), @R(left′), @R(right′)) label="merge $part\n$label"
+        @dspawn merge!(@W(dest′), @R(left′), @R(right′)) label = "merge $part\n$label"
     end
     return dest
 end
@@ -396,12 +398,12 @@ end
 # With this parallel merge version, we can now re-write the mergesort
 # algorithm to spawn parallel merge tasks:
 
-function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
+function parallel_mergesort_dft!(v, buf = similar(v); bs = 16384)
     N = length(v)
 
     for i₀ in 1:bs:N
-        i₁ = min(i₀+bs-1, N)
-        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label="sort\n$i₀:$i₁"
+        i₁ = min(i₀ + bs - 1, N)
+        @dspawn mergesort!(@RW(view(v, i₀:i₁))) label = "sort\n$i₀:$i₁"
     end
 
     (from, to) = (v, buf)
@@ -409,21 +411,21 @@ function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
     while bs < N
         i₀ = 1
         while i₀ < N
-            i₁ = i₀+bs; i₁>N && break
-            i₂ = min(i₀+2bs-1, N)
+            i₁ = i₀ + bs; i₁ > N && break
+            i₂ = min(i₀ + 2bs - 1, N)
             let
-                left  = @view from[i₀:i₁-1]
+                left = @view from[i₀:(i₁ - 1)]
                 right = @view from[i₁:i₂]
-                dest  = @view to[i₀:i₂]
-                parallel_merge_dft!(dest, left, right, label="$i₀:$i₂")
+                dest = @view to[i₀:i₂]
+                parallel_merge_dft!(dest, left, right, label = "$i₀:$i₂")
             end
-            i₀ = i₂+1
+            i₀ = i₂ + 1
         end
         if i₀ <= N
             let
-                src  = @view from[i₀:N]
+                src = @view from[i₀:N]
                 dest = @view to[i₀:N]
-                @dspawn @W(dest) .= @R(src) label="copy\n$i₀:$N"
+                @dspawn @W(dest) .= @R(src) label = "copy\n$i₀:$N"
             end
         end
 
@@ -431,10 +433,10 @@ function parallel_mergesort_dft!(v, buf=similar(v); bs=16384)
         (from, to) = (to, from)
     end
 
-    final_task = @dspawn @R(from) label="result"
+    final_task = @dspawn @R(from) label = "result"
     fetch(final_task)
     v === from || copy!(v, from)
-    v
+    return v
 end
 
 # Let us check that this new version still works as expected:
@@ -472,7 +474,7 @@ bench_dft_tiled = @benchmark parallel_mergesort_dft!(x, $buf) setup = (x = copy(
 # end, even though each large merge forces all threads to synchronize:
 
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(data))
-plot(log_info, categories=["sort", "merge", "copy", "result", "split"])
+plot(log_info, categories = ["sort", "merge", "copy", "result", "split"])
 
 
 # Here, one extra performance limiting factor is the additional work performed

@@ -6,9 +6,9 @@ using LinearAlgebra
 @testset "Dependencies" begin
     @testset "Arrays and subarrays" begin
         m, n = 20, 20
-        A    = rand(m, n)
-        C    = A
-        B    = copy(A)
+        A = rand(m, n)
+        C = A
+        B = copy(A)
         @test memory_overlap(A, C) == true
         @test memory_overlap(A, B) == false
         A11 = view(A, 1:10, 1:10)

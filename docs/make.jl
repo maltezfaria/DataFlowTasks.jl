@@ -19,7 +19,7 @@ ON_CI && (draft = false) # always full build on CI
 
 function insert_setup(content)
     ON_CI || return content
-    replace(content, "#nb ## __NOTEBOOK_SETUP__" => SETUP)
+    return replace(content, "#nb ## __NOTEBOOK_SETUP__" => SETUP)
 end
 
 # generate examples
@@ -46,7 +46,7 @@ println("\n*** Generating README")
 
     # Generate markdown
     # -> fix image paths to link to github.io
-    Literate.markdown(src, pwd(), flavor=Literate.CommonMarkFlavor())
+    Literate.markdown(src, pwd(), flavor = Literate.CommonMarkFlavor())
     contents = read("README.md", String)
     contents = replace(contents, "![](" => "![](https://maltezfaria.github.io/DataFlowTasks.jl/dev/readme/")
     write("README.md", contents)
@@ -72,7 +72,7 @@ modules = [DataFlowTasks]
 if isdefined(Base, :get_extension)
     using GraphViz, CairoMakie
     const GraphViz_Ext = Base.get_extension(DataFlowTasks, :DataFlowTasks_GraphViz_Ext)
-    const Makie_Ext    = Base.get_extension(DataFlowTasks, :DataFlowTasks_Makie_Ext)
+    const Makie_Ext = Base.get_extension(DataFlowTasks, :DataFlowTasks_Makie_Ext)
     append!(modules, (GraphViz_Ext, Makie_Ext))
 end
 
@@ -96,7 +96,7 @@ makedocs(;
             # "examples/stencil/stencil.md",
             # "examples/lu/lu.md",
             # "examples/hmat/hmat.md",
-            "examples/hardware.md"
+            "examples/hardware.md",
         ],
         # "Comparaison with Dagger.jl" => "dagger.md",
         # "Common Issues" => "issues.md",

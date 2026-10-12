@@ -1,6 +1,6 @@
 using Test
 
-@testset "Examples" verbose=true begin
+@testset "Examples" verbose = true begin
     scripts = [(joinpath(@__DIR__, "src", "readme"), "README.jl")]
 
     examples_root = joinpath(@__DIR__, "src", "examples")

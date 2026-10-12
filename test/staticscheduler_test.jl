@@ -20,7 +20,7 @@ include(joinpath(DataFlowTasks.PROJECT_ROOT, "test", "testutils.jl"))
         t1 = @elapsed execute_dag(sch)
         t2 = (2 + ceil(m / nw)) * s
         # test that ideal vs actual time are close
-        @test abs(t1 - t2) < 1e-2
+        @test abs(t1 - t2) < 1.0e-2
     end
 
     @testset "Tiled cholesky factorization" begin

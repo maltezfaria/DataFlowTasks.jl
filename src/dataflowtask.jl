@@ -16,19 +16,19 @@ See also: [`@dtask`](@ref), [`@dspawn`](@ref), [`@dasync`](@ref).
 """
 mutable struct DataFlowTask
     data::Tuple
-    access_mode::NTuple{<:Any,AccessMode}
+    access_mode::NTuple{<:Any, AccessMode}
     tag::Int
     priority::Float64
     label::String
     task::Task
     function DataFlowTask(
-        code,
-        data,
-        mode::NTuple{N,AccessMode},
-        priority = 0,
-        label = "",
-        sch = get_active_taskgraph(),
-    ) where {N}
+            code,
+            data,
+            mode::NTuple{N, AccessMode},
+            priority = 0,
+            label = "",
+            sch = get_active_taskgraph(),
+        ) where {N}
         @assert length(data) == N
         taskcounter = 0 # not yet inserted in a dag. This will be modified upon insertion.
         tj = new(data, mode, taskcounter, priority, label)
@@ -101,7 +101,7 @@ Base.:(==)(a::DataFlowTask, b::DataFlowTask) = (a.tag == b.tag)
 Base.isless(a::DataFlowTask, b::DataFlowTask) = isless(a.tag, b.tag)
 
 function Base.show(io::IO, t::DataFlowTask)
-    if isdefined(t, :task)
+    return if isdefined(t, :task)
         print(io, "DataFlowTask ($(t.task.state)) $(t.tag)")
     else
         print(io, "DataFlowTask (no Task created) $(t.tag)")
@@ -160,7 +160,7 @@ If `mode` is `true`, nodes are added to the DAG in a linear fashion, i.e. the DA
 connects node `i` to node `i+1`. This is useful for debugging purposes.
 """
 function force_linear_dag(mode = false)
-    @eval _linear_dag() = $mode
+    return @eval _linear_dag() = $mode
 end
 
 _linear_dag() = false
@@ -191,11 +191,11 @@ end
 _sequential_mode() = (:dyn, :par)
 
 function _dtask(
-    continuation,
-    expr::Expr,
-    kwargs;
-    source = LineNumberNode(@__LINE__, @__FILE__),
-)
+        continuation,
+        expr::Expr,
+        kwargs;
+        source = LineNumberNode(@__LINE__, @__FILE__),
+    )
     data = []
     mode = []
 
@@ -239,7 +239,7 @@ function _dtask(
 
     # Handle optional keyword arguments
     defaults = (
-        label    = "",  # task label
+        label = "",  # task label
         priority = 0,   # task priority
     )
 
@@ -256,7 +256,7 @@ function _dtask(
         end
 
         opt_name = opt.args[1]
-        opt_val  = opt.args[2]
+        opt_val = opt.args[2]
         if opt_name ∉ keys(params)
             @warn(
                 "Unknown DataFlowTask parameter: `$opt`",
@@ -274,7 +274,7 @@ function _dtask(
 
     t = gensym(:task)
     (dyn, par) = _sequential_mode()
-    if dyn == :dyn      # Dynamic mode -> choose at compile time
+    return if dyn == :dyn      # Dynamic mode -> choose at compile time
         quote
             (dyn, par) = $_sequential_mode()
             if par == :par

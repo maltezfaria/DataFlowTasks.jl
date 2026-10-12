@@ -6,10 +6,10 @@ import DataFlowTasks as DFT
 
 @testset "Macros" begin
     m, n = 100, 100
-    A    = rand(n, m)
-    b    = 2
+    A = rand(n, m)
+    b = 2
     # verbose way of defining task
-    t   = DFT.@dtask rmul!(@RW(A), b)
+    t = DFT.@dtask rmul!(@RW(A), b)
     tmp = A * b
     @test A !== tmp
     schedule(t)
@@ -71,11 +71,11 @@ end
 
 @testset "Data dependency" begin
     m, n = 100, 100
-    A    = rand(n, m)
-    a    = -π
-    b    = 2
-    t1   = DFT.@dtask rmul!(@RW(A), @R(b))
-    t2   = DFT.@dtask rmul!(@RW(A), @R(b))
+    A = rand(n, m)
+    a = -π
+    b = 2
+    t1 = DFT.@dtask rmul!(@RW(A), @R(b))
+    t2 = DFT.@dtask rmul!(@RW(A), @R(b))
     @test DFT.data_dependency(t1, t2) == true
     # rebind A to a different matrix, and make sure independency is inferred
     A = rand(100, 100)
