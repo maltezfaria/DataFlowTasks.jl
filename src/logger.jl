@@ -612,7 +612,7 @@ If `GraphViz` is installed, you can use `GraphViz.Graph(logger)` to produce an
 image.
 """
 function loggertodot(logger)
-    path = longest_path(logger)
+    path = isempty(logger.tasklogs) ? Int64[] : longest_path(logger)
 
     # Write DOT graph
     # ---------------
@@ -623,7 +623,7 @@ function loggertodot(logger)
         tasklog = node.log
         # Tasklog.tag node attributes
         str *= """ $(tasklog.tag) """
-        tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)
+        tasklog.label != "" && (str *= """ [label="$(escape_dot(tasklog.label))"] """)
         tasklog.tag ∈ path && (str *= """ [color=red] """)
         str *= """[penwidth=2];"""
 
@@ -643,3 +643,7 @@ function loggertodot(logger)
 
     return str * "}"
 end
+
+# escape the labels so that they are shown verbatim in DOT quoted strings
+# (otherwise, a `"` ends the string and a `\` starts an escape sequence)
+escape_dot(s) = replace(s, "\\" => "\\\\", "\"" => "\\\"")

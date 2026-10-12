@@ -58,6 +58,15 @@ using GraphViz, Makie
     # GraphViz.Graph creation
     graph = GraphViz.Graph(logger)
     @test graph isa GraphViz.Graph
+
+    # labels are escaped, and empty logs are supported
+    x = zeros(1)
+    log = DFT.@log @dspawn fill!(@W(x), 1) label = "a \"label\" \\"
+    @test occursin("label=\"a \\\"label\\\" \\\\\"", DFT.loggertodot(log))
+    graph = GraphViz.Graph(log)
+    GraphViz.layout!(graph)
+    @test graph.didlayout
+    @test DFT.loggertodot(DFT.@log nothing) == "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;concentrate=true;}"
 end
 
 @testset "DataFlowTasks_Makie_Ext" begin
