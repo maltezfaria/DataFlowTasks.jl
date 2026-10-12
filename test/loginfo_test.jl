@@ -66,6 +66,9 @@ using GraphViz, Makie
     graph = GraphViz.Graph(log)
     GraphViz.layout!(graph)
     @test graph.didlayout
+    path = tempname() * ".svg"
+    DFT.savedag(SubString(path), graph)
+    @test occursin("<svg", read(path, String))
     @test DFT.loggertodot(DFT.@log nothing) == "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;concentrate=true;}"
 end
 
@@ -302,11 +305,20 @@ end
     @test length(logger.accesses) == 1
 end
 
-@testset "Nested logging windows" begin
+@testset "Several logging windows" begin
     # the gc time of the process is measured once for nested windows
     logger = DFT.LogInfo()
     DFT.with_logging!(() -> DFT.with_logging!(GC.gc, logger), logger)
     @test 0 < logger.gc_time <= DFT.summarize(logger).elapsed
+    # successive windows: the window spans from the first one to the last one
+    x = zeros(1)
+    logger = DFT.LogInfo()
+    DFT.with_logging!(() -> @dspawn(fill!(@W(x), 1)), logger)
+    sleep(0.2)
+    DFT.with_logging!(() -> @dspawn(sum(@R(x))), logger)
+    @test DFT.nbtasknodes(logger) == 2
+    @test DFT.summarize(logger).elapsed >= 0.2
+    @test DFT.dependencies(logger)[DFT.tag(logger.tasklogs[2])] == [DFT.tag(logger.tasklogs[1])]
 end
 
 @testset "Insertion requests and removals" begin
