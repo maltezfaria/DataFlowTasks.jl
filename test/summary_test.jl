@@ -36,8 +36,8 @@ end
     @test sm.running_per_category ≈ [0.7, 0.25, 0.0]
     @test first.(sm.categories) == ["a", "b"]
     # the longest chain is 1 → 2, weighted by the wall time of the bodies
-    @test sm.path == [2, 1]
-    @test sm.critical_path ≈ 1.5
+    @test sm.longest_path == [2, 1]
+    @test sm.longest_path_length ≈ 1.5
     @test sm.insertion ≈ 0.02
     @test sm.gc == 0.25
     @test sm.compile == 0.125

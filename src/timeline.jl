@@ -197,7 +197,7 @@ segments cover the time from the start of the logging window to the end of the
 last task.
 
 This is the path that was actually followed during the execution, which differs
-from the critical path of [`DataFlowTasks.summarize`](@ref): the longest chain
+from the longest path of [`DataFlowTasks.summarize`](@ref): the longest chain
 of dependent tasks, a lower bound of the elapsed time.
 """
 function realized_critical_path(l::LogInfo)
@@ -214,7 +214,7 @@ function realized_critical_path(l::LogInfo)
 end
 
 """
-    traceplot(loginfo::LogInfo; categories, highlight, critical_path)
+    traceplot(loginfo::LogInfo; categories, highlight, realized_path)
     traceplot!(ax, loginfo::LogInfo; ...)
 
 Plot the trace of the tasks logged in `loginfo`, packed in lanes. This is the

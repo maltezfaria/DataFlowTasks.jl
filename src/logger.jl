@@ -394,9 +394,9 @@ function topological_sort(l::LogInfo)
         return LoggedNode(t, filter!(∈(logged), intags))
     end
 end
-# The critical path is weighted by the wall time of the task bodies: along a
+# The longest path is weighted by the wall time of the task bodies: along a
 # chain of dependent tasks the bodies run one after the other, so that the length
-# of the critical path is a lower bound of the elapsed time.
+# of the longest path is a lower bound of the elapsed time.
 weight(t::TaskLog) = task_duration(t) * 1.0e-9
 
 """
@@ -414,13 +414,14 @@ Summary of the events recorded in a [`LogInfo`](@ref), as computed by
   (sleeping, waiting on I/O or on a lock...)
 - `insertion`     : total time spent inserting the tasks in the DAG (on the
   threads calling `@dspawn`)
-- `critical_path` : length (in wall time) of the longest chain of dependent tasks
+- `longest_path_length` : length (in wall time) of the longest chain of
+  dependent tasks
 - `gc`, `compile` : time spent in garbage collection and in compilation during
   the logging window
 - `categories`, `running_per_category` : the categories of tasks, and the
   running time of the tasks in each of them (the last entry gathers the tasks
   matching no category)
-- `path`          : tags of the tasks on the critical path
+- `longest_path`  : tags of the tasks on the longest path
 - `realized_path` : tags of the tasks on the realized critical path (see
   [`DataFlowTasks.realized_critical_path`](@ref))
 - `realized_before`, `realized_waiting`, `realized_bodies` : the time before the
@@ -436,7 +437,7 @@ The following quantities are derived from these fields:
 - `nowait(s) = s.running / s.workers`: the elapsed time if the running time were
   perfectly shared between the workers, without ever waiting.
 
-Both `critical_path` and `nowait` are lower bounds of `elapsed`. Along the
+Both `longest_path_length` and `nowait` are lower bounds of `elapsed`. Along the
 realized critical path, the elapsed time is split in `realized_before`,
 `realized_waiting`, `realized_bodies`, and `realized_after(s)`: the time from the
 end of the last task to the end of the logging window.
@@ -447,12 +448,12 @@ struct LogSummary
     running::Float64
     blocked::Float64
     insertion::Float64
-    critical_path::Float64
+    longest_path_length::Float64
     gc::Float64
     compile::Float64
     categories::Vector{Pair{String, Regex}}
     running_per_category::Vector{Float64}
-    path::Vector{Int64}
+    longest_path::Vector{Int64}
     realized_path::Vector{Int64}
     realized_before::Float64
     realized_waiting::Float64
@@ -511,7 +512,7 @@ function summarize(loginfo::LogInfo; categories = String[])
     insertion = sum(l -> (l.time_finish - l.time_start) * ns, loginfo.insertionlogs; init = 0.0)
     path = isempty(loginfo.tasklogs) ? Int64[] : longest_path(loginfo)
     onpath = Set(path)
-    critical_path = sum(weight, (t for t in loginfo.tasklogs if tag(t) ∈ onpath); init = 0.0)
+    longest_path_length = sum(weight, (t for t in loginfo.tasklogs if tag(t) ∈ onpath); init = 0.0)
     tasks = Dict(tag(t) => t for t in timeline(loginfo))
     realized_path = realized_critical_path(loginfo)
     chain = [tasks[k] for k in realized_path]
@@ -524,7 +525,7 @@ function summarize(loginfo::LogInfo; categories = String[])
         sum(running_per_category),
         blocked,
         insertion,
-        critical_path,
+        longest_path_length,
         loginfo.gc_time,
         loginfo.compile_time,
         cats,
@@ -566,7 +567,7 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
 
     line("• ", "Elapsed time", s.elapsed)
     println(io)
-    line("  ├─ ", "Critical path", s.critical_path)
+    line("  ├─ ", "Longest path", s.longest_path_length)
     println(io)
     line("  ├─ ", "No-wait (running / workers)", nowait(s))
     println(io)
@@ -635,7 +636,7 @@ function loggertodot(logger)
         for neighbour in intags(node)
             red = false
 
-            # Is this connection is in critical path
+            # Is this connection is in the longest path
             (neighbour ∈ path && tasklog.tag ∈ path) && (red = true)
 
             # Edge

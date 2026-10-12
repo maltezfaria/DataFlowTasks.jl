@@ -32,7 +32,7 @@ const TINT = 0.25
 const BAR = 0.4
 
 """
-    traceplot(loginfo; categories, highlight, critical_path)
+    traceplot(loginfo; categories, highlight, realized_path)
 
 Plot the trace of the tasks logged in `loginfo` (see
 [`DataFlowTasks.timeline`](@ref)): each task is a bar, from the moment its body
@@ -59,7 +59,7 @@ threads.
     "Tag of the task to highlight with its dependencies, or `0` for none."
     highlight = 0
     "Whether to show the realized critical path."
-    critical_path = true
+    realized_path = true
 end
 
 seconds(l::LogInfo, t) = DFT._seconds(l, t)
@@ -131,7 +131,7 @@ function Makie.plot!(p::TracePlot)
     poly!(p, p.insertion_bars; color = p.insertion_colors)
     poly!(p, p.bars; color = p.tints, strokecolor = p.strokecolors, strokewidth = 0.5)
     poly!(p, p.fills; color = p.colors)
-    poly!(p, p.path; color = :transparent, strokecolor = :black, strokewidth = 2, visible = p.critical_path)
+    poly!(p, p.path; color = :transparent, strokecolor = :black, strokewidth = 2, visible = p.realized_path)
     poly!(p, p.highlight_bars; color = :transparent, strokecolor = p.highlight_colors, strokewidth = 2)
     linesegments!(p, p.highlight_link; color = :black, linestyle = :dash)
     return p
@@ -226,7 +226,7 @@ end
 function boundsplot(ax, summary::LogSummary)
     # Axis attributes
     # ---------------
-    ax.xticks = (1:3, ["Critical\nPath", "No-Wait", "Elapsed"])
+    ax.xticks = (1:3, ["Longest\nPath", "No-Wait", "Elapsed"])
     ax.ylabel = "Time (s)"
 
     # Barplot
@@ -234,7 +234,7 @@ function boundsplot(ax, summary::LogSummary)
     return barplot!(
         ax,
         1:3,
-        [summary.critical_path, nowait(summary), summary.elapsed];
+        [summary.longest_path_length, nowait(summary), summary.elapsed];
         color = cgrad(:sun)[1:3],
     )
 end

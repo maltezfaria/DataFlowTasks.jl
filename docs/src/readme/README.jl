@@ -250,7 +250,7 @@ log_info = DataFlowTasks.@log cholesky_dft!(A, ts);
 # Visualizing the DAG can be helpful. When debugging, this representation of
 # dependencies between tasks as inferred by `DataFlowTasks` can help identify
 # missing or erroneous data dependency annotations. When profiling, identifying
-# the critical path (plotted in red in the DAG) can help understand the
+# the longest path (plotted in red in the DAG) can help understand the
 # performances of the implementation.
 #
 # In this more complex example, we can see how quickly the DAG complexity

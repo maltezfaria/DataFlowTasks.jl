@@ -313,13 +313,13 @@ function Base.show(io::IO, dag::DAG{T}) where {T}
 end
 
 ############################################################################
-#                           Critical Path
+#                           Longest Path
 ############################################################################
 
 #=
     longest_path(graph) -> path
 
-Finds the critical path of a DAG `graph`, and returns the nodes constituting it
+Finds the longest path of a DAG `graph`, and returns the nodes constituting it
 in reverse order.
 
 Required interface for the graph:

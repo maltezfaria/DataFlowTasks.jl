@@ -114,8 +114,11 @@ nothing # hide
 
 Note how the task labels (which were provided as extra arguments to `@dspawn`)
 are used in the DAG rendering and make it more readable. In the DAG
-visualization, the *critical path* is highlighted in red: it is the sequential
-path that took the longest run time during the computation.
+visualization, the *longest path* is highlighted in red: it is the chain of
+dependent tasks with the longest total duration (the sum of the durations of
+their bodies). It is not the *realized critical path* shown in the parallel
+trace below, which is the chain of tasks that actually determined the end of the
+computation.
 
 The DAG shows the complete dependencies between the logged tasks, including the
 dependencies on tasks which had already finished when a task was inserted (the
@@ -124,9 +127,9 @@ for). To compute them, a `LogInfo` keeps references to the data accessed by the
 logged tasks until it is first analysed (e.g. by `describe` or `GraphViz.Graph`).
 
 !!! note
-    The run time of this critical path imposes a hard bound on parallel
+    The run time of this longest path imposes a hard bound on parallel
     performances: no matter how many threads are available, it is not possible for
-    the computation to take less time than the duration of the critical path.
+    the computation to take less time than the duration of the longest path.
 
 ## Scheduling and profiling information
 
@@ -218,7 +221,7 @@ limiting factors:
 - `Elapsed` represents the measured "wall clock time" of the logging window; it
   is larger than both of the bounds described below;
 
-- `Critical Path` represents the duration of the longest chain of dependent
+- `Longest Path` represents the duration of the longest chain of dependent
   tasks in the DAG (shown in red in the DAG visualization). As said above, it
   bounds the performance in that even infinitely many threads would still have
   to run this chain sequentially;
@@ -229,7 +232,7 @@ limiting factors:
   does not account for dependencies between tasks.
 
 When looking for faster response times, this graph may suggest sensible ways to
-explore. If the measured time is close to the critical path duration, then
+explore. If the measured time is close to the longest path duration, then
 adding more threads will be of no help, but decomposing the work in smaller
 tasks may be useful. On the other hand, if the measured time is close to the
 "without waiting" bound, then adding more workers may reduce the wall clock time
@@ -287,11 +290,11 @@ the [`LogSummary`](@ref DataFlowTasks.LogSummary) computed by
 | Idle                  | ``P \cdot E - W``, the time the workers did not run any task              |
 | Tasks blocked         | total time the tasks spent descheduled during their body                   |
 | Task insertion        | total time spent inserting tasks, on the threads calling `@dspawn`         |
-| Critical path         | wall time of the longest chain of dependent tasks                          |
+| Longest path          | wall time of the longest chain of dependent tasks                          |
 | No-wait               | ``W / P``                                                                  |
 | Realized path         | chain of tasks each waiting for the previous one, ending with the last task |
 
-Both the critical path and the no-wait time are lower bounds of the elapsed
+Both the longest path and the no-wait time are lower bounds of the elapsed
 time. The tasks run on the `:default` threadpool, while `@dspawn` (and therefore
 the insertion of the tasks) runs on the thread of its caller, which is often
 the interactive thread.
@@ -384,7 +387,7 @@ t = tasks[end]
 
 The trace is a `Makie` recipe, [`DataFlowTasks.traceplot`](@ref), which can be
 drawn in any axis. Its `highlight` attribute outlines a task (here, the last one)
-with its predecessors and successors, and the `critical_path` attribute shows or
+with its predecessors and successors, and the `realized_path` attribute shows or
 hides the realized critical path:
 
 ```@example profiling

@@ -181,7 +181,7 @@ log_info = DataFlowTasks.@log cholesky_dft!(Ac, ts)
 using GraphViz
 dag = GraphViz.Graph(log_info)
 
-# The critical path, highlighted in red, includes all cholesky factorizations of
+# The longest path, highlighted in red, includes all cholesky factorizations of
 # diagonal tiles, as well as the required tasks in between them.
 
 #-

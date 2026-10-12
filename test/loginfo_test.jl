@@ -4,7 +4,7 @@ using DataFlowTasks
 using Suppressor
 import DataFlowTasks as DFT
 
-# NOTE: the sleep makes the weights of the critical path predictable. The tasks
+# NOTE: the sleep makes the weights of the longest path predictable. The tasks
 # may finish before the tasks depending on them are inserted: the logged
 # dependencies are complete nonetheless.
 computing(A) = (sleep(0.01); A * A)
@@ -35,7 +35,7 @@ nbinsertion = length(logger.insertionlogs)
 @test nbtasks == 5
 @test nbinsertion == 5
 
-# Critical Path
+# Longest Path
 t₀ = first_tag(logger)
 path = DFT.longest_path(logger)
 @test path == [5, 3, 2, 1] .+ t₀
@@ -98,7 +98,7 @@ nbinsertion = length(logger.insertionlogs)
 @test nbtasks == 5
 @test nbinsertion == 5
 
-# Critical Path
+# Longest Path
 path = DFT.longest_path(logger)
 @test path == [5, 3, 2, 1] .+ first_tag(logger)
 
@@ -125,7 +125,7 @@ end
         ε = 1.0e-3 # clock resolution
         @test sm.running <= DFT.capacity(sm) + ε
         @test DFT.idle(sm) >= -ε
-        @test sm.critical_path <= sm.elapsed + ε
+        @test sm.longest_path_length <= sm.elapsed + ε
         @test DFT.nowait(sm) <= sm.elapsed + ε
     end
     check_invariants(DFT.summarize(DFT.@log work(A, B)))
