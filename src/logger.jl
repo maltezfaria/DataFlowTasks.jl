@@ -241,17 +241,6 @@ end
 Similar to [`with_logging`](@ref), but append events to `l`.
 """
 function with_logging!(f, l::LogInfo)
-    # taskgraph must be empty before starting, or we may log dependencies on
-    # tasks that are not in the logger
-    tg = get_active_taskgraph()
-    if !isempty(tg)
-        msg = """logging requires an empty taskgraph to start. Waiting for
-        pending tasks to be completed...
-        """
-        @warn msg
-        wait(tg)
-        @warn "done."
-    end
     _log_mode() == true ||
         error("you must run `enable_log()` to activate the logger before profiling")
     # task metrics are enabled for the tasks created while they are on, which
@@ -314,9 +303,13 @@ end
     DataFlowTasks.@log expr --> LogInfo
 
 Execute `expr` and return a [`LogInfo`](@ref) instance with the recorded events.
-The `Logger` waits for the current taskgraph (see [`get_active_taskgraph`](@ref)
-to be empty before starting, and for all the `DataFlowTask`s spawned while
-logging to be completed before returning.
+The `DataFlowTask`s created by `expr` (directly, or by the tasks it creates) are
+logged, and `@log` waits for them to be completed before returning.
+
+Tasks which are not logged (e.g. spawned before `@log`, or by other code running
+concurrently) may still run during the logging window: the time the workers
+spend on them is reported as idle. For clean measurements, wait for such tasks
+before logging, e.g. with `wait(get_active_taskgraph())`.
 
 See also: [`with_logging`](@ref), [`with_logging!`](@ref)
 """
