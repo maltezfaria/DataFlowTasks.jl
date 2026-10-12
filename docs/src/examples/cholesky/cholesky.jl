@@ -166,8 +166,11 @@ err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))
 # ## Debugging and Profiling
 #
 # Let us now check what happens during a parallel run of our cholesky
-# factorization. Thanks to the test above, the code is now compiled. Let's re-run it and collect
-# meaningful profiling information:
+# factorization. Thanks to the test above, the code is now compiled. A first
+# logged run also compiles the code used for logging, so that a second run
+# collects meaningful profiling information:
+
+DataFlowTasks.@log cholesky_dft!(copy(A), ts) # compile the logging code
 
 ## Clean profiling environment
 GC.gc()

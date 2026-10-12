@@ -49,15 +49,16 @@ In order to inspect code which makes use of `DataFlowTask`s, you
 can use the [`DataFlowTasks.@log`](@ref) macro to keep a trace of
 the various parallel events and the underlying `DAG`. Note that to avoid
 profiling the compilation time, it is often advisable to perform a "dry run" of
-the code first, as done in the example below:
+the code first, with logging so that the code used for logging is compiled too,
+as done in the example below:
 
 ```@example profiling
 # Context
 A = ones(2000, 2000)
 B = ones(3000, 3000)
 
-# precompilation run
-work(copy(A),copy(B)) 
+# dry run, which compiles the code and the code used for logging
+DataFlowTasks.@log work(copy(A), copy(B))
 
 # activate logging of events
 log_info = DataFlowTasks.@log work(A, B)

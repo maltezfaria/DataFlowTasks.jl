@@ -224,10 +224,13 @@ understanding how task dependencies were inferred, and how tasks were
 scheduled during execution.
 
 As usual when profiling code, it is recommended to start from a state where
-all code has already been compiled, and all previous profiling information has
+all code has already been compiled (including the code used for logging,
+which a first logged run compiles), and all previous profiling information has
 been discarded:
 
 ````julia
+DataFlowTasks.@log cholesky_dft!(copy(A), ts) # compile the logging code
+
 # Manually call GC to avoid noise from previous runs
 GC.gc()
 

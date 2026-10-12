@@ -258,8 +258,10 @@ barplot(
     speedup = t_seq / t_dft,
 )
 
-# We can gain more insight by collecting profiling data:
+# We can gain more insight by collecting profiling data, after a first logged run
+# which compiles the code used for logging:
 
+DataFlowTasks.@log wait(blur_roberts_dft!(copy(mat), ts; width, tmp)) # compile the logging code
 GC.gc()
 mat1 .= mat;
 log_info = DataFlowTasks.@log wait(blur_roberts_dft!(mat1, ts; width, tmp))
