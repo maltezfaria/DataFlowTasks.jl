@@ -158,25 +158,31 @@ function addnode!(dag::DAG, kv::Pair, check = false)
         while num_nodes(dag) >= dag.sz_max[]
             wait(dag.cond_push)
         end
-        t₀ = time_ns()
-        stats = Base.gc_num()
-        # -------
-        dag.counter[] += 1
-        k isa DataFlowTask && (k.tag = dag.counter[])
-        push!(dag.inoutlist, kv)
-
-        check && update_edges!(dag, k)
-
-        # -------
-        diff = Base.GC_Diff(Base.gc_num(), stats)
-        t₁ = time_ns()
-        tid = Threads.threadid()
-        _log_mode() &&
-            haslogger() &&
-            record!(_getloginfo(), InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
+        logger = _log_mode() ? _getloginfo() : nothing
+        # without a logger, the insertion is not timed to avoid any overhead
+        if isnothing(logger)
+            _addnode!(dag, kv, check)
+        else
+            t₀ = time_ns()
+            stats = Base.gc_num()
+            _addnode!(dag, kv, check)
+            diff = Base.GC_Diff(Base.gc_num(), stats)
+            t₁ = time_ns()
+            tid = Threads.threadid()
+            record!(logger, InsertionLog(t₀, t₁, diff.total_time, tag(k), tid))
+        end
     finally
         unlock(dag)
     end
+    return dag
+end
+
+function _addnode!(dag::DAG, kv::Pair, check)
+    k, _ = kv
+    dag.counter[] += 1
+    k isa DataFlowTask && (k.tag = dag.counter[])
+    push!(dag.inoutlist, kv)
+    check && update_edges!(dag, k)
     return dag
 end
 
