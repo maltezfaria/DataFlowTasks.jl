@@ -5,14 +5,18 @@ on:
       - main
     tags: ['*']
   pull_request:
-# cancel the runs of a branch superseded by a newer push (except on main)
+# cancel the runs of a branch superseded by a newer push; on main, every commit
+# gets its own group so that none of its runs is skipped
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      actions: write # allow julia-actions/cache to delete old caches
+      contents: read
     strategy:
       fail-fast: false
       matrix:

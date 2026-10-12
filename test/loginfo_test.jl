@@ -12,12 +12,15 @@ computing(A) = (sleep(0.01); A * A)
 computing(A, B) = (sleep(0.01); A * B)
 function work(A, B)
     DFT.stop_dag_cleaner()
-    @dspawn computing(@RW(A)) label = "A²"
-    @dspawn computing(@RW(A)) label = "A²"
-    @dspawn computing(@RW(A)) label = "A²"
-    @dspawn computing(@RW(B)) label = "B²"
-    res = @dspawn computing(@RW(A), @RW(B)) label = "A*B"
-    DFT.start_dag_cleaner()
+    res = try
+        @dspawn computing(@RW(A)) label = "A²"
+        @dspawn computing(@RW(A)) label = "A²"
+        @dspawn computing(@RW(A)) label = "A²"
+        @dspawn computing(@RW(B)) label = "B²"
+        @dspawn computing(@RW(A), @RW(B)) label = "A*B"
+    finally
+        DFT.start_dag_cleaner()
+    end
     return fetch(res)
 end
 
@@ -39,7 +42,7 @@ nbinsertion = length(logger.insertionlogs)
 path = DFT.longest_path(logger)
 @test path == [5, 3, 2, 1]
 
-using GraphViz, CairoMakie
+using GraphViz, Makie
 
 @testset "DataFlowTasks_GraphVizExt" begin
     # Check that the extension has been loaded correctly
