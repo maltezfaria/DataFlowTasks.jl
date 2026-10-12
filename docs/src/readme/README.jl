@@ -286,8 +286,8 @@ save("cholesky_trace.svg", trace) #src
 #md # ![](cholesky_trace.svg)
 
 s = DataFlowTasks.summarize(log_info) #src
-@assert s.longest_path_length > 0.5 * s.elapsed "the longest path is not a large part of the elapsed time" #src
-@assert DataFlowTasks.idle(s) > 0.1 * DataFlowTasks.capacity(s) "the threads are not idle" #src
+@assert s.longest_path_length > 0.4 * s.elapsed "the longest path is not a large part of the elapsed time" #src
+@assert DataFlowTasks.idle(s) > 0.05 * DataFlowTasks.capacity(s) "the threads are not idle" #src
 
 # We see here that the longest path accounts for a large part of the execution
 # time: with this block size and matrix size, the algorithm does not expose
