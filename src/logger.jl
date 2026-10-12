@@ -190,7 +190,7 @@ to be empty before starting.
 See also: [`with_logging`](@ref), [`with_logging!`](@ref)
 """
 macro log(ex)
-    quote
+    return quote
         f = () -> $(esc(ex))
         out, loginfo = with_logging(f)
         loginfo
@@ -207,7 +207,7 @@ function topological_sort(l::LogInfo)
 end
 
 intags(t::TaskLog) = t.inneighbors
-weight(t::TaskLog) = task_duration(t) * 1e-9
+weight(t::TaskLog) = task_duration(t) * 1.0e-9
 
 #= Contains data to plot the Gantt Chart (parallel trace).
 It's a Struct of Array paradigm where all the entries i
@@ -257,7 +257,7 @@ mutable struct ExtendedLogInfo
     t∞::Float64                     # Inf. proc time
     t_nowait::Float64               # Time if we didn't wait at all
     timespercat::Vector{Float64}    # timespercat[i] cumulative time for category i
-    categories::Vector{Pair{String,Regex}} # (label => regex) pairs for categories
+    categories::Vector{Pair{String, Regex}} # (label => regex) pairs for categories
     path::Vector{Int64}             # Critical Path
 
     function ExtendedLogInfo(logger::LogInfo, categories, path)
@@ -318,7 +318,7 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
     end
     @printf(io, "  │  ╰─ %-17s:     %.3f\n", "unlabeled", extloginfo.timespercat[end])
     @printf(io, "  ├─ %-20s:   %.3f\n", "Task Insertion", extloginfo.insertingtime)
-    @printf(io, "  ╰─ %-20s:   %.3f\n", "Other (idle)", extloginfo.othertime)
+    return @printf(io, "  ╰─ %-20s:   %.3f\n", "Other (idle)", extloginfo.othertime)
 end
 
 #= Gives minimum and maximum times the logger has measured. =#
@@ -361,7 +361,7 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
         # --------------------
         task_duration = (tasklog.time_finish - tasklog.time_start) * 10^(-9)
         # ----
-        loginfo.othertime     -= task_duration
+        loginfo.othertime -= task_duration
         loginfo.computingtime += task_duration
         # ----
         loginfo.timespercat[jobid(tasklog.label, loginfo.categories)] += task_duration
@@ -398,8 +398,8 @@ function extractloggerinfo!(logger::LogInfo, loginfo::ExtendedLogInfo, gantt::Ga
 
         # General Informations
         # --------------------
-        task_duration         = (insertionlog.time_finish - insertionlog.time_start) * 10^(-9)
-        loginfo.othertime     -= task_duration
+        task_duration = (insertionlog.time_finish - insertionlog.time_start) * 10^(-9)
+        loginfo.othertime -= task_duration
         loginfo.insertingtime += task_duration
     end
 

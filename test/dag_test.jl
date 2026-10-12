@@ -44,7 +44,7 @@ end
 
 @testset "Longest path" begin
     FakeGraph = NamedTuple{(:nodes,)}
-    FakeNode  = NamedTuple{(:tag, :weight, :predecessors)}
+    FakeNode = NamedTuple{(:tag, :weight, :predecessors)}
 
     DFT.topological_sort(g::FakeGraph) = g.nodes
     DFT.intags(n::FakeNode) = n.predecessors

@@ -1,4 +1,4 @@
-function hashes(hash_path=nothing, example=nothing)
+function hashes(hash_path = nothing, example = nothing)
     rootdir = joinpath(@__DIR__, "..") |> abspath
     julia = first(Base.julia_cmd())
     prog = quote
@@ -8,7 +8,7 @@ function hashes(hash_path=nothing, example=nothing)
         function f(_, path)
             hash = open(sha1, path) |> bytes2hex
             fname = relpath(path, $rootdir)
-            println("$hash $fname")
+            return println("$hash $fname")
         end
         push!(Base.include_callbacks, f)
 

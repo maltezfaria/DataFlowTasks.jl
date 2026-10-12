@@ -34,8 +34,8 @@ img = Gray.(load("test-image.jpg"))
 #   representation, which may need a renormalization to be converted back to a
 #   Gray-scale image.
 
-contract(range,n) = range[begin+n:end-n]
-expand(range,n)   = range[begin]-n:range[end]-n
+contract(range, n) = range[(begin + n):(end - n)]
+expand(range, n) = (range[begin] - n):(range[end] - n)
 
 function img2mat(img)
     PixelType = eltype(img)
@@ -45,7 +45,7 @@ end
 
 function mat2img(PixelType, mat)
     m1, m2 = extrema(mat)
-    PixelType.((mat .- m1) ./ (m2-m1))
+    return PixelType.((mat .- m1) ./ (m2 - m1))
 end
 
 PixelType, mat = img2mat(img);
@@ -62,17 +62,18 @@ PixelType, mat = img2mat(img);
 # specified, the filter is applied to the whole image, but can be reduced to a
 # tile if a smaller `range` argument is provided.
 
-function blur!(dest, src; range=axes(src), width)
+function blur!(dest, src; range = axes(src), width)
     ri, rj = intersect.(range, contract.(axes(src), width))
 
-    weight = 1/(2*width+1)^2
+    weight = 1 / (2 * width + 1)^2
     @inbounds for i in ri, j in rj
-        dest[i,j] = 0
+        dest[i, j] = 0
         for δi in -width:width, δj in -width:width
-            dest[i,j] += src[i+δi, j+δj]
+            dest[i, j] += src[i + δi, j + δj]
         end
-        dest[i,j] *= weight
+        dest[i, j] *= weight
     end
+    return
 end
 
 # In the following, we'll use a filter width of 5 pixels, which produces the
@@ -90,15 +91,16 @@ mat2img(PixelType, blurred)
 #  (provided they are sufficiently far from the boundaries), but can be
 #  restricted to work on a tile if the `range` argument is provided.
 
-function roberts!(dest, src; range=axes(src))
+function roberts!(dest, src; range = axes(src))
     ri, rj = intersect.(range, contract.(axes(src), 1))
 
     for i in ri, j in rj
-        dest[i,j] = (
-            + (sqrt(src[i,  j]) - sqrt(src[i+1,j+1]))^2
-            + (sqrt(src[i+1,j]) - sqrt(src[i  ,j+1]))^2
+        dest[i, j] = (
+            (sqrt(src[i, j]) - sqrt(src[i + 1, j + 1]))^2 +
+                (sqrt(src[i + 1, j]) - sqrt(src[i, j + 1]))^2
         )^(0.25)
     end
+    return
 end
 
 # Applying this edge detection filter on the original image produces the
@@ -111,13 +113,13 @@ mat2img(PixelType, contour)
 
 # Chaining the blur and roberts filters may make edge detection less noisy:
 
-function blur_roberts!(img; width, tmp=zero(img))
+function blur_roberts!(img; width, tmp = zero(img))
     blur!(tmp, img; width)
-    roberts!(img, tmp)
+    return roberts!(img, tmp)
 end
 
 mat1 = copy(mat)
-tmp  = zero(mat)
+tmp = zero(mat)
 
 blur_roberts!(mat1; width, tmp)
 mat2img(PixelType, mat1)
@@ -126,7 +128,7 @@ mat2img(PixelType, mat1)
 # evaluate the performance of other implementations:
 
 using BenchmarkTools
-t_seq = @belapsed blur_roberts!(x, width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1
+t_seq = @belapsed blur_roberts!(x, width = $width, tmp = $tmp) setup = (x = copy(mat)) evals = 1
 
 # ## Tiled filter application
 #
@@ -145,19 +147,20 @@ function map_tiled!(fun!, dest, src, ts)
     for tile in TileIterator(axes(src), (ts, ts))
         fun!(dest, src, tile)
     end
+    return
 end
 
 blur_tiled!(dest, src, ts; width) = map_tiled!(dest, src, ts) do dest, src, tile
-    blur!(dest, src; width, range=tile)
+    blur!(dest, src; width, range = tile)
 end
 
 roberts_tiled!(dest, src, ts) = map_tiled!(dest, src, ts) do dest, src, tile
-    roberts!(dest, src; range=tile)
+    roberts!(dest, src; range = tile)
 end
 
-function blur_roberts_tiled!(img, ts; width, tmp=zero(img))
+function blur_roberts_tiled!(img, ts; width, tmp = zero(img))
     blur_tiled!(tmp, img, ts; width)
-    roberts_tiled!(img, tmp, ts)
+    return roberts_tiled!(img, tmp, ts)
 end
 
 # Decomposing the original image in tiles of size $512\times 512$, the tiled
@@ -174,7 +177,7 @@ mat2img(PixelType, mat1)
 # (or may not) have a significant impact on the performance, due to cache
 # effects.
 
-t_tiled = @belapsed blur_roberts_tiled!(x, ts; width=$width, tmp=$tmp) setup=(x=copy(mat)) evals=1
+t_tiled = @belapsed blur_roberts_tiled!(x, ts; width = $width, tmp = $tmp) setup = (x = copy(mat)) evals = 1
 
 # ## Parallel filter application
 
@@ -190,10 +193,10 @@ function blur_dft!(dest, src, ts; width)
         @dspawn begin
             @R view(src, outer...)
             @W view(dest, tile...)
-            blur!(dest, src; width, range=tile)
-        end label="blur ($tile)"
+            blur!(dest, src; width, range = tile)
+        end label = "blur ($tile)"
     end
-    @dspawn @R(dest) label="blur (result)"
+    return @dspawn @R(dest) label = "blur (result)"
 end
 
 function roberts_dft!(dest, src, ts)
@@ -202,10 +205,10 @@ function roberts_dft!(dest, src, ts)
         @dspawn begin
             @R view(src, outer...)
             @W view(dest, tile...)
-            roberts!(dest, src; range=tile)
-        end label="roberts ($tile)"
+            roberts!(dest, src; range = tile)
+        end label = "roberts ($tile)"
     end
-    @dspawn @R(dest) label="roberts (result)"
+    return @dspawn @R(dest) label = "roberts (result)"
 end
 
 # Note how each filter spawns one task for each tile, and an extra task to get
@@ -218,10 +221,10 @@ end
 # (as long as the blurring of a tile and all its neighbors is performed before
 # the application of the roberts filter on this tile).
 
-function blur_roberts_dft!(img, ts; width, tmp=zero(img))
+function blur_roberts_dft!(img, ts; width, tmp = zero(img))
     blur_dft!(tmp, img, ts; width)
     roberts_dft!(img, tmp, ts)
-    @dspawn @R(img) label="result"
+    return @dspawn @R(img) label = "result"
 end
 
 # Again this yields the same results on the test image:
@@ -233,22 +236,27 @@ mat2img(PixelType, mat1)
 
 #-
 
-t_dft = @belapsed wait(blur_roberts_dft!(x, ts; width=$width, tmp=$tmp)) setup=(x = copy(mat)) evals=1
+t_dft = @belapsed wait(blur_roberts_dft!(x, ts; width = $width, tmp = $tmp)) setup = (x = copy(mat)) evals = 1
 
 # ## Performance analysis
 
 using CairoMakie
 
-barplot([t_seq, t_tiled, t_dft],
-        axis = (; title = "Elapsed time [s]",
-                xticks=(1:3, ["sequential", "tiled", "DataFlowTasks"])))
+barplot(
+    [t_seq, t_tiled, t_dft],
+    axis = (;
+        title = "Elapsed time [s]",
+        xticks = (1:3, ["sequential", "tiled", "DataFlowTasks"]),
+    )
+)
 
 # A comparison of the performances of all implementations shows that the
 # DataFlowTasks-based implementation produces a good speedup:
 
 (;
- nthreads = Threads.nthreads(),
- speedup = t_seq / t_dft)
+    nthreads = Threads.nthreads(),
+    speedup = t_seq / t_dft,
+)
 
 # We can gain more insight by collecting profiling data:
 
@@ -259,4 +267,4 @@ DataFlowTasks.describe(log_info)
 
 # The parallel trace shows how blur and roberts tasks are interspersed in the time line:
 
-trace = plot(log_info, categories=["blur", "roberts"])
+trace = plot(log_info, categories = ["blur", "roberts"])

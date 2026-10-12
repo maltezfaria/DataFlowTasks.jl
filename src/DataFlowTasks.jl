@@ -23,11 +23,11 @@ Describe how a `DataFlowTask` access its `data`.
     READWRITE
 end
 
-const R  = READ
-const W  = WRITE
+const R = READ
+const W = WRITE
 const RW = READWRITE
 
-const Maybe{T} = Union{T,Nothing}
+const Maybe{T} = Union{T, Nothing}
 
 include("utils.jl")
 include("logger.jl")

@@ -55,7 +55,7 @@ idxintersect(a, b) = !isempty(intersect(a, b))
 idxintersect(a::Number, b::Number) = a == b
 
 # methods for Adjoint, Transpose, and Triangular.
-const AdjOrTransOrTri = Union{Adjoint,Transpose,LinearAlgebra.AbstractTriangular}
+const AdjOrTransOrTri = Union{Adjoint, Transpose, LinearAlgebra.AbstractTriangular}
 
 function memory_overlap(A::AdjOrTransOrTri, B::AbstractArray)
     return memory_overlap(parent(A), B)

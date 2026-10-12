@@ -17,7 +17,7 @@ DFT.set_active_taskgraph!(tg)
     t1 = @elapsed fetch(fork_join(m, s))
     t2 = (2 + ceil(m / nw)) * s
     # test that ideal vs actual time are close
-    @test abs(t1 - t2) < 1e-2
+    @test abs(t1 - t2) < 1.0e-2
 end
 
 @testset "Stop dag worker" begin
@@ -35,7 +35,7 @@ end
     t1 = @elapsed fetch(fork_join(m, s))
     t2 = (2 + ceil(m / nw)) * s
     # test that ideal vs actual time are close
-    @test abs(t1 - t2) < 1e-2
+    @test abs(t1 - t2) < 1.0e-2
 end
 
 @testset "Restart dag worker" begin

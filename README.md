@@ -116,7 +116,7 @@ A sequential tiled factorization algorithm can be implemented as:
 ````julia
 using LinearAlgebra
 
-tilerange(ti, ts) = (ti-1)*ts+1:ti*ts
+tilerange(ti, ts) = ((ti - 1) * ts + 1):(ti * ts)
 
 function cholesky_tiled!(A, ts)
     m = size(A, 1)
@@ -132,12 +132,12 @@ function cholesky_tiled!(A, ts)
 
         # Left blocks update
         U = UpperTriangular(T[i, i])
-        for j in i+1:n
+        for j in (i + 1):n
             ldiv!(U', T[i, j])
         end
 
         # Submatrix update
-        for j in i+1:n
+        for j in (i + 1):n
             for k in j:n
                 mul!(T[j, k], T[i, j]', T[i, k], -1, 1)
             end
@@ -169,12 +169,12 @@ function cholesky_dft!(A, ts)
 
         # Left blocks update
         U = UpperTriangular(T[i, i])
-        for j in i+1:n
+        for j in (i + 1):n
             @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
         end
 
         # Submatrix update
-        for j in i+1:n
+        for j in (i + 1):n
             for k in j:n
                 @dspawn mul!(@RW(T[j, k]), @R(T[i, j])', @R(T[i, k]), -1, 1) label = "schur ($j,$k)"
             end
@@ -198,10 +198,10 @@ how to profile the program and get information about how tasks were scheduled:
 # DataFlowTasks environment setup
 
 # Context
-n  = 2048
+n = 2048
 ts = 512
-A  = rand(n, n)
-A  = (A + adjoint(A)) / 2
+A = rand(n, n)
+A = (A + adjoint(A)) / 2
 A = A + n * I;
 ````
 
