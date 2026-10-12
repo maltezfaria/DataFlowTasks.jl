@@ -117,6 +117,12 @@ are used in the DAG rendering and make it more readable. In the DAG
 visualization, the *critical path* is highlighted in red: it is the sequential
 path that took the longest run time during the computation.
 
+The DAG shows the complete dependencies between the logged tasks, including the
+dependencies on tasks which had already finished when a task was inserted (the
+scheduler does not keep track of those, since there is nothing left to wait
+for). To compute them, a `LogInfo` keeps references to the data accessed by the
+logged tasks until it is first analysed (e.g. by `describe` or `GraphViz.Graph`).
+
 !!! note
     The run time of this critical path imposes a hard bound on parallel
     performances: no matter how many threads are available, it is not possible for
