@@ -58,9 +58,17 @@ mutable struct DataFlowTask
             tid₀ = 0
             failed = true
             try
+                # wait for all the dependencies, even if one of them failed, so
+                # that `tj` does not leave the dag before its predecessors
+                err = nothing
                 for ti in deps
-                    wait(ti)
+                    try
+                        wait(ti)
+                    catch e
+                        err = something(err, e)
+                    end
                 end
+                isnothing(err) || throw(err)
                 if !isnothing(logger)
                     tid₀ = Threads.threadid()
                     r₀ = something(running_time_ns(), UInt64(0))

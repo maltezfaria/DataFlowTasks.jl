@@ -140,6 +140,33 @@ end
     DFT.stop_dag_cleaner(tg)
 end
 
+@testset "A failed dependency does not stop the dag cleaner" begin
+    # `j` depends on `k`, which fails at once, and on `i`, which is still
+    # running: `j` must not leave the dag before `i`. Shifting the tags varies
+    # the order in which `j` waits for its dependencies.
+    for shift in 1:4
+        tg = DFT.TaskGraph()
+        A, B = ones(2), ones(2)
+        i, j = DFT.with_taskgraph(tg) do
+            for _ in 1:shift
+                @dspawn identity(nothing)
+            end
+            i = @dspawn (@W(B); sleep(0.2))
+            @dspawn (@W(A); error("k fails"))
+            j = @dspawn sum(@R(A)) + sum(@R(B))
+            return i, j
+        end
+        waiter = Threads.@spawn wait(tg)
+        @test @suppress_err(timedwait(() -> istaskdone(waiter), 5)) == :ok
+        @test istaskdone(i) && !istaskfailed(i)
+        # `j` leaves the dag just before its task is marked as failed
+        @test timedwait(() -> istaskdone(j), 5) == :ok && istaskfailed(j)
+        @test !istaskfailed(tg.dag_cleaner)
+        @test isempty(tg)
+        istaskfailed(tg.dag_cleaner) || DFT.stop_dag_cleaner(tg)
+    end
+end
+
 @testset "with_taskgraph restores the active taskgraph" begin
     old = DFT.get_active_taskgraph()
     tg = DFT.TaskGraph()
