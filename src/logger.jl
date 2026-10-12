@@ -421,6 +421,11 @@ Summary of the events recorded in a [`LogInfo`](@ref), as computed by
   running time of the tasks in each of them (the last entry gathers the tasks
   matching no category)
 - `path`          : tags of the tasks on the critical path
+- `realized_path` : tags of the tasks on the realized critical path (see
+  [`DataFlowTasks.realized_critical_path`](@ref))
+- `realized_before`, `realized_waiting`, `realized_bodies` : the time before the
+  first task of the realized critical path was ready, the time its tasks waited
+  to start once ready, and the duration of their bodies
 - `ntasks`, `nfailed`, `nmigrated` : number of tasks, of tasks which threw an
   error, and of tasks which finished on another thread than the one they
   started on
@@ -431,7 +436,10 @@ The following quantities are derived from these fields:
 - `nowait(s) = s.running / s.workers`: the elapsed time if the running time were
   perfectly shared between the workers, without ever waiting.
 
-Both `critical_path` and `nowait` are lower bounds of `elapsed`.
+Both `critical_path` and `nowait` are lower bounds of `elapsed`. Along the
+realized critical path, the elapsed time is split in `realized_before`,
+`realized_waiting`, `realized_bodies`, and `realized_after(s)`: the time from the
+end of the last task to the end of the logging window.
 """
 struct LogSummary
     elapsed::Float64
@@ -445,6 +453,10 @@ struct LogSummary
     categories::Vector{Pair{String, Regex}}
     running_per_category::Vector{Float64}
     path::Vector{Int64}
+    realized_path::Vector{Int64}
+    realized_before::Float64
+    realized_waiting::Float64
+    realized_bodies::Float64
     ntasks::Int
     nfailed::Int
     nmigrated::Int
@@ -453,6 +465,7 @@ end
 capacity(s::LogSummary) = s.workers * s.elapsed
 idle(s::LogSummary) = capacity(s) - s.running
 nowait(s::LogSummary) = s.running / s.workers
+realized_after(s::LogSummary) = s.elapsed - s.realized_before - s.realized_waiting - s.realized_bodies
 
 _category(c::Pair{String, Regex}) = c
 _category(c::String) = c => Regex(c)
@@ -499,6 +512,12 @@ function summarize(loginfo::LogInfo; categories = String[])
     path = isempty(loginfo.tasklogs) ? Int64[] : longest_path(loginfo)
     onpath = Set(path)
     critical_path = sum(weight, (t for t in loginfo.tasklogs if tag(t) ∈ onpath); init = 0.0)
+    tasks = Dict(tag(t) => t for t in timeline(loginfo))
+    realized_path = realized_critical_path(loginfo)
+    chain = [tasks[k] for k in realized_path]
+    realized_before = isempty(chain) ? 0.0 : first(chain).ready
+    realized_waiting = sum(t -> t.started - t.ready, chain; init = 0.0)
+    realized_bodies = sum(t -> t.finished - t.started, chain; init = 0.0)
     return LogSummary(
         (loginfo.time_finish - loginfo.time_start) * ns,
         loginfo.nworkers,
@@ -511,6 +530,10 @@ function summarize(loginfo::LogInfo; categories = String[])
         cats,
         running_per_category,
         path,
+        realized_path,
+        realized_before,
+        realized_waiting,
+        realized_bodies,
         length(loginfo.tasklogs),
         nfailed,
         nmigrated,
@@ -545,7 +568,16 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
     println(io)
     line("  ├─ ", "Critical path", s.critical_path)
     println(io)
-    line("  ╰─ ", "No-wait (running / workers)", nowait(s))
+    line("  ├─ ", "No-wait (running / workers)", nowait(s))
+    println(io)
+    println(io, "  ╰─ Along the realized critical path ($(length(s.realized_path)) tasks):")
+    line("     ├─ ", "before its first task", s.realized_before)
+    println(io)
+    line("     ├─ ", "waiting to start", s.realized_waiting)
+    println(io)
+    line("     ├─ ", "task bodies", s.realized_bodies)
+    println(io)
+    line("     ╰─ ", "after its last task", realized_after(s))
     println(io, "\n")
 
     line("• ", "Worker time ($(s.workers) × elapsed)", capacity(s))

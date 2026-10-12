@@ -75,8 +75,10 @@ end
     ax = Axis(fig[1, 1])
     tp = DFT.traceplot!(ax, logger; categories = ["A²", "B²", "A*B"])
     @test length(tp.bars[]) == length(tasks)
-    # bars are shaded by the fraction of their duration the tasks were running
-    @test [c.alpha for c in tp.colors[]] ≈ [min(1, t.running / (t.finished - t.started)) for t in tasks]
+    # bars are filled up to the fraction of their duration the tasks were running
+    fraction(t) = min(1, t.running / (t.finished - t.started))
+    @test [r.widths[2] for r in tp.fills[]] ≈ [2MakieExt.BAR * fraction(t) for t in tasks]
+    @test length(tp.path[]) == length(DFT.realized_critical_path(logger))
     @test isempty(tp.highlight_bars[])
     # highlighting a task outlines it with its predecessors and successors
     t = tasks[end]

@@ -24,6 +24,9 @@ const WAITING_COLOR = RGBAf(0.6, 0.6, 0.6, 0.5)
 const GC_COLOR = to_color(cgrad(:sun)[1])
 const PREDECESSOR_COLOR = RGBAf(0.1, 0.3, 0.9, 1)
 const SUCCESSOR_COLOR = RGBAf(0.9, 0.5, 0, 1)
+const SELECTED_COLOR = RGBAf(0.8, 0, 0.8, 1)
+# opacity of the part of a bar above its running fraction
+const TINT = 0.25
 
 # half of the height of a bar
 const BAR = 0.4
@@ -37,18 +40,18 @@ started to the moment it finished. Bars are packed in lanes such that the bars o
 a lane do not overlap. A lane is not a thread, since a task may migrate between
 threads.
 
-- Bars are colored by category (see [`DataFlowTasks.summarize`](@ref)) and
-  shaded by the fraction of their duration the tasks were running. Failed tasks
-  are outlined in red.
+- Bars are colored by category (see [`DataFlowTasks.summarize`](@ref)), and
+  filled up to the fraction of their duration the tasks were running, like a
+  gauge: a task which only sleeps is an empty (light) bar. Failed tasks are
+  outlined in red.
 - The insertions in the DAG are shown in lane `0`: the time spent waiting for the
   DAG (in grey), in the garbage collector (in yellow), and analysing the data
   dependencies (in red).
-- The realized critical path (see [`DataFlowTasks.realized_critical_path`](@ref))
-  is a line going through its tasks, from the start of each to its end, then to
-  the start of the next one.
-- The task with tag `highlight` (if any) is outlined in black, its predecessors in
-  blue and its successors in orange, and the predecessor which made it ready is
-  linked to it by a dashed line.
+- The tasks of the realized critical path (see
+  [`DataFlowTasks.realized_critical_path`](@ref)) are outlined in black.
+- The task with tag `highlight` (if any) is outlined in purple, its predecessors
+  in blue and its successors in orange, and the predecessor which made it ready
+  is linked to it by a dashed line.
 """
 @recipe TracePlot (loginfo::LogInfo,) begin
     "Categories of tasks, given as in `DataFlowTasks.summarize`."
@@ -65,16 +68,19 @@ bar(lane, start, finish) = Rect2f(start, lane - BAR, finish - start, 2BAR)
 function Makie.plot!(p::TracePlot)
     map!(
         p, [:loginfo, :categories],
-        [:tasks, :bars, :colors, :strokecolors, :insertion_bars, :insertion_colors, :path],
+        [:tasks, :bars, :tints, :fills, :colors, :strokecolors, :insertion_bars, :insertion_colors, :path],
     ) do l, categories
         categories = map(DFT._category, categories)
         tasks = DFT.timeline(l)
         palette = category_colors(length(categories))
         bars = [bar(t.lane, t.started, t.finished) for t in tasks]
-        colors = map(tasks) do t
-            c = palette[DFT.jobid(t.label, categories)]
+        colors = [palette[DFT.jobid(t.label, categories)] for t in tasks]
+        tints = [RGBAf(c.r, c.g, c.b, TINT) for c in colors]
+        # the bars are filled from the bottom up to the running fraction
+        fills = map(tasks) do t
             d = t.finished - t.started
-            return RGBAf(c.r, c.g, c.b, d == 0 ? 1.0 : clamp(t.running / d, 0, 1))
+            fraction = d == 0 ? 1.0 : clamp(t.running / d, 0, 1)
+            return Rect2f(t.started, t.lane - BAR, d, 2BAR * fraction)
         end
         strokecolors = [t.failed ? RGBAf(1, 0, 0, 1) : RGBAf(0.5, 0.5, 0.5, 1) for t in tasks]
         # insertions: waiting for the dag, then garbage collection (if any), then
@@ -93,13 +99,8 @@ function Makie.plot!(p::TracePlot)
             end
         end
         bytag = Dict(DFT.tag(t) => t for t in tasks)
-        chain = [bytag[k] for k in DFT.realized_critical_path(l)]
-        # a line through the tasks of the path, from the start of each to its end
-        path = Point2f[]
-        for t in chain
-            push!(path, Point2f(t.started, t.lane), Point2f(t.finished, t.lane))
-        end
-        return tasks, bars, colors, strokecolors, insertion_bars, insertion_colors, path
+        path = [(t = bytag[k]; bar(t.lane, t.started, t.finished)) for k in DFT.realized_critical_path(l)]
+        return tasks, bars, tints, fills, colors, strokecolors, insertion_bars, insertion_colors, path
     end
     map!(
         p, [:tasks, :highlight],
@@ -111,7 +112,7 @@ function Makie.plot!(p::TracePlot)
         t = tasks[k]
         for s in tasks
             color = if s === t
-                RGBAf(0, 0, 0, 1)
+                SELECTED_COLOR
             elseif DFT.tag(s) ∈ t.predecessors
                 PREDECESSOR_COLOR
             elseif DFT.tag(t) ∈ s.predecessors
@@ -128,8 +129,9 @@ function Makie.plot!(p::TracePlot)
         return bars, colors, link
     end
     poly!(p, p.insertion_bars; color = p.insertion_colors)
-    poly!(p, p.bars; color = p.colors, strokecolor = p.strokecolors, strokewidth = 0.5)
-    lines!(p, p.path; color = :black, linewidth = 1.5, visible = p.critical_path)
+    poly!(p, p.bars; color = p.tints, strokecolor = p.strokecolors, strokewidth = 0.5)
+    poly!(p, p.fills; color = p.colors)
+    poly!(p, p.path; color = :transparent, strokecolor = :black, strokewidth = 2, visible = p.critical_path)
     poly!(p, p.highlight_bars; color = :transparent, strokecolor = p.highlight_colors, strokewidth = 2)
     linesegments!(p, p.highlight_link; color = :black, linestyle = :dash)
     return p
@@ -142,8 +144,8 @@ DFT.traceplot!(args...; kwargs...) = traceplot!(args...; kwargs...)
 function tracelegend(position, loginfo::LogInfo, summary::LogSummary)
     palette = category_colors(length(summary.categories))
     elements = Any[PolyElement(; polycolor = c) for c in palette]
-    labels = String[first.(summary.categories)..., "default"]
-    if summary.running_per_category[end] == 0 # no task in the default category
+    labels = String[first.(summary.categories)..., "uncategorized"]
+    if summary.running_per_category[end] == 0 # no uncategorized task
         pop!(elements), pop!(labels)
     end
     push!(elements, PolyElement(; polycolor = WAITING_COLOR), PolyElement(; polycolor = INSERTION_COLOR))
@@ -152,8 +154,14 @@ function tracelegend(position, loginfo::LogInfo, summary::LogSummary)
         push!(elements, PolyElement(; polycolor = GC_COLOR))
         push!(labels, "gc")
     end
-    push!(elements, LineElement(; color = :black, linewidth = 1.5))
-    push!(labels, "realized critical path")
+    push!(elements, PolyElement(; polycolor = :transparent, strokecolor = :black, strokewidth = 2))
+    percent(x) = string(round(Int, 100 * x / summary.elapsed), "%")
+    push!(
+        labels,
+        "realized critical path ($(percent(summary.realized_bodies)) task bodies, " *
+            "$(percent(summary.realized_waiting)) waiting to start, " *
+            "$(percent(summary.realized_before)) before its first task)",
+    )
     return Legend(position, elements, labels; orientation = :horizontal, framevisible = false)
 end
 
@@ -240,7 +248,7 @@ function categoriesplot(ax, summary::LogSummary)
     lengthx = length(categories)
     ticks = first.(categories)
     hasdefault && (lengthx += 1)
-    hasdefault && (ticks = [ticks..., "default"])
+    hasdefault && (ticks = [ticks..., "uncategorized"])
     ax.xticks = (1:lengthx, ticks)
     ax.ylabel = "Time (s)"
 

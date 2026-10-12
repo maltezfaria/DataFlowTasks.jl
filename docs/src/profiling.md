@@ -157,19 +157,25 @@ shown as a bar, from the moment its body started to the moment it finished. The
 bars are packed in *lanes*, such that the bars of a lane do not overlap: the
 number of lanes is the largest number of tasks running at the same time. A lane
 is not a thread (see [the limitations of the parallel
-trace](@ref trace-limitations)). Each bar is shaded according to the fraction of
-its duration the task was actually running, and the bars of failed tasks are
-outlined in red.
+trace](@ref trace-limitations)). Each bar has the color of the category of its
+task, and is filled from the bottom like a gauge, up to the fraction of its
+duration the task was actually running: a task which only computes is a full
+bar, and a task which only sleeps an empty (light) one. The bars of failed tasks
+are outlined in red.
 
-The black line going through some of the tasks is the *realized critical path*
-(see [`DataFlowTasks.realized_critical_path`](@ref)): starting from the last
-task to finish, it goes back to the predecessor which made each task ready, i.e.
-the one which finished last. It shows the chain of events which determined the
-end of the computation, and the time spent between the moment a task was ready
-and the moment it started.
+The tasks outlined in black form the *realized critical path* (see
+[`DataFlowTasks.realized_critical_path`](@ref)), which answers the question:
+what made the computation end when it did? Starting from the last task to
+finish, it goes back to what the task was waiting for before it could start: the
+predecessor which finished last, or, if the task was ready as soon as it was
+inserted, its insertion. Each task of the path was therefore waiting for the
+previous one. The legend splits the elapsed time along this path: the time
+before its first task was ready, the time its tasks waited to start once ready
+(e.g. because all the threads were busy), and the time spent in their bodies.
+[`DataFlowTasks.describe`](@ref) reports the same breakdown.
 
 When hovering over a task in the interactive visualization (i.e. when using
-`GLMakie` instead of `CairoMakie`), the task is outlined in black, its
+`GLMakie` instead of `CairoMakie`), the task is outlined in purple, its
 predecessors in blue and its successors in orange, and the title shows its
 label and its lifecycle (see [`DataFlowTasks.TaskTimeline`](@ref)): how long its
 insertion took (and waited for the DAG to be available), what made it ready,
@@ -256,6 +262,7 @@ the [`LogSummary`](@ref DataFlowTasks.LogSummary) computed by
 | Task insertion        | total time spent inserting tasks, on the threads calling `@dspawn`         |
 | Critical path         | wall time of the longest chain of dependent tasks                          |
 | No-wait               | ``W / P``                                                                  |
+| Realized path         | chain of tasks each waiting for the previous one, ending with the last task |
 
 Both the critical path and the no-wait time are lower bounds of the elapsed
 time. The tasks run on the `:default` threadpool, while `@dspawn` (and therefore
@@ -315,7 +322,7 @@ DataFlowTasks.describe(log_info)
 Julia measures the time each task spends running, but not *when* it is
 descheduled and resumed. Therefore, in the parallel trace:
 
-- a task which is descheduled is shaded according to the fraction of its
+- a task which is descheduled is filled according to the fraction of its
   duration it was running, but the moments it was not running are not shown;
 - while a task is descheduled, its thread may run other tasks, and the task may
   resume on another thread. This is why the tasks are shown in lanes rather than
