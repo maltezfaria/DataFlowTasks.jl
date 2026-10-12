@@ -83,38 +83,34 @@ end
     @test DFT.data_dependency(t1, t3) == false
 end
 
-# Mock-up error handler:
-# pushes errors to an array instead of displaying them
-const ERRORS = []
-function DFT._handle_error(exceptions)
-    return push!(ERRORS, exceptions)
-end
-
 @testset "Error handling" begin
-    # Errors are not handled when debug mode is off
+    # Errors are not displayed when debug mode is off
     DFT.enable_debug(false)
-    empty!(ERRORS)
-    t = @dspawn error("Unseen error")
-    @test_throws TaskFailedException wait(t)
-    @test isempty(ERRORS)
+    err = @capture_err begin
+        t = @dspawn error("Unseen error")
+        @test_throws TaskFailedException wait(t)
+    end
+    @test !occursin("Unseen error", err)
 
-    # Errors are handled when debug mode is on.
+    # Errors are displayed when debug mode is on
     DFT.enable_debug(true)
-    empty!(ERRORS)
-    t = @dspawn error("Expected error")
-    @test_throws TaskFailedException wait(t)
-    @test length(ERRORS) == 1
-    @test ERRORS[1][1].exception.msg == "Expected error"
+    err = @capture_err begin
+        t = @dspawn error("Expected error")
+        @test_throws TaskFailedException wait(t)
+    end
+    @test occursin(r"failed task"i, err) # upper case when color is off
+    @test occursin("Expected error", err)
 
-    # Tasks can be stopped when debug mode is on
-    empty!(ERRORS)
-    t = @dspawn sleep(3600)
-    sleep(0.1)
-    @test !istaskdone(t)
-    schedule(t, :stop; error = true)
-    sleep(0.1)
-    @test istaskdone(t)
-    @test isempty(ERRORS)
+    # Tasks can be stopped when debug mode is on, without displaying an error
+    err = @capture_err begin
+        t = @dspawn sleep(3600)
+        sleep(0.1)
+        @test !istaskdone(t)
+        schedule(t, :stop; error = true)
+        sleep(0.1)
+        @test istaskdone(t)
+    end
+    @test isempty(err)
 end
 
 @testset "Sequential mode" begin
