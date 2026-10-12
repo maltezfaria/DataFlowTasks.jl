@@ -4,10 +4,6 @@ using Makie
 import DataFlowTasks as DFT
 using DataFlowTasks: LogInfo, LogSummary, summarize, idle, nowait
 
-function __init__()
-    return @info "Loading DataFlowTasks general plot utilities"
-end
-
 #= Colors of `n` categories, followed by the color of the tasks in no category.
 The colors are repeated if there are more categories than colors. =#
 function category_colors(n::Int)

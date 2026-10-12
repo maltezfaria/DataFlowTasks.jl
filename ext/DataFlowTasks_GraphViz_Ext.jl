@@ -4,10 +4,6 @@ using GraphViz
 using DataFlowTasks
 using DataFlowTasks: LogInfo, longest_path, loggertodot
 
-function __init__()
-    return @info "Loading DataFlowTasks dag plot utilities"
-end
-
 """
     GraphViz.Graph(log_info::LogInfo)
 
@@ -17,7 +13,7 @@ See also: [`DataFlowTasks.@log`](@ref)
 """
 GraphViz.Graph(log_info::LogInfo) = GraphViz.Graph(loggertodot(log_info))
 
-function DataFlowTasks.savedag(filepath::String, graph::GraphViz.Graph)
+function DataFlowTasks.savedag(filepath::AbstractString, graph::GraphViz.Graph)
     !graph.didlayout && GraphViz.layout!(graph)
     return open(filepath, "w") do io
         return GraphViz.render(io, graph)
