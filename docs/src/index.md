@@ -18,9 +18,9 @@ how *tasks depend on each other*.
 When creating a `Task` using [`@dspawn`](@ref), the following annotations can be
 used to declare how the `Task` accesses the data:
 
-- read-only: `@R` or `@READ`
-- write-only: `@W` or `@WRITE`
-- read-write: `@RW` or `@READWRITE`
+- read-only: `@R`
+- write-only: `@W`
+- read-write: `@RW`
 
 An `@R(A)` annotation for example implies that *data* `A` will be accessed in
 read-only mode by the *task*. Here is a simple example:
@@ -52,7 +52,7 @@ c = fetch(d2) # 0
 ```
 
 Two (asynchronous) tasks were created, both of which access the array `A`.
-Because `d1` writes to `A`, and `d2` reads from it, the outcome `C` is
+Because `d1` writes to `A`, and `d2` reads from it, the outcome `c` is
 nondeterministic unless we specify an order of precedence. `DataFlowTasks`
 reinforces the **sequential consistency** criterion, which is to say that
 executing tasks in parallel must preserve, up to rounding errors, the result
@@ -206,9 +206,9 @@ Each time a `Task` is spawned using `@dspawn`, it is added to an
 internal `TaskGraph` (see [`get_active_taskgraph`](@ref)) so that its
 data-dependencies can be tracked and analyzed. There are two important things to
 know about `TaskGraph` objects. First, they are buffered to handle at most
-`sz_max` tasks at a time: trying to add a task to the `TaskGraph` when it is
-full will block. This is done to keep the cost of analyzing the data
-dependencies under control. You can modify the buffer size as follows:
+`sz` tasks at a time (their capacity, see [`TaskGraph`](@ref)): trying to add a
+task to the `TaskGraph` when it is full will block. This is done to keep the
+cost of analyzing the data dependencies under control. You can modify the buffer size as follows:
 
 ```@example scheduler
 using DataFlowTasks # hide
@@ -241,7 +241,7 @@ taskgraph
 Note that stopping the `dag_cleaner` means `finished` nodes are no longer
 removed; since the task graph is a buffered structure, this may cause the
 execution to halt if it is at full capacity. You can then either `resize!` it,
-or simply start the worker (which will result in the processing of the
+or simply restart the `dag_cleaner` (which will result in the processing of the
 `finished` channel):
 
 ```@example scheduler

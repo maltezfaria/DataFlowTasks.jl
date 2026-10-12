@@ -12,19 +12,10 @@ import DataFlowTasks as DFT
     @test DFT.num_nodes(dag) == 2
     DFT.addedge!(dag, 1, 2)
     @test DFT.num_edges(dag) == 1
-    @test DFT.has_edge(dag, 1, 2) == true
-    @test DFT.has_edge(dag, 2, 1) == false
     @test DFT.outneighbors(dag, 1) == Set(2)
     @test DFT.inneighbors(dag, 1) == Set()
     @test DFT.outneighbors(dag, 2) == Set()
     @test DFT.inneighbors(dag, 2) == Set(1)
-    DFT.addnode!(dag, 3)
-    DFT.addnode!(dag, 4)
-    DFT.addedge!(dag, 2, 4)
-    @test DFT.isconnected(dag, 1, 3) == false
-    @test DFT.isconnected(dag, 2, 4) == true
-    @test DFT.isconnected(dag, 1, 4) == true # 1 --> 2 --> 4
-    @test DFT.num_edges(DFT.addedge_transitive!(dag, 1, 4)) == 2 # vtx 1 is already connected to vtx through vtx2
 end
 
 @testset "Buffering" begin

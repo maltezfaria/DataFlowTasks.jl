@@ -36,9 +36,9 @@ than to specify how *tasks depend on each other*.
 When creating a `Task` using `@dspawn`, the following
 annotations can be used to declare how the `Task` accesses the data:
 
-- read-only: `@R` or `@READ`
-- write-only: `@W` or `@WRITE`
-- read-write: `@RW` or `@READWRITE`
+- read-only: `@R`
+- write-only: `@W`
+- read-write: `@RW`
 
 An `@R(A)` annotation for example implies that `A` will be accessed in
 read-only mode by the *task*.
@@ -60,7 +60,7 @@ fetch(result)
 From annotations describing task-data dependencies, `DataFlowTasks.jl` infers
 dependencies between tasks. Internally, this set of dependencies is
 represented as a Directed Acyclic Graph. All the data needed to reconstruct
-the `DAG` (as well as the parallalel traces) can be collected using the `@log`
+the `DAG` (as well as the parallel traces) can be collected using the `@log`
 macro:
 
 ````julia
@@ -76,7 +76,7 @@ end
 And the DAG can be visualized using `GraphViz`:
 
 ````julia
-using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
+using GraphViz # triggers additional code loading, powered by weak dependencies
 dag = GraphViz.Graph(log_info)
 ````
 
@@ -90,7 +90,7 @@ therefore independent, as shown in the DAG.
 
 As a less contrived example, we illustrate below the use of `DataFlowTasks` to
 parallelize a tiled Cholesky factorization. The implementation shown here is
-delibarately made as simple as possible.
+deliberately made as simple as possible.
 
 The Cholesky factorization algorithm takes a symmetric positive definite
 matrix A and finds a lower triangular matrix L such that `A = LLᵀ`. The tiled
@@ -104,8 +104,9 @@ If we have a matrix A decomposed in `n x n` tiles, then the algorithm will
 have `n` steps. The `i`-th step (with `i ∈ [1:n]`) will perform
 
 - `1` Cholesky factorization of the (i,i) block,
-- `(i-1)` triangular solves (one for each block in the `i`-th row),
-- `i*(i-1)/2` matrix multiplications to update the submatrix.
+- `(n-i)` triangular solves (one for each block at the right of the diagonal
+  block in the `i`-th row),
+- `(n-i)*(n-i+1)/2` matrix multiplications to update the submatrix.
 
 The following image illustrates the 2nd step of the algorithm:
 
@@ -115,6 +116,8 @@ A sequential tiled factorization algorithm can be implemented as:
 
 ````julia
 using LinearAlgebra
+# the tasks run in parallel: each of them should use a single BLAS thread
+BLAS.set_num_threads(1)
 
 tilerange(ti, ts) = ((ti - 1) * ts + 1):(ti * ts)
 
@@ -130,7 +133,7 @@ function cholesky_tiled!(A, ts)
         # Diagonal Cholesky serial factorization
         cholesky!(T[i, i])
 
-        # Left blocks update
+        # Right blocks update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             ldiv!(U', T[i, j])
@@ -167,7 +170,7 @@ function cholesky_dft!(A, ts)
         # Diagonal Cholesky serial factorization
         @dspawn cholesky!(@RW(T[i, i])) label = "chol ($i,$i)"
 
-        # Left blocks update
+        # Right blocks update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
@@ -191,7 +194,7 @@ end
 meaningful labels to the tasks. These will later be useful to interpret the
 output of debugging & profiling tools.)
 
-The code below shows how to use this `cholesky_tiled!` function, as well as
+The code below shows how to use this `cholesky_dft!` function, as well as
 how to profile the program and get information about how tasks were scheduled:
 
 ````julia
@@ -222,10 +225,13 @@ understanding how task dependencies were inferred, and how tasks were
 scheduled during execution.
 
 As usual when profiling code, it is recommended to start from a state where
-all code has already been compiled, and all previous profiling information has
+all code has already been compiled (including the code used for logging,
+which a first logged run compiles), and all previous profiling information has
 been discarded:
 
 ````julia
+DataFlowTasks.@log cholesky_dft!(copy(A), ts) # compile the logging code
+
 # Manually call GC to avoid noise from previous runs
 GC.gc()
 
@@ -257,10 +263,10 @@ DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 ````
 
 but it is often more convenient to see this information in a graphical
-way. The parallel trace plot shows a timeline of the tasks execution on
-available threads. It helps in understanding how tasks were scheduled. The
-same window also carries other general information allowing to better
-understand the performance limiting factors:
+way. The parallel trace plot shows a timeline of the tasks execution, each task
+being a bar from its start to its end. It helps in understanding how tasks were
+scheduled. The same window also carries other general information allowing to
+better understand the performance limiting factors:
 
 ````julia
 using CairoMakie # or GLMakie in order to have more interactivity
@@ -269,9 +275,10 @@ trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 
 ![](https://maltezfaria.github.io/DataFlowTasks.jl/dev/readme/cholesky_trace.svg)
 
-We see here that the execution time is bounded by the length of the critical
-path: with this block size and matrix size, the algorithm does not expose
-enough parallelism to occupy all threads without waiting periods.
+We see here that the longest path accounts for a large part of the execution
+time: with this block size and matrix size, the algorithm does not expose
+enough parallelism to occupy all threads without waiting periods (and this
+gets worse as the number of threads increases).
 
 We'll cover in detail the usage and possibilities of the visualization in the
 documentation.

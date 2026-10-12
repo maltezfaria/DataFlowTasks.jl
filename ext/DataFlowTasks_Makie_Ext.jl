@@ -4,24 +4,18 @@ using Makie
 import DataFlowTasks as DFT
 using DataFlowTasks: LogInfo, LogSummary, summarize, idle, nowait
 
-function __init__()
-    return @info "Loading DataFlowTasks general plot utilities"
-end
-
-#= Colors of `n` categories, followed by the color of the tasks in no category =#
+#= Colors of `n` categories, followed by the color of the tasks in no category.
+The colors are repeated if there are more categories than colors. =#
 function category_colors(n::Int)
-    if n ≥ 4
-        grad = cgrad(:tab10)[1:(n + 1)]
-        deleteat!(grad, 4) # the red is used for the insertions
-    else
-        grad = cgrad(:tab10)[1:n]
-    end
-    return RGBAf[grad..., to_color(:black)]
+    # the red is used for the insertions
+    tab = cgrad(:tab10)[[1:3; 5:10]]
+    return RGBAf[(tab[mod1(i, length(tab))] for i in 1:n)..., to_color(:black)]
 end
 
 const INSERTION_COLOR = RGBAf(1, 0, 0, 1)
-const WAITING_COLOR = RGBAf(0.6, 0.6, 0.6, 0.5)
-const GC_COLOR = to_color(cgrad(:sun)[1])
+const WAITING_COLOR = RGBAf(1, 0, 0, 0.3)
+const GC_COLOR = RGBAf(1, 0.8, 0, 1)
+const FAILED_COLOR = RGBAf(1, 0, 0, 1)
 const PREDECESSOR_COLOR = RGBAf(0.1, 0.3, 0.9, 1)
 const SUCCESSOR_COLOR = RGBAf(0.9, 0.5, 0, 1)
 const SELECTED_COLOR = RGBAf(0.8, 0, 0.8, 1)
@@ -45,9 +39,9 @@ threads.
   gauge: a task which only sleeps is an empty (light) bar. Failed tasks are
   outlined in red.
 - The insertions in the DAG are shown in lane `0`: the time spent waiting for the
-  DAG (in grey), in the garbage collector (in yellow), and analysing the data
-  dependencies (in red).
-- The tasks of the realized critical path (see
+  DAG (in light red), in the garbage collector (in yellow), and analysing the
+  data dependencies (in red).
+- If `realized_path` is `true`, the tasks of the realized critical path (see
   [`DataFlowTasks.realized_critical_path`](@ref)) are outlined in black.
 - The task with tag `highlight` (if any) is outlined in purple, its predecessors
   in blue and its successors in orange, and the predecessor which made it ready
@@ -58,8 +52,8 @@ threads.
     categories = String[]
     "Tag of the task to highlight with its dependencies, or `0` for none."
     highlight = 0
-    "Whether to show the realized critical path."
-    realized_path = true
+    "Whether to outline the realized critical path."
+    realized_path = false
 end
 
 seconds(l::LogInfo, t) = DFT._seconds(l, t)
@@ -68,7 +62,7 @@ bar(lane, start, finish) = Rect2f(start, lane - BAR, finish - start, 2BAR)
 function Makie.plot!(p::TracePlot)
     map!(
         p, [:loginfo, :categories],
-        [:tasks, :bars, :tints, :fills, :colors, :strokecolors, :insertion_bars, :insertion_colors, :path],
+        [:tasks, :bars, :tints, :fills, :colors, :failed_bars, :insertion_bars, :insertion_colors, :path],
     ) do l, categories
         categories = map(DFT._category, categories)
         tasks = DFT.timeline(l)
@@ -82,7 +76,7 @@ function Makie.plot!(p::TracePlot)
             fraction = d == 0 ? 1.0 : clamp(t.running / d, 0, 1)
             return Rect2f(t.started, t.lane - BAR, d, 2BAR * fraction)
         end
-        strokecolors = [t.failed ? RGBAf(1, 0, 0, 1) : RGBAf(0.5, 0.5, 0.5, 1) for t in tasks]
+        failed_bars = [bar(t.lane, t.started, t.finished) for t in tasks if t.failed]
         # insertions: waiting for the dag, then garbage collection (if any), then
         # analysis of the data dependencies
         insertion_bars, insertion_colors = Rect2f[], RGBAf[]
@@ -100,7 +94,7 @@ function Makie.plot!(p::TracePlot)
         end
         bytag = Dict(DFT.tag(t) => t for t in tasks)
         path = [(t = bytag[k]; bar(t.lane, t.started, t.finished)) for k in DFT.realized_critical_path(l)]
-        return tasks, bars, tints, fills, colors, strokecolors, insertion_bars, insertion_colors, path
+        return tasks, bars, tints, fills, colors, failed_bars, insertion_bars, insertion_colors, path
     end
     map!(
         p, [:tasks, :highlight],
@@ -129,8 +123,9 @@ function Makie.plot!(p::TracePlot)
         return bars, colors, link
     end
     poly!(p, p.insertion_bars; color = p.insertion_colors)
-    poly!(p, p.bars; color = p.tints, strokecolor = p.strokecolors, strokewidth = 0.5)
+    poly!(p, p.bars; color = p.tints, strokecolor = RGBAf(0.5, 0.5, 0.5, 1), strokewidth = 0.5)
     poly!(p, p.fills; color = p.colors)
+    poly!(p, p.failed_bars; color = :transparent, strokecolor = FAILED_COLOR, strokewidth = 1.5)
     poly!(p, p.path; color = :transparent, strokecolor = :black, strokewidth = 2, visible = p.realized_path)
     poly!(p, p.highlight_bars; color = :transparent, strokecolor = p.highlight_colors, strokewidth = 2)
     linesegments!(p, p.highlight_link; color = :black, linestyle = :dash)
@@ -154,15 +149,9 @@ function tracelegend(position, loginfo::LogInfo, summary::LogSummary)
         push!(elements, PolyElement(; polycolor = GC_COLOR))
         push!(labels, "gc")
     end
-    push!(elements, PolyElement(; polycolor = :transparent, strokecolor = :black, strokewidth = 2))
-    percent(x) = string(round(Int, 100 * x / summary.elapsed), "%")
-    push!(
-        labels,
-        "realized critical path ($(percent(summary.realized_bodies)) task bodies, " *
-            "$(percent(summary.realized_waiting)) waiting to start, " *
-            "$(percent(summary.realized_before)) before its first task)",
-    )
-    return Legend(position, elements, labels; orientation = :horizontal, framevisible = false)
+    # in several rows if there are many entries
+    nbanks = cld(length(elements), 8)
+    return Legend(position, elements, labels; orientation = :horizontal, nbanks, framevisible = false)
 end
 
 #= The task under the mouse position `pos` (in data coordinates), if any =#
@@ -250,6 +239,7 @@ function categoriesplot(ax, summary::LogSummary)
     hasdefault && (lengthx += 1)
     hasdefault && (ticks = [ticks..., "uncategorized"])
     ax.xticks = (1:lengthx, ticks)
+    lengthx > 4 && (ax.xticklabelrotation = π / 4)
     ax.ylabel = "Time (s)"
 
     # Colors
@@ -266,7 +256,9 @@ end
 """
     plot(log_info; categories)
 
-Plot DataFlowTasks `log_info` labeled informations with categories.
+Plot a dashboard of `log_info`: the trace of the tasks (see
+[`DataFlowTasks.traceplot`](@ref)), the time spent by activity, the elapsed time
+and its bounds, and the running time by category.
 
 Entries in `categories` define how to group tasks in categories for
 plotting. Each entry can be:

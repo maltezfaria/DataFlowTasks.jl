@@ -1,11 +1,11 @@
 """
     enable_log(mode = true)
 
-If `mode` is `true` (the default), logging is enabled throug the [`@log`](@ref)
+If `mode` is `true` (the default), logging is enabled through the [`@log`](@ref)
 macro. Calling `enable_log(false)` will de-activate logging at compile time to
 avoid any possible overhead.
 
-Note that changing the log mode at runtime will may invalidate code, possibly
+Note that changing the log mode at runtime may invalidate code, possibly
 triggering recompilation.
 
 See also: [`@log`](@ref), [`with_logging`](@ref)

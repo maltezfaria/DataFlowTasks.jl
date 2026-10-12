@@ -61,6 +61,12 @@ import DataFlowTasks as DFT
         # priorities are the ones of Julia tasks, in 0:typemax(UInt16)
         @test_throws ArgumentError DFT.@dtask f(@R(x)) priority = -1
         @test_throws ArgumentError DFT.@dtask f(@R(x)) priority = 2^16
+        @test_throws ArgumentError DFT.@dtask f(@R(x)) priority = 1.5
+    end
+
+    @testset "body which is not an expression" begin
+        @test fetch(@dspawn 1) == 1
+        @test fetch(@dspawn x) === x
     end
 
     @testset "invalid parameters" begin

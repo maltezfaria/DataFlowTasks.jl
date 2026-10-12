@@ -64,8 +64,8 @@ y = collect("AGCAT");
 
 # Let's build the $L$ array. For the sake of the example, we'll initially fill
 # it with $(-1)$ in order to indicate which values haven't been computed yet.
-# The `init_buffer(x,y)` function simply initiaizes a buffer matrix `L` of the
-# appropriate size, while `init_length!(L)` takes a matrix and fills its first
+# The `init_buffer(x,y)` function simply initializes a buffer matrix `L` of the
+# appropriate size, while `init_lengths!(L)` takes a matrix and fills its first
 # row and first column with zeros. We also define a `display` helper function,
 # which shows a pretty representation of the $L$ array.
 
@@ -279,8 +279,12 @@ t_par = @belapsed LCS_par!(L, $x, $y, nx, ny) setup = (L = init_buffer(x, y))
 
 import DataFlowTasks as DFT
 resize!(DFT.get_active_taskgraph(), 300)
+## as when measuring the run time, the buffer is allocated beforehand; a first
+## logged run compiles the code used for logging
+L = init_buffer(x, y)
+DFT.@log LCS_par!(L, x, y, nx, ny)
 GC.gc()
-log_info = DFT.@log LCS_par(x, y, nx, ny)
+log_info = DFT.@log LCS_par!(L, x, y, nx, ny)
 
 using GraphViz
 dag = GraphViz.Graph(log_info)
@@ -296,7 +300,7 @@ barplot(
 )
 
 # Comparing the performances of these 3 implementations, the tiled version may,
-# depending on the system, already saves some time due to cache effects. The the
+# depending on the system, already save some time due to cache effects. The
 # parallel version does show some speedup, but not as much as one might expect:
 
 (; nthreads = Threads.nthreads(), speedup = t_seq / t_par)
@@ -308,9 +312,20 @@ DFT.describe(log_info; categories = ["init", "tile", "backtrack"])
 # which we can also visualize in a profiling plot. This gives some insight about
 # the performances of our parallel version:
 
+#md s = DFT.summarize(log_info) #hide
+#md @assert s.elapsed < 1.4 * DFT.nowait(s) "elapsed time not close to No-Wait" #hide
+#md @assert s.longest_path_length < 0.85 * s.elapsed "longest path close to the elapsed time" #hide
+#md @assert s.running > 0.7 * t_seq "running time much smaller than the sequential run time" #hide
 plot(log_info; categories = ["init", "tile", "backtrack"])
 
-# Here, we see for example that the run time is bounded by the length of the
-# longest path, which means that adding more threads would not help much. One way
-# to try and improve the performance is to expose more parallelism by dividing the
-# problem into smaller chunks. Give it a try and see what you get!
+# Here, we see for example that the elapsed time is close to the "No-Wait" bound:
+# the threads are busy most of the time, and the longest path is not the limiting
+# factor. The speedup is rather limited by the total running time of the tasks,
+# which can be larger than the run time of the sequential version: depending on
+# the system, the tiled version may be slower than the sequential one (compare
+# `t_tiled` and `t_seq`), and tiles computed at the same time on several threads
+# may run slower than when computed one after the other (compare the "Running"
+# time with `t_tiled`). With more threads, the longest path (along which the
+# tiles depend on each other) eventually becomes the limit; exposing more
+# parallelism by dividing the problem into smaller chunks then helps. Give it a
+# try and see what you get!

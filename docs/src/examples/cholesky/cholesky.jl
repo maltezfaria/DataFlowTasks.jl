@@ -12,7 +12,7 @@ Pkg.activate("../../..") #src
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/cholesky/cholesky.ipynb)
 #
 # We illustrate here the use of `DataFlowTasks` to parallelize a tiled Cholesky
-# factorization. The implementation shown here is delibarately made as simple
+# factorization. The implementation shown here is deliberately made as simple
 # and self-contained as possible; yet, as we shall see when comparing to
 # *OpenBLAS*, it is already quite performant!
 
@@ -30,8 +30,8 @@ Pkg.activate("../../..") #src
 # have $n$ steps. The $i$-th step (with $i \in [1:n]$) performs:
 #
 # -  $1$ cholesky factorization of the $(i,i)$ tile,
-# -  $(i-1)$ triangular solves (one for each tile in the $i$-th row of the upper triangular matrix),
-# -  $i(i-1)/2$ matrix multiplications to update the submatrix.
+# -  $n-i$ triangular solves (one for each tile at the right of the diagonal tile in the $i$-th row),
+# -  $(n-i)(n-i+1)/2$ matrix multiplications to update the submatrix.
 #
 # These are the basic operations on tiles, which we are going to spawn in
 # separate tasks in the parallel implementation. Accounting for all iterations,
@@ -54,7 +54,8 @@ Pkg.activate("../../..") #src
 # A sequential tiled factorization algorithm can be implemented as:
 
 using LinearAlgebra
-BLAS.set_num_threads(1) #src
+## the tasks run in parallel: each of them should use a single BLAS thread
+BLAS.set_num_threads(1)
 
 tilerange(ti, ts) = ((ti - 1) * ts + 1):(ti * ts)
 
@@ -69,7 +70,7 @@ function cholesky_tiled!(A, ts)
         ## Diagonal cholesky serial factorization
         cholesky!(T[i, i])
 
-        ## Left tiles update
+        ## Right tiles update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             ldiv!(U', T[i, j])
@@ -130,7 +131,7 @@ function cholesky_dft!(A, ts)
         ## Diagonal cholesky serial factorization
         @dspawn cholesky!(@RW(T[i, i])) label = "chol ($i,$i)"
 
-        ## Left tiles update
+        ## Right tiles update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
@@ -165,8 +166,11 @@ err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))
 # ## Debugging and Profiling
 #
 # Let us now check what happens during a parallel run of our cholesky
-# factorization. Thanks to the test above, the code is now compiled. Let's re-run it and collect
-# meaningful profiling information:
+# factorization. Thanks to the test above, the code is now compiled. A first
+# logged run also compiles the code used for logging, so that a second run
+# collects meaningful profiling information:
+
+DataFlowTasks.@log cholesky_dft!(copy(A), ts) # compile the logging code
 
 ## Clean profiling environment
 GC.gc()
@@ -188,6 +192,10 @@ dag = GraphViz.Graph(log_info)
 
 # We can also readily get more details about the performance limiting factors:
 
+#md s = DataFlowTasks.summarize(log_info; categories = ["chol", "ldiv", "schur"]) #hide
+#md @assert s.insertion < 0.1 * s.elapsed "the insertion of the tasks is not negligible" #hide
+#md @assert s.elapsed < 1.5 * DataFlowTasks.nowait(s) "the elapsed time is not close to No-Wait" #hide
+#md @assert s.running_per_category[3] > 0.5 * s.running "the schur tasks are not the majority of the running time" #hide
 DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 
 # and, at the price of loading `Makie`, display these in a more convenient
@@ -202,7 +210,7 @@ trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 # plot, showing a measured wall clock time not too much longer than the lower
 # bound obtained when suppressing idle time.
 #
-# The "Computing time: breakdown by category" plot seems to indicate that the
+# The "Running time: breakdown by category" plot seems to indicate that the
 # matrix multiplications performed in the "Schur" tasks account for the majority
 # of the computing time. This routine is probably already quite fast since it
 # simply calls our *BLAS* library for a *matrix-matrix* product; it would be
@@ -212,7 +220,7 @@ trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 
 #-
 
-# # Performances
+# ## Performance
 
 # To benchmark the performance, we will compare our implementation to the one
 # provided by our system's BLAS library. We will use
@@ -271,8 +279,8 @@ Label(fig[0, :], "Cholesky factorization on $(Threads.nthreads()) threads", font
 fig
 
 # We see that, despite the simplicity of the implementation, the parallel
-# version performs *in par* with the default *BLAS* library for the matrix sizes
-# considered! For very large matrices, further optmizations are probably
+# version performs *on par* with the default *BLAS* library for the matrix sizes
+# considered! For very large matrices, further optimizations are probably
 # necessary to take into account the memory hierarchy of the machine. Finally,
 # here is the observed speedup compared to a sequential tiled implementation and
 # a matrix of size $n=4096$:

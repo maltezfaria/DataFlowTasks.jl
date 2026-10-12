@@ -49,15 +49,16 @@ In order to inspect code which makes use of `DataFlowTask`s, you
 can use the [`DataFlowTasks.@log`](@ref) macro to keep a trace of
 the various parallel events and the underlying `DAG`. Note that to avoid
 profiling the compilation time, it is often advisable to perform a "dry run" of
-the code first, as done in the example below:
+the code first, with logging so that the code used for logging is compiled too,
+as done in the example below:
 
 ```@example profiling
 # Context
 A = ones(2000, 2000)
 B = ones(3000, 3000)
 
-# precompilation run
-work(copy(A),copy(B)) 
+# dry run, which compiles the code and the code used for logging
+DataFlowTasks.@log work(copy(A), copy(B))
 
 # activate logging of events
 log_info = DataFlowTasks.@log work(A, B)
@@ -116,9 +117,7 @@ Note how the task labels (which were provided as extra arguments to `@dspawn`)
 are used in the DAG rendering and make it more readable. In the DAG
 visualization, the *longest path* is highlighted in red: it is the chain of
 dependent tasks with the longest total duration (the sum of the durations of
-their bodies). It is not the *realized critical path* shown in the parallel
-trace below, which is the chain of tasks that actually determined the end of the
-computation.
+their bodies).
 
 The DAG shows the complete dependencies between the logged tasks, including the
 dependencies on tasks which had already finished when a task was inserted (the
@@ -166,17 +165,6 @@ duration the task was actually running: a task which only computes is a full
 bar, and a task which only sleeps an empty (light) one. The bars of failed tasks
 are outlined in red.
 
-The tasks outlined in black form the *realized critical path* (see
-[`DataFlowTasks.realized_critical_path`](@ref)), which answers the question:
-what made the computation end when it did? Starting from the last task to
-finish, it goes back to what the task was waiting for before it could start: the
-predecessor which finished last, or, if the task was ready as soon as it was
-inserted, its insertion. Each task of the path was therefore waiting for the
-previous one. The legend splits the elapsed time along this path: the time
-before its first task was ready, the time its tasks waited to start once ready
-(e.g. because all the threads were busy), and the time spent in their bodies.
-[`DataFlowTasks.describe`](@ref) reports the same breakdown.
-
 When hovering over a task in the interactive visualization (i.e. when using
 `GLMakie` instead of `CairoMakie`), the task is outlined in purple, its
 predecessors in blue and its successors in orange, and the title shows its
@@ -189,7 +177,7 @@ which draws the trace in any `Makie` axis.
 The bottom lane shows the insertion of the tasks in the DAG (which is part of
 the overhead incurred by the use of `DataFlowTasks`): the analysis of the data
 dependencies is shown in red, and the time spent waiting for the DAG (locked, or
-at full capacity) in grey. Inserting tasks involves memory allocations, and may
+at full capacity) in light red. Inserting tasks involves memory allocations, and may
 thus trigger garbage collector sweeps: the time spent in the garbage collector
 during an insertion is shown in yellow. These are not visible for such a small
 example, but the interactive visualization allows zooming on the plot to search
@@ -198,7 +186,8 @@ for those small bars.
 ### Time: breakdown by activity
 
 A barplot in the bottom left corner of the window gives us information on how
-the time was spent (summed over all threads):
+the time was spent. Each bar is a total over the workers or the tasks, so it
+can be larger than the elapsed time:
 
 * `Running` represents the total time the tasks spent running (i.e. "useful"
   work);
@@ -235,7 +224,7 @@ When looking for faster response times, this graph may suggest sensible ways to
 explore. If the measured time is close to the longest path duration, then
 adding more threads will be of no help, but decomposing the work in smaller
 tasks may be useful. On the other hand, if the measured time is close to the
-"without waiting" bound, then adding more workers may reduce the wall clock time
+"No-Wait" bound, then adding more workers may reduce the wall clock time
 and scale relatively well.
 
 ### Running time: breakdown by category
@@ -292,7 +281,6 @@ the [`LogSummary`](@ref DataFlowTasks.LogSummary) computed by
 | Task insertion        | total time spent inserting tasks, on the threads calling `@dspawn`         |
 | Longest path          | wall time of the longest chain of dependent tasks                          |
 | No-wait               | ``W / P``                                                                  |
-| Realized path         | chain of tasks each waiting for the previous one, ending with the last task |
 
 Both the longest path and the no-wait time are lower bounds of the elapsed
 time. The tasks run on the `:default` threadpool, while `@dspawn` (and therefore
@@ -387,8 +375,7 @@ t = tasks[end]
 
 The trace is a `Makie` recipe, [`DataFlowTasks.traceplot`](@ref), which can be
 drawn in any axis. Its `highlight` attribute outlines a task (here, the last one)
-with its predecessors and successors, and the `realized_path` attribute shows or
-hides the realized critical path:
+with its predecessors and successors:
 
 ```@example profiling
 fig = Figure(; size = (800, 300))
@@ -414,7 +401,9 @@ axislegend(ax; position = :rt)
 fig
 ```
 
-[`DataFlowTasks.realized_critical_path`](@ref) gives the tags of the tasks of
-the realized critical path, and [`DataFlowTasks.summarize`](@ref) the breakdown
-of the elapsed time along it.
+Finally, [`DataFlowTasks.realized_critical_path`](@ref) gives the chain of tasks
+which determined the end of the computation, following for each task the
+predecessor which made it ready. Note that it only follows the dependencies: a
+task which was ready early but waited for a free thread appears far from its
+predecessor. It can be outlined in the trace with `realized_path = true`.
 

@@ -16,6 +16,7 @@ function hand_built_log()
     log.time_start, log.time_finish = t0, t0 + 2s
     log.nworkers = 2
     log.gc_time, log.compile_time = 0.25, 0.125
+    log.active = 1 # events are only recorded while logging
     DFT.record!(log, DFT.TaskLog(1, t0, t0 + s ÷ 2, s ÷ 2, 2, 2, Int[], "a", false))
     DFT.record!(log, DFT.TaskLog(2, t0 + s ÷ 2, t0 + 3s ÷ 2, s ÷ 4, 2, 3, [1], "b", false))
     DFT.record!(log, DFT.TaskLog(3, t0 + s ÷ 5, t0 + 2s ÷ 5, s ÷ 5, 3, 3, Int[], "a", true))

@@ -103,7 +103,7 @@ end
 """
     mutable struct LogInfo
 
-Contains informations on the program's progress. Events are appended to the
+Contains information on the program's progress. Events are appended to the
 logs under `lock`, so that a `LogInfo` can be safely shared by all threads.
 
 Besides the logs of the tasks, of their insertion and of their removal from the
@@ -124,13 +124,19 @@ analyze a `LogInfo`, and `GraphViz.Graph` or `Makie.plot` to visualize it.
 !!! note
     A `LogInfo` keeps references to the data accessed by the logged tasks until
     their dependencies are first needed (e.g. by `describe`), so that the
-    complete dependency graph of the tasks can be computed.
+    complete dependency graph of the tasks can be computed. Computing it
+    compares the data of each task with the data of the previous ones: it takes
+    a time growing quadratically with the number of logged tasks (a few seconds
+    for ``10^4`` independent tasks).
 """
 mutable struct LogInfo
     const tasklogs::Vector{TaskLog}
     const insertionlogs::Vector{InsertionLog}
     const cleanuplogs::Vector{CleanupLog}
     const lock::ReentrantLock
+    # held while computing the dependencies, so that `lock` (needed to record
+    # events) is not held during this computation
+    const dependencies_lock::ReentrantLock
     # tasks scheduled while logging, which the logging window waits for
     const tasks::Vector{Task}
     # data accesses of the tasks inserted while logging, released once the
@@ -147,6 +153,10 @@ mutable struct LogInfo
     nworkers::Int
     gc_time::Float64
     compile_time::Float64
+    # cumulated gc and compilation times of the process (in nanoseconds) when
+    # the first window opened: they are measured once for nested windows
+    gc_start::UInt64
+    compile_start::UInt64
 end
 
 function LogInfo()
@@ -154,6 +164,7 @@ function LogInfo()
         TaskLog[],
         InsertionLog[],
         CleanupLog[],
+        ReentrantLock(),
         ReentrantLock(),
         Task[],
         LoggedAccess[],
@@ -164,16 +175,19 @@ function LogInfo()
         0,
         0.0,
         0.0,
+        0,
+        0,
     )
 end
 
 #= Append `log` to the logs of `l` in a thread-safe manner =#
+# tasks scheduled after the logging window are neither waited for nor logged
 function record!(l::LogInfo, log::TaskLog)
-    @lock l.lock push!(l.tasklogs, log)
+    @lock l.lock l.active > 0 && push!(l.tasklogs, log)
     return l
 end
 function record!(l::LogInfo, log::InsertionLog)
-    @lock l.lock push!(l.insertionlogs, log)
+    @lock l.lock l.active > 0 && push!(l.insertionlogs, log)
     return l
 end
 function record!(l::LogInfo, log::CleanupLog)
@@ -181,11 +195,11 @@ function record!(l::LogInfo, log::CleanupLog)
     return l
 end
 function record!(l::LogInfo, t::Task)
-    @lock l.lock push!(l.tasks, t)
+    @lock l.lock l.active > 0 && push!(l.tasks, t)
     return l
 end
 function record!(l::LogInfo, a::LoggedAccess)
-    @lock l.lock push!(l.accesses, a)
+    @lock l.lock l.active > 0 && push!(l.accesses, a)
     return l
 end
 
@@ -203,23 +217,34 @@ built.
 The accesses are released once analysed. Dependencies between tasks logged
 before and after a call to `dependencies` (e.g. in separate `with_logging!`
 calls on the same `LogInfo`) are therefore not found.
+
+The analysis compares each task with all the previous ones (unless they are
+already transitively connected), so its cost is quadratic in the number of tasks.
+It runs without holding `l.lock`, so that events can still be recorded meanwhile.
 =#
 function dependencies(l::LogInfo)
-    @lock l.lock begin
-        isempty(l.accesses) && return l.dependencies
-        accesses = sort(l.accesses; by = tag)
-        for graph in unique(a.graph for a in accesses)
-            dag = DAG{LoggedAccess}()
-            for a in accesses
-                a.graph == graph || continue
-                push!(dag.inoutlist, a => (Set{LoggedAccess}(), Set{LoggedAccess}()))
-                update_edges!(dag, a, a.linear)
-                l.dependencies[tag(a)] = [tag(p) for p in inneighbors(dag, a)]
+    @lock l.dependencies_lock begin
+        accesses = @lock l.lock copy(l.accesses)
+        if !isempty(accesses)
+            deps = Dict{Int64, Vector{Int64}}()
+            sort!(accesses; by = tag)
+            for graph in unique(a.graph for a in accesses)
+                dag = DAG{LoggedAccess}()
+                for a in accesses
+                    a.graph == graph || continue
+                    push!(dag.inoutlist, a => (Set{LoggedAccess}(), Set{LoggedAccess}()))
+                    update_edges!(dag, a, a.linear)
+                    deps[tag(a)] = [tag(p) for p in inneighbors(dag, a)]
+                end
+            end
+            @lock l.lock begin
+                merge!(l.dependencies, deps)
+                # the accesses recorded meanwhile come after the analysed ones
+                deleteat!(l.accesses, 1:length(accesses))
             end
         end
-        empty!(l.accesses)
-        return l.dependencies
     end
+    return l.dependencies
 end
 
 #= Wait for all the tasks recorded in `l`, including the ones recorded while
@@ -248,11 +273,16 @@ NOTE: this reads internal fields of `Task` (Julia ≥ 1.12), since the public
 `Base.Experimental.task_running_time_ns` only accounts for completed running
 periods.
 =#
-function running_time_ns(t::Task = current_task())
-    t.metrics_enabled || return nothing
-    running = @atomic :monotonic t.running_time_ns
-    started = @atomic :monotonic t.last_started_running_at
-    return running + (time_ns() - started)
+@static if all(f -> hasfield(Task, f), (:metrics_enabled, :running_time_ns, :last_started_running_at))
+    function running_time_ns(t::Task = current_task())
+        t.metrics_enabled || return nothing
+        running = @atomic :monotonic t.running_time_ns
+        started = @atomic :monotonic t.last_started_running_at
+        return running + (time_ns() - started)
+    end
+else
+    # the internal fields changed: fall back to the wall time
+    running_time_ns(t::Task = current_task()) = nothing
 end
 
 #TODO: show more relevant information
@@ -280,6 +310,10 @@ end
     with_logging!(f,l::LogInfo)
 
 Similar to [`with_logging`](@ref), but append events to `l`.
+
+When `l` is used for several calls, its logging window spans from the start of
+the first call to the end of the last one: the time between the calls is counted
+in the elapsed time, during which the workers are reported as idle.
 """
 function with_logging!(f, l::LogInfo)
     _log_mode() == true ||
@@ -289,23 +323,33 @@ function with_logging!(f, l::LogInfo)
     Base.Experimental.task_metrics(true)
     l.nworkers = Threads.nthreads(:default)
     @lock l.lock begin
+        if l.active == 0
+            Base.cumulative_compile_timing(true)
+            l.gc_start = Base.gc_time_ns()
+            l.compile_start = first(Base.cumulative_compile_time_ns())
+        end
         l.active += 1
         l.time_start == 0 && (l.time_start = time_ns())
     end
     try
-        stats = @timed with(LOGINFO => l) do
+        res = with(LOGINFO => l) do
             res = f()
             # the logging window ends when all the logged tasks are done
             wait_logged_tasks(l)
             return res
         end
-        l.gc_time += stats.gctime
-        l.compile_time += stats.compile_time
-        return stats.value, l
+        return res, l
     finally
         @lock l.lock begin
             l.active -= 1
             l.time_finish = time_ns()
+            if l.active == 0
+                l.gc_time += (Base.gc_time_ns() - l.gc_start) * 1.0e-9
+                l.compile_time += (first(Base.cumulative_compile_time_ns()) - l.compile_start) * 1.0e-9
+                Base.cumulative_compile_timing(false)
+                # the tasks were waited for: release them (and the data they capture)
+                empty!(l.tasks)
+            end
         end
         Base.Experimental.task_metrics(false)
     end
@@ -351,7 +395,9 @@ end
 
 Execute `expr` and return a [`LogInfo`](@ref) instance with the recorded events.
 The `DataFlowTask`s created by `expr` (directly, or by the tasks it creates) are
-logged, and `@log` waits for them to be completed before returning.
+logged, and `@log` waits for them to be completed before returning. A task
+created by `expr` but scheduled after `@log` returns (see [`@dtask`](@ref)) is
+not logged.
 
 Tasks which are not logged (e.g. spawned before `@log`, or by other code running
 concurrently) may still run during the logging window: the time the workers
@@ -421,12 +467,8 @@ Summary of the events recorded in a [`LogInfo`](@ref), as computed by
 - `categories`, `running_per_category` : the categories of tasks, and the
   running time of the tasks in each of them (the last entry gathers the tasks
   matching no category)
-- `longest_path`  : tags of the tasks on the longest path
-- `realized_path` : tags of the tasks on the realized critical path (see
-  [`DataFlowTasks.realized_critical_path`](@ref))
-- `realized_before`, `realized_waiting`, `realized_bodies` : the time before the
-  first task of the realized critical path was ready, the time its tasks waited
-  to start once ready, and the duration of their bodies
+- `longest_path`  : tags of the tasks on the longest path, from the last one to
+  the first one
 - `ntasks`, `nfailed`, `nmigrated` : number of tasks, of tasks which threw an
   error, and of tasks which finished on another thread than the one they
   started on
@@ -437,10 +479,7 @@ The following quantities are derived from these fields:
 - `nowait(s) = s.running / s.workers`: the elapsed time if the running time were
   perfectly shared between the workers, without ever waiting.
 
-Both `longest_path_length` and `nowait` are lower bounds of `elapsed`. Along the
-realized critical path, the elapsed time is split in `realized_before`,
-`realized_waiting`, `realized_bodies`, and `realized_after(s)`: the time from the
-end of the last task to the end of the logging window.
+Both `longest_path_length` and `nowait` are lower bounds of `elapsed`.
 """
 struct LogSummary
     elapsed::Float64
@@ -454,10 +493,6 @@ struct LogSummary
     categories::Vector{Pair{String, Regex}}
     running_per_category::Vector{Float64}
     longest_path::Vector{Int64}
-    realized_path::Vector{Int64}
-    realized_before::Float64
-    realized_waiting::Float64
-    realized_bodies::Float64
     ntasks::Int
     nfailed::Int
     nmigrated::Int
@@ -466,7 +501,6 @@ end
 capacity(s::LogSummary) = s.workers * s.elapsed
 idle(s::LogSummary) = capacity(s) - s.running
 nowait(s::LogSummary) = s.running / s.workers
-realized_after(s::LogSummary) = s.elapsed - s.realized_before - s.realized_waiting - s.realized_bodies
 
 _category(c::Pair{String, Regex}) = c
 _category(c::String) = c => Regex(c)
@@ -513,12 +547,6 @@ function summarize(loginfo::LogInfo; categories = String[])
     path = isempty(loginfo.tasklogs) ? Int64[] : longest_path(loginfo)
     onpath = Set(path)
     longest_path_length = sum(weight, (t for t in loginfo.tasklogs if tag(t) ∈ onpath); init = 0.0)
-    tasks = Dict(tag(t) => t for t in timeline(loginfo))
-    realized_path = realized_critical_path(loginfo)
-    chain = [tasks[k] for k in realized_path]
-    realized_before = isempty(chain) ? 0.0 : first(chain).ready
-    realized_waiting = sum(t -> t.started - t.ready, chain; init = 0.0)
-    realized_bodies = sum(t -> t.finished - t.started, chain; init = 0.0)
     return LogSummary(
         (loginfo.time_finish - loginfo.time_start) * ns,
         loginfo.nworkers,
@@ -531,10 +559,6 @@ function summarize(loginfo::LogInfo; categories = String[])
         cats,
         running_per_category,
         path,
-        realized_path,
-        realized_before,
-        realized_waiting,
-        realized_bodies,
         length(loginfo.tasklogs),
         nfailed,
         nmigrated,
@@ -569,16 +593,7 @@ function describe(io::IO, loginfo::LogInfo; categories = String[])
     println(io)
     line("  ├─ ", "Longest path", s.longest_path_length)
     println(io)
-    line("  ├─ ", "No-wait (running / workers)", nowait(s))
-    println(io)
-    println(io, "  ╰─ Along the realized critical path ($(length(s.realized_path)) tasks):")
-    line("     ├─ ", "before its first task", s.realized_before)
-    println(io)
-    line("     ├─ ", "waiting to start", s.realized_waiting)
-    println(io)
-    line("     ├─ ", "task bodies", s.realized_bodies)
-    println(io)
-    line("     ╰─ ", "after its last task", realized_after(s))
+    line("  ╰─ ", "No-wait (running / workers)", nowait(s))
     println(io, "\n")
 
     line("• ", "Worker time ($(s.workers) × elapsed)", capacity(s))
@@ -617,7 +632,7 @@ If `GraphViz` is installed, you can use `GraphViz.Graph(logger)` to produce an
 image.
 """
 function loggertodot(logger)
-    path = longest_path(logger)
+    path = isempty(logger.tasklogs) ? Int64[] : longest_path(logger)
 
     # Write DOT graph
     # ---------------
@@ -628,7 +643,7 @@ function loggertodot(logger)
         tasklog = node.log
         # Tasklog.tag node attributes
         str *= """ $(tasklog.tag) """
-        tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)
+        tasklog.label != "" && (str *= """ [label="$(escape_dot(tasklog.label))"] """)
         tasklog.tag ∈ path && (str *= """ [color=red] """)
         str *= """[penwidth=2];"""
 
@@ -646,5 +661,9 @@ function loggertodot(logger)
         end
     end
 
-    return str *= "}"
+    return str * "}"
 end
+
+# escape the labels so that they are shown verbatim in DOT quoted strings
+# (otherwise, a `"` ends the string and a `\` starts an escape sequence)
+escape_dot(s) = replace(s, "\\" => "\\\\", "\"" => "\\\"")

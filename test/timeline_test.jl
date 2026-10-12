@@ -17,6 +17,7 @@ function hand_built_log()
     log = DFT.LogInfo()
     log.time_start, log.time_finish = t0, at(2000)
     log.nworkers = 2
+    log.active = 1 # events are only recorded while logging
     for (tag, req, ana, ins, start, finish, removed, deps, label, tids, failed) in [
             (1, 0, 0, 100, 100, 500, 600, Int[], "a", (1, 1), false),
             (2, 100, 100, 200, 600, 1000, 1100, [1], "b", (1, 2), false),
@@ -26,7 +27,6 @@ function hand_built_log()
         running = (finish - start) * ms
         DFT.record!(log, DFT.TaskLog(tag, at(start), at(finish), running, tids..., deps, label, failed))
         DFT.record!(log, DFT.InsertionLog(at(req), at(ana), at(ins), 0, tag, 1))
-        log.active = 1 # removals are only recorded while logging
         isnothing(removed) || DFT.record!(log, DFT.CleanupLog(tag, at(removed - 50), at(removed)))
     end
     return log
@@ -81,6 +81,7 @@ end
 @testset "Timeline without insertion records" begin
     log = DFT.LogInfo()
     log.time_start, log.time_finish = t0, at(1000)
+    log.active = 1
     DFT.record!(log, DFT.TaskLog(1, at(100), at(200), 100ms, 1, 1, Int[], "", false))
     t = only(DFT.timeline(log))
     @test t.requested == t.insertion_start == t.inserted == t.ready == t.started
@@ -109,13 +110,4 @@ end
     @test c.time[end] ≈ (log.time_finish - log.time_start) * 1.0e-9
     path = DFT.realized_critical_path(log)
     @test issorted(path) && last(path) == DFT.tag(argmax(t -> t.finished, tl))
-end
-
-@testset "Elapsed time along the realized critical path" begin
-    sm = DFT.summarize(hand_built_log())
-    @test sm.realized_path == [1, 2, 4]
-    @test sm.realized_before ≈ 0.1 # task 1 is ready once inserted
-    @test sm.realized_waiting ≈ 0.1 # task 2 starts 0.1 s after task 1 finishes
-    @test sm.realized_bodies ≈ 0.4 + 0.4 + 0.5
-    @test DFT.realized_after(sm) ≈ 0.5
 end

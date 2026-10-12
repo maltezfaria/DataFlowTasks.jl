@@ -7,8 +7,8 @@ list of nodes with edges coming into a node `i` can be retrieved using
 from `i` can be retrieved using [`outneighbors(dag,i)`](@ref).
 
 `DAG` is a buffered structure with a buffer of size `sz_max`: calling
-[`addnode!`](@ref) on it will block if the `DAG` has more than `sz_max`
-elements.
+[`addnode!`](@ref) on it will block if the `DAG` already holds `sz_max`
+nodes.
 
 The `DAG` is thread-safe: mutating operations acquire `dag.lock`, and the
 conditions `cond_push` and `cond_empty` are associated with that same lock.
@@ -26,16 +26,19 @@ end
 # the tasks of several DAGs. Within a DAG, they are increasing in insertion order.
 const TASK_COUNTER = Threads.Atomic{Int}(0)
 
+function _capacity(sz)
+    sz = sz == Inf ? typemax(Int) : Int(sz)
+    sz > 0 || throw(ArgumentError("DAG buffer size must be a positive integer"))
+    return sz
+end
+
 """
     DAG{T}(sz)
 
 Create a buffered `DAG` holding a maximum of `sz` nodes of type `T`.
 """
 function DAG{T}(sz = typemax(Int)) where {T}
-    sz = sz == Inf ? typemax(Int) : Int(sz)
-    if sz <= 0
-        throw(ArgumentError("DAG buffer size must be a positive integer"))
-    end
+    sz = _capacity(sz)
     inoutlist = OrderedDict{T, Tuple{Set{T}, Set{T}}}()
     lock = ReentrantLock()
     cond_push = Threads.Condition(lock)
@@ -45,7 +48,7 @@ function DAG{T}(sz = typemax(Int)) where {T}
 end
 
 function Base.resize!(dag::DAG, sz)
-    sz = sz == Inf ? typemax(Int) : Int(sz)
+    sz = _capacity(sz)
     msg = """cannot resize `dag` (desired capacity too small to contain the
     already present nodes)"""
     lock(dag)
@@ -103,7 +106,7 @@ inneighbors(dag::DAG, i) = dag.inoutlist[i][1]
 """
     outneighbors(dag,i)
 
-List of successors of `j` in `dag`.
+List of successors of `i` in `dag`.
 """
 outneighbors(dag::DAG, i) = dag.inoutlist[i][2]
 
@@ -159,7 +162,7 @@ function addnode!(dag::DAG{T}, i::T, check = false, logger = nothing, time_reque
 end
 
 function addnode!(dag::DAG, kv::Pair, check = false, logger = nothing, time_request = UInt64(0))
-    k, v = kv
+    k, _ = kv
     lock(dag)
     try
         while num_nodes(dag) >= dag.sz_max[]
@@ -188,15 +191,26 @@ function _addnode!(dag::DAG, kv::Pair, check)
     k, _ = kv
     k isa DataFlowTask && (k.tag = Threads.atomic_add!(TASK_COUNTER, 1) + 1)
     push!(dag.inoutlist, kv)
-    check && update_edges!(dag, k)
+    check || return dag
+    try
+        update_edges!(dag, k)
+    catch
+        # e.g. `memory_overlap` threw: undo the insertion (the analysis only
+        # adds edges towards `k`), so that the dag is left unchanged
+        for i in inneighbors(dag, k)
+            delete!(outneighbors(dag, i), k)
+        end
+        pop!(dag.inoutlist, k)
+        rethrow()
+    end
     return dag
 end
 
 """
     update_edges!(dag::DAG, i, linear = _linear_dag())
 
-Perform the data-flow analysis to update the edges of node `i`. Both incoming
-and outgoing edges are updated. If `linear` is `true`, `i` only depends on the
+Perform the data-flow analysis to add the edges coming into node `i` from the
+nodes inserted before it. If `linear` is `true`, `i` only depends on the
 previous node (see [`force_linear_dag`](@ref)).
 """
 function update_edges!(dag::DAG, nodej, linear = _linear_dag())
@@ -233,40 +247,6 @@ function update_transitively_connected!(transitively_connected, node, dag)
 end
 
 """
-    isconnected(dag,i,j)
-
-Check if there is a path in `dag` connecting `i` to `j`.
-"""
-function isconnected(dag::DAG, i, j)
-    for k in inneighbors(dag, j)
-        if k == i
-            return true
-        elseif k < i
-            continue
-        else #k>i
-            isconnected(dag, i, k) && (return true)
-        end
-    end
-    return false
-end
-
-"""
-    addedge_transitive!(dag,i,j)
-
-Add edge connecting nodes `i` and `j` if there is no path connecting them already.
-"""
-function addedge_transitive!(dag, i, j)
-    return isconnected(dag, i, j) ? dag : addedge!(dag, i, j)
-end
-
-"""
-    has_edge(dag,i,j)
-
-Check if there is an edge connecting `i` to `j`.
-"""
-has_edge(dag::DAG, i, j) = j ∈ outneighbors(dag, i)
-
-"""
     remove_node!(dag::DAG,i[, logger=nothing])
 
 Remove node `i` and all of its edges from `dag`. If a `logger` is given, the
@@ -279,13 +259,15 @@ function remove_node!(dag::DAG, i, logger = nothing)
     try
         # `i` may have been removed by `empty!` while it was running
         haskey(dag.inoutlist, i) || return
-        if !isempty(inneighbors(dag, i))
-            @warn "removing a node with incoming neighbors"
-        end
         (inlist, outlist) = pop!(dag.inoutlist, i)
+        # `i` may finish before its predecessors, e.g. if it was interrupted
+        # while waiting for them: remove it from their outlist
+        for j in inlist
+            delete!(outneighbors(dag, j), i)
+        end
         # remove i from the inlist of all its outneighbors
         for j in outlist
-            pop!(inneighbors(dag, j), i)
+            delete!(inneighbors(dag, j), i)
         end
         # recorded before notifying, so that the removal is logged once waiting
         # for the dag to be empty returns

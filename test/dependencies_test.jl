@@ -18,5 +18,8 @@ using LinearAlgebra
         @test memory_overlap(A11, A12) == false
         @test memory_overlap(A11', A12) == false
         @test memory_overlap(A11', A12') == false
+        # subarrays with a different number of indices are assumed to overlap
+        A1 = view(A, 1:10)
+        @test (@test_logs (:warn,) memory_overlap(A1, A12)) == true
     end
 end

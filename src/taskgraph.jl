@@ -1,7 +1,7 @@
 """
     struct TaskGraph
 
-A directed acyclic graph used to reprenset the dependencies between
+A directed acyclic graph used to represent the dependencies between
 [`DataFlowTask`](@ref)s.
 
 `TaskGraph(sz)` creates a task graph that can hold at most `sz` elements at any
@@ -71,7 +71,7 @@ dag(sch::TaskGraph) = sch.dag
 """
     wait(tg::TaskGraph)
 
-Wait for all nodes in `tg` to be finished before continuining.
+Wait for all nodes in `tg` to be finished before continuing.
 
 To wait on the active `TaskGraph`, use `wait(get_active_taskgraph())`.
 """
@@ -90,8 +90,6 @@ end
 
 Base.isempty(taskgraph::TaskGraph) = isempty(taskgraph.dag)
 
-capcity(taskgraph) = taskgraph |> dag |> capacity
-
 """
     resize!(tg::TaskGraph, sz)
 
@@ -102,19 +100,18 @@ Base.resize!(tg::TaskGraph, sz) = (resize!(tg.dag, sz); tg)
 """
     empty!(tg::TaskGraph)
 
-Interrupt all tasks in `tg` and remove them from the underlying `DAG`.
+Remove all the tasks from `tg`, so that the tasks spawned afterwards do not
+depend on them.
 
-This function is useful to avoid having to restart the REPL when a task in `tg`
-errors.
+This function is useful when tasks in `tg` are blocked (e.g. waiting for a
+resource which is never released), to avoid having to restart the REPL. The
+removed tasks are not interrupted: those which are running or waiting to run
+keep doing so.
 """
 function Base.empty!(tg::TaskGraph)
-    @warn "emptying the tasgraph: pending tasks will be interrupted and lost."
+    @warn "emptying the task graph: its tasks are not interrupted, but new tasks no longer depend on them"
     stop_dag_cleaner(tg)
     empty!(tg.finished)
-    # go over all task in the dag and interrupt them
-    for (t, _) in tg.dag.inoutlist
-        istaskstarted(t.task) || schedule(t.task, :stop; error = true)
-    end
     empty!(tg.dag)
     start_dag_cleaner(tg)
     return tg
@@ -132,8 +129,13 @@ function start_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
     task = Threads.@spawn :interactive while true
         t = take!(tg.finished)
         t isa Stop && break
-        # remove task `t` from the dag (the removal is logged if `t` is)
-        remove_node!(tg, t, t.logger)
+        # remove task `t` from the dag (the removal is logged if `t` is). An
+        # error must not stop the cleaner, or the dag would never be emptied.
+        try
+            remove_node!(tg, t, t.logger)
+        catch e
+            @error "the dag cleaner failed to remove $t" exception = (e, catch_backtrace())
+        end
     end
     tg.dag_cleaner = task
     return tg.dag_cleaner
@@ -173,11 +175,10 @@ function Base.schedule(tj::DataFlowTask)
     return schedule(tj.task)
 end
 
-#= Record `tj` in the active logger (if any), which waits for it before
-closing its logging window =#
+#= Record `tj` in the logger which was active when it was created (if any), which
+waits for it before closing its logging window =#
 function log_task!(tj::DataFlowTask)
-    _log_mode() || return
-    logger = _getloginfo()
+    logger = tj.logger
     isnothing(logger) || record!(logger, tj.task)
     return
 end
@@ -201,11 +202,11 @@ end
     @dspawn expr [kwargs...]
 
 Spawn a Julia `Task` to execute the code given by `expr`, and schedule it to
-run on any available thread.
+run on the `:default` threadpool.
 
-Annotate the code in `expr` with `@R`, `@W` and/or `@RW` to indicate how it
-accesses data (see examples below). This information is used to automatically
-infer task dependencies.
+Annotate the code in `expr` with `@R`, `@W` and/or `@RW` (or equivalently `@←`,
+`@→` and `@↔`) to indicate how it accesses data (see examples below). This
+information is used to automatically infer task dependencies.
 
 Additionally, the following keyword arguments can be provided:
 

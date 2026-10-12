@@ -58,6 +58,18 @@ using GraphViz, Makie
     # GraphViz.Graph creation
     graph = GraphViz.Graph(logger)
     @test graph isa GraphViz.Graph
+
+    # labels are escaped, and empty logs are supported
+    x = zeros(1)
+    log = DFT.@log @dspawn fill!(@W(x), 1) label = "a \"label\" \\"
+    @test occursin("label=\"a \\\"label\\\" \\\\\"", DFT.loggertodot(log))
+    graph = GraphViz.Graph(log)
+    GraphViz.layout!(graph)
+    @test graph.didlayout
+    path = tempname() * ".svg"
+    DFT.savedag(SubString(path), graph)
+    @test occursin("<svg", read(path, String))
+    @test DFT.loggertodot(DFT.@log nothing) == "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;concentrate=true;}"
 end
 
 @testset "DataFlowTasks_Makie_Ext" begin
@@ -89,6 +101,10 @@ end
     pos = Point2f((t.started + t.finished) / 2, t.lane)
     @test MakieExt.task_at(tasks, pos) === t
     @test isnothing(MakieExt.task_at(tasks, Point2f(-1, t.lane)))
+
+    # the colors are repeated when there are many categories
+    @test length(MakieExt.category_colors(12)) == 13
+    @test plot(logger; categories = ["c$i" for i in 1:12]) isa Makie.Figure
 end
 
 # log again, and make sure things still work
@@ -121,14 +137,16 @@ end
 @testset "Accounting of real runs" begin
     busy(t) = (t₀ = time(); while time() - t₀ < t end)
     xs = [zeros(1) for _ in 1:4]
-    function check_invariants(sm)
+    function check_invariants(log)
+        @test all(t -> t.running_time <= DFT.task_duration(t), log.tasklogs)
+        sm = DFT.summarize(log)
         ε = 1.0e-3 # clock resolution
         @test sm.running <= DFT.capacity(sm) + ε
         @test DFT.idle(sm) >= -ε
         @test sm.longest_path_length <= sm.elapsed + ε
         @test DFT.nowait(sm) <= sm.elapsed + ε
     end
-    check_invariants(DFT.summarize(DFT.@log work(A, B)))
+    check_invariants(DFT.@log work(A, B))
 
     # tasks which only sleep do not run (and `@log` waits for them, although
     # they are not fetched)
@@ -139,7 +157,7 @@ end
     @test sm.ntasks == length(xs)
     @test sm.running < 0.05
     @test sm.blocked > 0.3 # 4 × 0.1 s
-    check_invariants(sm)
+    check_invariants(log)
 
     # tasks which compute run all the time
     log = DFT.@log for x in xs
@@ -148,7 +166,7 @@ end
     sm = DFT.summarize(log)
     @test sm.running > 0.9 * 4 * 0.05
     @test sm.blocked < 0.02
-    check_invariants(sm)
+    check_invariants(log)
 
     # the logging window includes the work of the program itself
     log = DFT.@log begin
@@ -238,6 +256,69 @@ end
     end
     @test DFT.nbtasknodes(logger) == 1
     wait(background)
+end
+
+@testset "A LogInfo does not keep the logged data alive" begin
+    x = zeros(1)
+    logger = DFT.@log @dspawn (@RW(x); x[1] += 1)
+    # the tasks (whose closures capture their data) are released once the
+    # logging window closes, and the data accesses once the dependencies are
+    # computed
+    @test isempty(logger.tasks)
+    @test !isempty(logger.accesses)
+    DFT.dependencies(logger)
+    @test isempty(logger.accesses)
+    @test DFT.nbtasknodes(logger) == 1
+end
+
+@testset "Tasks scheduled outside the logging window" begin
+    x = zeros(1)
+    # created while logging, but scheduled afterwards: neither waited for nor logged
+    local t
+    logger = DFT.@log (t = DFT.@dtask (@W(x); sleep(0.1)))
+    wait(schedule(t))
+    @test DFT.nbtasknodes(logger) == 0
+    sm = DFT.summarize(logger)
+    @test sm.longest_path_length <= sm.elapsed
+    # created before logging, but scheduled while logging: not logged, and not
+    # waited for
+    t = DFT.@dtask (@W(x); sleep(0.5))
+    logger = DFT.@log schedule(t)
+    @test !istaskdone(t)
+    @test DFT.nbtasknodes(logger) == 0
+    wait(t)
+    @test DFT.nbtasknodes(logger) == 0
+end
+
+@testset "Insertions after the logging window" begin
+    x = zeros(1)
+    # a plain task started while logging inherits the logger, but inserts its
+    # task after the window closed: the insertion is not logged
+    local t
+    logger = DFT.@log begin
+        @dspawn fill!(@W(x), 1)
+        t = Threads.@spawn (sleep(0.2); fetch(@dspawn sum(@R(x))))
+        nothing
+    end
+    wait(t)
+    @test length(logger.insertionlogs) == 1
+    @test length(logger.accesses) == 1
+end
+
+@testset "Several logging windows" begin
+    # the gc time of the process is measured once for nested windows
+    logger = DFT.LogInfo()
+    DFT.with_logging!(() -> DFT.with_logging!(GC.gc, logger), logger)
+    @test 0 < logger.gc_time <= DFT.summarize(logger).elapsed
+    # successive windows: the window spans from the first one to the last one
+    x = zeros(1)
+    logger = DFT.LogInfo()
+    DFT.with_logging!(() -> @dspawn(fill!(@W(x), 1)), logger)
+    sleep(0.2)
+    DFT.with_logging!(() -> @dspawn(sum(@R(x))), logger)
+    @test DFT.nbtasknodes(logger) == 2
+    @test DFT.summarize(logger).elapsed >= 0.2
+    @test DFT.dependencies(logger)[DFT.tag(logger.tasklogs[2])] == [DFT.tag(logger.tasklogs[1])]
 end
 
 @testset "Insertion requests and removals" begin
