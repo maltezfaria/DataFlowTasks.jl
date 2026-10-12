@@ -12,7 +12,7 @@ Pkg.activate("../../..") #src
 #md # [![nbviewer](https://img.shields.io/badge/show-nbviewer-blue.svg)](@__NBVIEWER_ROOT_URL__/examples/cholesky/cholesky.ipynb)
 #
 # We illustrate here the use of `DataFlowTasks` to parallelize a tiled Cholesky
-# factorization. The implementation shown here is delibarately made as simple
+# factorization. The implementation shown here is deliberately made as simple
 # and self-contained as possible; yet, as we shall see when comparing to
 # *OpenBLAS*, it is already quite performant!
 
@@ -30,8 +30,8 @@ Pkg.activate("../../..") #src
 # have $n$ steps. The $i$-th step (with $i \in [1:n]$) performs:
 #
 # -  $1$ cholesky factorization of the $(i,i)$ tile,
-# -  $(i-1)$ triangular solves (one for each tile in the $i$-th row of the upper triangular matrix),
-# -  $i(i-1)/2$ matrix multiplications to update the submatrix.
+# -  $n-i$ triangular solves (one for each tile at the right of the diagonal tile in the $i$-th row),
+# -  $(n-i)(n-i+1)/2$ matrix multiplications to update the submatrix.
 #
 # These are the basic operations on tiles, which we are going to spawn in
 # separate tasks in the parallel implementation. Accounting for all iterations,
@@ -70,7 +70,7 @@ function cholesky_tiled!(A, ts)
         ## Diagonal cholesky serial factorization
         cholesky!(T[i, i])
 
-        ## Left tiles update
+        ## Right tiles update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             ldiv!(U', T[i, j])
@@ -131,7 +131,7 @@ function cholesky_dft!(A, ts)
         ## Diagonal cholesky serial factorization
         @dspawn cholesky!(@RW(T[i, i])) label = "chol ($i,$i)"
 
-        ## Left tiles update
+        ## Right tiles update
         U = UpperTriangular(T[i, i])
         for j in (i + 1):n
             @dspawn ldiv!(@R(U)', @RW(T[i, j])) label = "ldiv ($i,$j)"
@@ -220,7 +220,7 @@ trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 
 #-
 
-# # Performances
+# ## Performance
 
 # To benchmark the performance, we will compare our implementation to the one
 # provided by our system's BLAS library. We will use
@@ -279,8 +279,8 @@ Label(fig[0, :], "Cholesky factorization on $(Threads.nthreads()) threads", font
 fig
 
 # We see that, despite the simplicity of the implementation, the parallel
-# version performs *in par* with the default *BLAS* library for the matrix sizes
-# considered! For very large matrices, further optmizations are probably
+# version performs *on par* with the default *BLAS* library for the matrix sizes
+# considered! For very large matrices, further optimizations are probably
 # necessary to take into account the memory hierarchy of the machine. Finally,
 # here is the observed speedup compared to a sequential tiled implementation and
 # a matrix of size $n=4096$:

@@ -35,7 +35,7 @@ barplot(v; color = ceil.(Int, eachindex(v) ./ 8), colormap = :Paired_4, colorran
 
 # Now we can merge the first two 8-element blocks into a sorted 16-element
 # block. And do the same for the 3rd and 4th 8-element blocks. We'll need an
-# auxilliary array `w` to store the results:
+# auxiliary array `w` to store the results:
 
 function merge!(dest, left, right)
     ## pre-condition:
@@ -201,7 +201,7 @@ end
     to what classically happens with a `for` loop, which creates a new binding
     at each iteration).
 
-    This is a real-world occurrence of the situation described in more details
+    This is a real-world occurrence of the situation described in more detail
     in the [troubleshooting page](@ref troubleshooting-captures).
 
 =#
@@ -229,8 +229,8 @@ bench_seq = @benchmark mergesort!(x, $buf) setup = (x = copy(data)) evals = 1
 
 bench_dft = @benchmark mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 1
 
-# The parallel version does exhibit some speed-up, but not as much as one would
-# hope for given the number of threads used in the computation:
+# The parallel version does exhibit some speed-up, but it degrades as the
+# number of threads grows:
 
 (;
     nthreads = Threads.nthreads(),
@@ -345,7 +345,7 @@ k = i + j - 1
 @assert issorted(dest)
 
 # The following function automates the splitting of the arrays into `P` parts,
-# desribed as a vector of `(iₚ, jₚ, kₚ)` tuples:
+# described as a vector of `(iₚ, jₚ, kₚ)` tuples:
 
 function split_indices(P, dest, left, right)
     (I, J, K) = length(left), length(right), length(dest)
@@ -384,7 +384,7 @@ function parallel_merge_dft!(dest, left, right; label = "")
     end
 
     ## Split the arrays into `P` parts. It is important to use `@dspawn` here so
-    ## that `split_indices` wait until the previous tasks are finished sorting
+    ## that `split_indices` waits until the previous tasks are finished sorting
     idxs_t = @dspawn split_indices(P, @R(dest), @R(left), @R(right)) label = "split\n$label"
     idxs = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
 

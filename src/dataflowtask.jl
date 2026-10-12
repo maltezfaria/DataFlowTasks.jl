@@ -5,7 +5,7 @@ Create a task-like object similar to `Task(func)` which accesses `data` with
 [`AccessMode`](@ref) `mode`.
 
 When a `DataFlowTask` is created, the elements in its `data` field will be
-checked against all other active `DataFlowTask` to determined if a dependency is
+checked against all other active `DataFlowTask` to determine if a dependency is
 present based on a data-flow analysis. The resulting `Task` will then wait on
 those dependencies.
 
@@ -157,7 +157,7 @@ function Base.show(io::IO, t::DataFlowTask)
 end
 
 """
-    data_dependency(t1::DataFlowTask,t1::DataFlowTask)
+    data_dependency(t1::DataFlowTask,t2::DataFlowTask)
 
 Determines if there is a data dependency between `t1` and `t2` based on the data
 they read from and write to.
@@ -188,9 +188,11 @@ Determine if data `di` and `dj` have overlapping memory in the sense that
 mutating `di` can change `dj` (or vice versa). This function is used to build
 the dependency graph between [`DataFlowTask`](@ref)s.
 
-A generic version is implemented returning `true` (but printing a warning).
-Users should overload this function for the specific data types used in the
-arguments to allow for appropriate inference of data dependencies.
+A generic version is implemented: it returns `false` if `di` or `dj` is a bits
+value (which cannot be mutated), and compares `Task`s by identity. Otherwise, it
+returns `true` and prints a warning. Users should overload this function for the
+specific data types used in the arguments to allow for appropriate inference of
+data dependencies.
 """
 function memory_overlap(di, dj)
     (isbits(di) || isbits(dj)) && return false
@@ -214,14 +216,18 @@ end
 _linear_dag() = false
 
 """
-    force_sequential(mode = true)
+    force_sequential(seq = true; static = false)
 
-If `mode` is `true`, enable sequential mode: no tasks are created and scheduled,
+If `seq` is `true`, enable sequential mode: no tasks are created and scheduled,
 code is simply run as it appears in the sources. In effect, `@dspawn expr`
 evaluates `expr` and returns its value instead of a `Task` (`fetch` still works
 on it, but `wait` does not).
 
 By default, sequential mode is disabled when the program starts.
+
+The mode is checked each time a task is created. With `static = true`, it is
+instead fixed when the `@dspawn` macros are expanded (which avoids checking it,
+but requires reloading the code to change it).
 
 See also: [`force_linear_dag`](@ref).
 """

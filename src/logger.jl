@@ -103,7 +103,7 @@ end
 """
     mutable struct LogInfo
 
-Contains informations on the program's progress. Events are appended to the
+Contains information on the program's progress. Events are appended to the
 logs under `lock`, so that a `LogInfo` can be safely shared by all threads.
 
 Besides the logs of the tasks, of their insertion and of their removal from the
@@ -462,7 +462,8 @@ Summary of the events recorded in a [`LogInfo`](@ref), as computed by
 - `categories`, `running_per_category` : the categories of tasks, and the
   running time of the tasks in each of them (the last entry gathers the tasks
   matching no category)
-- `longest_path`  : tags of the tasks on the longest path
+- `longest_path`  : tags of the tasks on the longest path, from the last one to
+  the first one
 - `ntasks`, `nfailed`, `nmigrated` : number of tasks, of tasks which threw an
   error, and of tasks which finished on another thread than the one they
   started on

@@ -204,9 +204,9 @@ end
 Spawn a Julia `Task` to execute the code given by `expr`, and schedule it to
 run on the `:default` threadpool.
 
-Annotate the code in `expr` with `@R`, `@W` and/or `@RW` to indicate how it
-accesses data (see examples below). This information is used to automatically
-infer task dependencies.
+Annotate the code in `expr` with `@R`, `@W` and/or `@RW` (or equivalently `@←`,
+`@→` and `@↔`) to indicate how it accesses data (see examples below). This
+information is used to automatically infer task dependencies.
 
 Additionally, the following keyword arguments can be provided:
 

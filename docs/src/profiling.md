@@ -224,7 +224,7 @@ When looking for faster response times, this graph may suggest sensible ways to
 explore. If the measured time is close to the longest path duration, then
 adding more threads will be of no help, but decomposing the work in smaller
 tasks may be useful. On the other hand, if the measured time is close to the
-"without waiting" bound, then adding more workers may reduce the wall clock time
+"No-Wait" bound, then adding more workers may reduce the wall clock time
 and scale relatively well.
 
 ### Running time: breakdown by category

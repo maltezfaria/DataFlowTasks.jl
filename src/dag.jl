@@ -7,8 +7,8 @@ list of nodes with edges coming into a node `i` can be retrieved using
 from `i` can be retrieved using [`outneighbors(dag,i)`](@ref).
 
 `DAG` is a buffered structure with a buffer of size `sz_max`: calling
-[`addnode!`](@ref) on it will block if the `DAG` has more than `sz_max`
-elements.
+[`addnode!`](@ref) on it will block if the `DAG` already holds `sz_max`
+nodes.
 
 The `DAG` is thread-safe: mutating operations acquire `dag.lock`, and the
 conditions `cond_push` and `cond_empty` are associated with that same lock.
@@ -106,7 +106,7 @@ inneighbors(dag::DAG, i) = dag.inoutlist[i][1]
 """
     outneighbors(dag,i)
 
-List of successors of `j` in `dag`.
+List of successors of `i` in `dag`.
 """
 outneighbors(dag::DAG, i) = dag.inoutlist[i][2]
 
@@ -209,8 +209,8 @@ end
 """
     update_edges!(dag::DAG, i, linear = _linear_dag())
 
-Perform the data-flow analysis to update the edges of node `i`. Both incoming
-and outgoing edges are updated. If `linear` is `true`, `i` only depends on the
+Perform the data-flow analysis to add the edges coming into node `i` from the
+nodes inserted before it. If `linear` is `true`, `i` only depends on the
 previous node (see [`force_linear_dag`](@ref)).
 """
 function update_edges!(dag::DAG, nodej, linear = _linear_dag())

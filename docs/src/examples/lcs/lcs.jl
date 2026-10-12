@@ -64,8 +64,8 @@ y = collect("AGCAT");
 
 # Let's build the $L$ array. For the sake of the example, we'll initially fill
 # it with $(-1)$ in order to indicate which values haven't been computed yet.
-# The `init_buffer(x,y)` function simply initiaizes a buffer matrix `L` of the
-# appropriate size, while `init_length!(L)` takes a matrix and fills its first
+# The `init_buffer(x,y)` function simply initializes a buffer matrix `L` of the
+# appropriate size, while `init_lengths!(L)` takes a matrix and fills its first
 # row and first column with zeros. We also define a `display` helper function,
 # which shows a pretty representation of the $L$ array.
 

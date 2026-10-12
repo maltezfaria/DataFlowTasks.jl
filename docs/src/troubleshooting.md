@@ -23,7 +23,7 @@ begin
     task1 = @task to .= 2 .* from
     
     # Swap source & destination arrays:
-    # Warning: this re-binds the captures in t1
+    # Warning: this re-binds the captures in task1
     (from, to) = (to, from)
     task2 = @task begin
         wait(task1) # make sure the data has been copied before copying it back
@@ -162,7 +162,7 @@ tasks are added to the task graph is impossible to control. This makes the
 accesses undetermined: we will infer that `ti` depends on `tj` if `ti` is created
 first, and that `tj` depends on `ti` if `tj` is created first.
 
-One way to resolve this ambiguity in the example above is to modify function to
+One way to resolve this ambiguity in the example above is to modify the function to
 avoid nested tasks. For this admittedly contrived example, we could have written
 instead:
 
@@ -229,12 +229,12 @@ which could create a deadlock! Also note that `with_taskgraph` only affects the
 code running inside task `1` (and the tasks it creates): task `2`, spawned
 concurrently by the main program, still goes to the outer task graph.
 
-In the future we may provide a more convenient syntax for creating nested task;
+In the future we may provide a more convenient syntax for creating nested tasks;
 at present, the suggestion is to avoid them if possible.
 
 ## Suggested workflow
 
-Writing parallel code is hard, specially when it involves shared memory. A
+Writing parallel code is hard, especially when it involves shared memory. A
 suggested workflow for writing parallel code with `DataFlowTasks` is the
 following:
 
@@ -248,10 +248,10 @@ following:
    return to step 1.
 4. Enable `@dspawn` once more with `force_sequential(false)`, and run
    [`DataFlowTasks.force_linear_dag`](@ref)`(true)`. This makes sure
-   `DataFlowTask`s are created and schedule, but it forces the underlying `DAG`
+   `DataFlowTask`s are created and scheduled, but it forces the underlying `DAG`
    to be linear (i.e. node `i` is always connected to node `i+1`). This is
    closer to the *real thing* than `force_sequential` since closures are created
-   and variables are capture in the task bodies. If you have an issue here,
+   and variables are captured in the task bodies. If you have an issue here,
    consider reading the section on [captured variables](@ref
    troubleshooting-captures).
 5. Once step 4 works, run `force_linear_dag(false)` to deactivate the linear DAG
