@@ -107,6 +107,7 @@ end
     inserter = Threads.@spawn DFT.with_taskgraph(() -> @dspawn(sum(@R B)), tg)
     sleep(0.1)
     @test !istaskdone(inserter)
+    @test_throws ArgumentError resize!(tg, 0)
     resize!(tg, 2)
     @test fetch(fetch(inserter)) == 2
     @test DFT.num_nodes(tg.dag) == 2

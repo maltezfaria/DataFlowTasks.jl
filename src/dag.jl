@@ -26,16 +26,19 @@ end
 # the tasks of several DAGs. Within a DAG, they are increasing in insertion order.
 const TASK_COUNTER = Threads.Atomic{Int}(0)
 
+function _capacity(sz)
+    sz = sz == Inf ? typemax(Int) : Int(sz)
+    sz > 0 || throw(ArgumentError("DAG buffer size must be a positive integer"))
+    return sz
+end
+
 """
     DAG{T}(sz)
 
 Create a buffered `DAG` holding a maximum of `sz` nodes of type `T`.
 """
 function DAG{T}(sz = typemax(Int)) where {T}
-    sz = sz == Inf ? typemax(Int) : Int(sz)
-    if sz <= 0
-        throw(ArgumentError("DAG buffer size must be a positive integer"))
-    end
+    sz = _capacity(sz)
     inoutlist = OrderedDict{T, Tuple{Set{T}, Set{T}}}()
     lock = ReentrantLock()
     cond_push = Threads.Condition(lock)
@@ -45,7 +48,7 @@ function DAG{T}(sz = typemax(Int)) where {T}
 end
 
 function Base.resize!(dag::DAG, sz)
-    sz = sz == Inf ? typemax(Int) : Int(sz)
+    sz = _capacity(sz)
     msg = """cannot resize `dag` (desired capacity too small to contain the
     already present nodes)"""
     lock(dag)
