@@ -210,7 +210,7 @@ trace = plot(log_info; categories = ["chol", "ldiv", "schur"])
 # plot, showing a measured wall clock time not too much longer than the lower
 # bound obtained when suppressing idle time.
 #
-# The "Computing time: breakdown by category" plot seems to indicate that the
+# The "Running time: breakdown by category" plot seems to indicate that the
 # matrix multiplications performed in the "Schur" tasks account for the majority
 # of the computing time. This routine is probably already quite fast since it
 # simply calls our *BLAS* library for a *matrix-matrix* product; it would be
