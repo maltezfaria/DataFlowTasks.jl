@@ -252,7 +252,9 @@ taskgraph
 !!! tip
     There are situations where you may want to use a different `TaskGraph`
     temporarily to execute a block of code, and restore the default after. This
-    can be done using the [`with_taskgraph`](@ref) method.
+    can be done using the [`with_taskgraph`](@ref) method. It only affects the
+    code running inside the block, and the tasks created there: other tasks
+    running concurrently keep using their own `TaskGraph`.
 
 ## Limitations
 

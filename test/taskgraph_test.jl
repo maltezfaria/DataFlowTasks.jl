@@ -150,3 +150,20 @@ end
     @test DFT.get_active_taskgraph() === old
     DFT.stop_dag_cleaner(tg)
 end
+
+@testset "with_taskgraph only affects its block and the tasks created in it" begin
+    tg = DFT.TaskGraph()
+    started, resume = Base.Event(), Base.Event()
+    inside = Threads.@spawn DFT.with_taskgraph(tg) do
+        notify(started)
+        wait(resume)
+        # a task created inside the block inherits its task graph
+        return fetch(Threads.@spawn DFT.get_active_taskgraph())
+    end
+    wait(started)
+    # meanwhile, the other tasks are not affected
+    @test DFT.get_active_taskgraph() !== tg
+    notify(resume)
+    @test fetch(inside) === tg
+    DFT.stop_dag_cleaner(tg)
+end

@@ -26,44 +26,39 @@ mutable struct TaskGraph
     end
 end
 
-"""
-    const TASKGRAPH::Ref{TASKGRAPH}
+# The default `TaskGraph`, used outside of any `with_taskgraph` block
+const DEFAULT_TASKGRAPH = Ref{TaskGraph}()
 
-The active `TaskGraph` being used. Nodes will be added to this `TaskGraph` by
-default.
-
-Can be changed using [`set_active_taskgraph!`](@ref).
-"""
-const TASKGRAPH = Ref{TaskGraph}()
+# The `TaskGraph` of the innermost enclosing `with_taskgraph` block (if any). As a
+# `ScopedValue`, it is seen by the code running inside the block and by the tasks
+# created inside the block, but not by the other tasks.
+const TASKGRAPH = ScopedValue{Union{Nothing, TaskGraph}}(nothing)
 
 """
     set_active_taskgraph!(tg)
 
-Set the active [`TaskGraph`](@ref) to `tg`.
+Set the default [`TaskGraph`](@ref) to `tg`. The default `TaskGraph` is used
+outside of [`with_taskgraph`](@ref) blocks.
 """
-set_active_taskgraph!(tg) = (TASKGRAPH[] = tg)
+set_active_taskgraph!(tg) = (DEFAULT_TASKGRAPH[] = tg)
 
 """
     get_active_taskgraph()
 
-Return the active [`TaskGraph`](@ref).
+Return the active [`TaskGraph`](@ref): the one of the innermost enclosing
+[`with_taskgraph`](@ref) block (a task created inside such a block is also
+considered inside it), or the default one (see [`set_active_taskgraph!`](@ref)).
 """
-get_active_taskgraph() = (TASKGRAPH[])
+get_active_taskgraph() = something(TASKGRAPH[], DEFAULT_TASKGRAPH[])
 
 """
     with_taskgraph(f,tg::TaskGraph)
 
-Run `f`, but push `DataFlowTask`s to `tg`.
+Run `f`, but push the `DataFlowTask`s created by `f` to `tg`. This includes the
+`DataFlowTask`s created by the tasks that `f` creates, but other tasks running
+concurrently are not affected.
 """
-function with_taskgraph(f, tg)
-    old = get_active_taskgraph()
-    set_active_taskgraph!(tg)
-    try
-        return f()
-    finally
-        set_active_taskgraph!(old)
-    end
-end
+with_taskgraph(f, tg) = with(f, TASKGRAPH => tg)
 
 function addnode!(taskgraph::TaskGraph, tj, check = true)
     addnode!(taskgraph.dag, tj, check)

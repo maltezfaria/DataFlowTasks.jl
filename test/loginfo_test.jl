@@ -204,3 +204,17 @@ end
     @test all(isempty, values(DFT.dependencies(logger)))
     DFT.stop_dag_cleaner(tg)
 end
+
+@testset "Only the tasks created while logging are logged" begin
+    x, y = zeros(1), zeros(1)
+    go = Base.Event()
+    # unrelated code, inserting a task while logging
+    background = Threads.@spawn (wait(go); fetch(@dspawn (@W(x); sleep(0.2))))
+    logger = DFT.@log begin
+        notify(go)
+        sleep(0.05)
+        fetch(@dspawn @R(y))
+    end
+    @test DFT.nbtasknodes(logger) == 1
+    wait(background)
+end
