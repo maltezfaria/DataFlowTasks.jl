@@ -166,8 +166,11 @@ err = norm(F.L * F.U - A, Inf) / max(norm(A), norm(F.L * F.U))
 # ## Debugging and Profiling
 #
 # Let us now check what happens during a parallel run of our cholesky
-# factorization. Thanks to the test above, the code is now compiled. Let's re-run it and collect
-# meaningful profiling information:
+# factorization. Thanks to the test above, the code is now compiled. A first
+# logged run also compiles the code used for logging, so that a second run
+# collects meaningful profiling information:
+
+DataFlowTasks.@log cholesky_dft!(copy(A), ts) # compile the logging code
 
 ## Clean profiling environment
 GC.gc()
@@ -189,6 +192,10 @@ dag = GraphViz.Graph(log_info)
 
 # We can also readily get more details about the performance limiting factors:
 
+#md s = DataFlowTasks.summarize(log_info; categories = ["chol", "ldiv", "schur"]) #hide
+#md @assert s.insertion < 0.05 * s.elapsed "the insertion of the tasks is not negligible" #hide
+#md @assert s.elapsed < 1.3 * DataFlowTasks.nowait(s) "the elapsed time is not close to No-Wait" #hide
+#md @assert s.running_per_category[3] > 0.5 * s.running "the schur tasks are not the majority of the running time" #hide
 DataFlowTasks.describe(log_info; categories = ["chol", "ldiv", "schur"])
 
 # and, at the price of loading `Makie`, display these in a more convenient
