@@ -307,6 +307,8 @@ function with_logging!(f, l::LogInfo)
         @lock l.lock begin
             l.active -= 1
             l.time_finish = time_ns()
+            # the tasks were waited for: release them (and the data they capture)
+            l.active == 0 && empty!(l.tasks)
         end
         Base.Experimental.task_metrics(false)
     end
