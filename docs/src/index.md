@@ -260,10 +260,10 @@ taskgraph
 
 Some current limitations are listed below:
 
-- At present, there is no way to specify priorities for a task. We plan to
-  support such a feature in the near future. Check [this
-  issue](https://github.com/maltezfaria/DataFlowTasks.jl/issues/75) to track the
-  development.
+- Task priorities (the `priority` keyword argument of [`@dspawn`](@ref)) rely
+  on the priorities of Julia's scheduler, which are only approximately
+  respected, and have no effect when the `:default` threadpool has a single
+  thread.
 - Tasks are added to the DAG by the code calling `@dspawn`, which therefore
   blocks while the data dependencies are analyzed, and when the `TaskGraph` is
   at full capacity. Tasks run on the `:default` threadpool, while finished tasks

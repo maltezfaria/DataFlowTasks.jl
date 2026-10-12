@@ -208,8 +208,26 @@ Additionally, the following keyword arguments can be provided:
 
 - `label`: provide a label to identify the task. This is useful when logging
   scheduling information;
-- `priority`: inform the scheduler about the relative priority of the task. This
-  information is not (yet) leveraged by the default scheduler.
+- `priority`: an integer in `0:65535` (`0` by default) setting the priority of
+  the underlying Julia `Task`. As in Julia, `0` is the most urgent: when several
+  tasks are waiting for a thread, the ones with a smaller priority value tend to
+  be started first. Priorities do not interrupt running tasks, are only
+  approximately respected, and have no effect when the `:default` threadpool has
+  a single thread.
+
+## Semantics
+
+- The task is inserted in the active `TaskGraph` (see
+  [`get_active_taskgraph`](@ref)) before `@dspawn` returns. Its dependencies
+  are inferred from the tasks already in the `TaskGraph`, so that they follow the
+  order of the `@dspawn` calls (see [nested tasks](@ref nested-tasks) for the
+  case of tasks spawned concurrently).
+- If the `TaskGraph` is full, `@dspawn` blocks until a task finishes (see
+  [`resize!`](@ref)).
+- The task runs on the `:default` threadpool, once all the tasks it depends on
+  have finished. If one of them failed, the task fails as well.
+- `@dspawn` returns a [`DataFlowTask`](@ref), which can be `wait`ed on or
+  `fetch`ed like a Julia `Task`.
 
 ## Examples:
 
@@ -288,20 +306,5 @@ that `t1` accessed in a writable manner.
 macro dspawn(expr, kwargs...)
     return _dtask(expr, kwargs; source = __source__) do t
         return :($spawn($t))
-    end
-end
-
-"""
-    @dasync expr [kwargs...]
-
-Like [`@dspawn`](@ref), but schedules the task to run on the current thread.
-
-See also:
-
-[`@dspawn`](@ref), [`@dtask`](@ref)
-"""
-macro dasync(expr, kwargs...)
-    return _dtask(expr, kwargs; source = __source__) do t
-        return :($schedule($t))
     end
 end
