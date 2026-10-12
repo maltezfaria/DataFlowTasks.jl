@@ -155,17 +155,20 @@ function stop_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
 end
 
 # interface methods for TaskGraph
-function spawn(tj::DataFlowTask)
+spawn(tj::DataFlowTask) = schedule(tj)
+
+"""
+    schedule(t::DataFlowTask)
+
+Schedule `t` to run on the `:default` threadpool (as [`@dspawn`](@ref) does),
+and return its Julia `Task`.
+"""
+function Base.schedule(tj::DataFlowTask)
     tj.task.sticky = false
     # A `Task` inherits the threadpool of its parent. Since Julia 1.12 the main
     # task lives in the `:interactive` pool, so explicitly move `tj` to the
     # `:default` pool like `Threads.@spawn` does.
     Threads._spawn_set_thrpool(tj.task, :default)
-    log_task!(tj)
-    return schedule(tj.task)
-end
-
-function Base.schedule(tj::DataFlowTask)
     log_task!(tj)
     return schedule(tj.task)
 end
@@ -227,7 +230,8 @@ Additionally, the following keyword arguments can be provided:
 - The task runs on the `:default` threadpool, once all the tasks it depends on
   have finished. If one of them failed, the task fails as well.
 - `@dspawn` returns the Julia `Task` running the [`DataFlowTask`](@ref), which
-  can be `wait`ed on or `fetch`ed.
+  can be `wait`ed on or `fetch`ed. To access the `DataFlowTask` itself, create
+  it with [`@dtask`](@ref) and run it with `schedule`.
 
 ## Examples:
 

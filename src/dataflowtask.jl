@@ -342,8 +342,10 @@ _dtask(expr::Expr, params; kwargs...) = _dtask(identity, expr, params; kwargs...
     @dtask expr [kwargs...]
 
 Create a `DataFlowTask` to execute `expr`, where data have been tagged to
-specify how they are accessed. Note that the task is not automatically scheduled
-for execution.
+specify how they are accessed. The task is inserted in the active `TaskGraph`,
+but not scheduled: `schedule(t)` runs it on the `:default` threadpool, as
+[`@dspawn`](@ref) does. Unlike `@dspawn`, which returns the Julia `Task`, this
+gives access to the `DataFlowTask` itself (e.g. its label or priority).
 
 See [`@dspawn`](@ref) for information on how to annotate `expr` to specify data
 dependencies, and a list of supported keyword arguments.

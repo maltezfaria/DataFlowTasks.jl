@@ -151,3 +151,10 @@ end
     end
     @test length(DataFlowTasks.longest_path(log_info)) == 2
 end
+
+@testset "Scheduling a DataFlowTask" begin
+    # like `@dspawn`, the task runs on the `:default` threadpool
+    t = DFT.@dtask Threads.threadpool()
+    @test t isa DFT.DataFlowTask
+    @test fetch(schedule(t)) == :default
+end
