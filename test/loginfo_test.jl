@@ -1,6 +1,7 @@
 using Test
 using LinearAlgebra
 using DataFlowTasks
+using Suppressor
 import DataFlowTasks as DFT
 
 # NOTE: the dag cleaner is stopped while the tasks are spawned, so that finished
@@ -97,4 +98,55 @@ path = DFT.longest_path(logger)
     @test length(logger.insertionlogs) == n
     @test allunique(DFT.tag.(logger.tasklogs))
     @test Set(t.tid for t in logger.tasklogs) == Set(x[1] for x in xs)
+end
+
+@testset "Accounting of real runs" begin
+    busy(t) = (t₀ = time(); while time() - t₀ < t end)
+    xs = [zeros(1) for _ in 1:4]
+    function check_invariants(sm)
+        ε = 1.0e-3 # clock resolution
+        @test sm.running <= DFT.capacity(sm) + ε
+        @test DFT.idle(sm) >= -ε
+        @test sm.critical_path <= sm.elapsed + ε
+        @test DFT.nowait(sm) <= sm.elapsed + ε
+    end
+    check_invariants(DFT.summarize(DFT.@log work(A, B)))
+
+    # tasks which only sleep do not run (and `@log` waits for them, although
+    # they are not fetched)
+    log = DFT.@log for x in xs
+        @dspawn (@W(x); sleep(0.1))
+    end
+    sm = DFT.summarize(log)
+    @test sm.ntasks == length(xs)
+    @test sm.running < 0.05
+    @test sm.blocked > 0.3 # 4 × 0.1 s
+    check_invariants(sm)
+
+    # tasks which compute run all the time
+    log = DFT.@log for x in xs
+        @dspawn (@W(x); busy(0.05))
+    end
+    sm = DFT.summarize(log)
+    @test sm.running > 0.9 * 4 * 0.05
+    @test sm.blocked < 0.02
+    check_invariants(sm)
+
+    # the logging window includes the work of the program itself
+    log = DFT.@log begin
+        busy(0.2)
+        fetch(@dspawn identity(@R(xs[1])))
+    end
+    @test DFT.summarize(log).elapsed >= 0.2
+
+    # failed tasks are logged, and waited for without rethrowing their error
+    log = @suppress_err DFT.@log @dspawn error("task failure")
+    @test DFT.summarize(log).nfailed == 1
+
+    # the logger and the task metrics are restored when the logged code throws
+    @test_throws ErrorException DFT.@log error("logged code failure")
+    @test isnothing(DFT._getloginfo())
+    t = Threads.@spawn nothing
+    wait(t)
+    @test isnothing(Base.Experimental.task_running_time_ns(t))
 end

@@ -21,3 +21,7 @@ end
 @safetestset "LogInfo tests" begin
     include("loginfo_test.jl")
 end
+
+@safetestset "Summary tests" begin
+    include("summary_test.jl")
+end

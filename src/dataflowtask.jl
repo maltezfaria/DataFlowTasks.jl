@@ -39,23 +39,37 @@ mutable struct DataFlowTask
             copy(inneighbors(sch.dag, tj))
         end
         tj.task = @task handle_errors() do
+            logger = _log_mode() ? _getloginfo() : nothing
+            # time the execution of the body for logging (the running time
+            # excludes the time the task is descheduled)
+            t₀ = r₀ = UInt64(0)
+            tid₀ = 0
+            failed = true
             try
                 for ti in deps
                     wait(ti)
                 end
-                # run the underlying code block and time its execution for logging
-                t₀ = time_ns()
-                res = code()
-                t₁ = time_ns()
-                # Push new TaskLog if logging activated
-                if _log_mode() && haslogger()
-                    tid = Threads.threadid()
-                    task_log =
-                        TaskLog(tj.tag, t₀, t₁, tid, [t.tag for t in deps], tj.label)
-                    record!(_getloginfo(), task_log)
+                if !isnothing(logger)
+                    tid₀ = Threads.threadid()
+                    r₀ = something(running_time_ns(), UInt64(0))
+                    t₀ = time_ns()
                 end
+                res = code()
+                failed = false
                 return res
             finally
+                if !isnothing(logger)
+                    t₁ = time_ns()
+                    r₁ = running_time_ns()
+                    # the body did not start if waiting for a dependency failed
+                    t₀ == 0 && (t₀ = t₁; tid₀ = Threads.threadid())
+                    # without task metrics, fall back to the wall time
+                    running = isnothing(r₁) || r₀ == 0 ? t₁ - t₀ : r₁ - r₀
+                    tid₁ = Threads.threadid()
+                    inneighbors = [t.tag for t in deps]
+                    log = TaskLog(tj.tag, t₀, t₁, running, tid₀, tid₁, inneighbors, tj.label, failed)
+                    record!(logger, log)
+                end
                 # also on failure, so that the node is removed from the dag (tasks
                 # depending on `tj` still fail since waiting on `tj` rethrows)
                 put!(sch.finished, tj)

@@ -166,11 +166,22 @@ function spawn(tj::DataFlowTask)
     # task lives in the `:interactive` pool, so explicitly move `tj` to the
     # `:default` pool like `Threads.@spawn` does.
     Threads._spawn_set_thrpool(tj.task, :default)
+    log_task!(tj)
     return schedule(tj.task)
 end
 
 function Base.schedule(tj::DataFlowTask)
+    log_task!(tj)
     return schedule(tj.task)
+end
+
+#= Record `tj` in the active logger (if any), which waits for it before
+closing its logging window =#
+function log_task!(tj::DataFlowTask)
+    _log_mode() || return
+    logger = _getloginfo()
+    isnothing(logger) || record!(logger, tj.task)
+    return
 end
 
 function Base.show(io::IO, sch::TaskGraph)
