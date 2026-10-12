@@ -49,9 +49,10 @@ mutable struct DataFlowTask
             copy(inneighbors(sch.dag, tj))
         end
         tj.task = @task handle_errors() do
-            # read from `tj`: capturing the local `logger` (of type
-            # `Maybe{LogInfo}`) makes the creation of the task measurably slower
-            logger = tj.logger
+            # read from `tj`: capturing the `logger` of the constructor (of type
+            # `Maybe{LogInfo}`) makes the creation of the task measurably slower.
+            # `local` is needed, otherwise the assignment would capture it.
+            local logger = tj.logger
             # time the execution of the body for logging (the running time
             # excludes the time the task is descheduled)
             t₀ = r₀ = UInt64(0)
