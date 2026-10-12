@@ -297,13 +297,18 @@ the insertion of the tasks) runs on the thread of its caller, which is often
 the interactive thread.
 
 Let us look at a few simple cases to see these numbers at work. The tasks below
-either compute (`busy`), or sleep:
+either compute (`busy`), or sleep. To keep compilation out of the measurements,
+each example is run once before being logged:
 
 ```@example numbers
 using DataFlowTasks, CairoMakie
 busy(t) = (t₀ = time(); while time() - t₀ < t end)
 xs = [zeros(1) for _ in 1:2Threads.nthreads()]
-DataFlowTasks.@log fetch(@dspawn busy(0.01)) # compile
+# run `f` once to compile it, then log a second run
+function profile(f)
+    DataFlowTasks.@log f()
+    return DataFlowTasks.@log f()
+end
 nothing # hide
 ```
 
@@ -311,8 +316,10 @@ Tasks which only sleep do not run: the workers are idle, and the time the tasks
 spend sleeping is reported as blocked.
 
 ```@example numbers
-log_info = DataFlowTasks.@log for x in xs
-    @dspawn (@W(x); sleep(0.1)) label = "sleep"
+log_info = profile() do
+    for x in xs
+        @dspawn (@W(x); sleep(0.1)) label = "sleep"
+    end
 end
 DataFlowTasks.describe(log_info)
 ```
@@ -321,8 +328,10 @@ Tasks which compute and then sleep run half of the time. While a task sleeps,
 its thread runs another task:
 
 ```@example numbers
-log_info = DataFlowTasks.@log for x in xs
-    @dspawn (@W(x); busy(0.05); sleep(0.05)) label = "half"
+log_info = profile() do
+    for x in xs
+        @dspawn (@W(x); busy(0.05); sleep(0.05)) label = "half"
+    end
 end
 DataFlowTasks.describe(log_info)
 ```
@@ -335,7 +344,7 @@ Finally, the logging window includes the work done by the program itself, here
 before spawning any task:
 
 ```@example numbers
-log_info = DataFlowTasks.@log begin
+log_info = profile() do
     busy(0.2)
     for x in xs
         @dspawn (@W(x); busy(0.05)) label = "work"
