@@ -172,11 +172,10 @@ function Base.schedule(tj::DataFlowTask)
     return schedule(tj.task)
 end
 
-#= Record `tj` in the active logger (if any), which waits for it before
-closing its logging window =#
+#= Record `tj` in the logger which was active when it was created (if any), which
+waits for it before closing its logging window =#
 function log_task!(tj::DataFlowTask)
-    _log_mode() || return
-    logger = _getloginfo()
+    logger = tj.logger
     isnothing(logger) || record!(logger, tj.task)
     return
 end

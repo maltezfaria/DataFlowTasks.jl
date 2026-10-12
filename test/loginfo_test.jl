@@ -240,6 +240,25 @@ end
     wait(background)
 end
 
+@testset "Tasks scheduled outside the logging window" begin
+    x = zeros(1)
+    # created while logging, but scheduled afterwards: neither waited for nor logged
+    local t
+    logger = DFT.@log (t = DFT.@dtask (@W(x); sleep(0.1)))
+    wait(schedule(t))
+    @test DFT.nbtasknodes(logger) == 0
+    sm = DFT.summarize(logger)
+    @test sm.longest_path_length <= sm.elapsed
+    # created before logging, but scheduled while logging: not logged, and not
+    # waited for
+    t = DFT.@dtask (@W(x); sleep(0.5))
+    logger = DFT.@log schedule(t)
+    @test !istaskdone(t)
+    @test DFT.nbtasknodes(logger) == 0
+    wait(t)
+    @test DFT.nbtasknodes(logger) == 0
+end
+
 @testset "Insertion requests and removals" begin
     # with a capacity of 1, the second insertion waits for the first task to be
     # removed from the dag

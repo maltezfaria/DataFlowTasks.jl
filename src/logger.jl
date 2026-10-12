@@ -168,8 +168,9 @@ function LogInfo()
 end
 
 #= Append `log` to the logs of `l` in a thread-safe manner =#
+# tasks scheduled after the logging window are neither waited for nor logged
 function record!(l::LogInfo, log::TaskLog)
-    @lock l.lock push!(l.tasklogs, log)
+    @lock l.lock l.active > 0 && push!(l.tasklogs, log)
     return l
 end
 function record!(l::LogInfo, log::InsertionLog)
@@ -181,7 +182,7 @@ function record!(l::LogInfo, log::CleanupLog)
     return l
 end
 function record!(l::LogInfo, t::Task)
-    @lock l.lock push!(l.tasks, t)
+    @lock l.lock l.active > 0 && push!(l.tasks, t)
     return l
 end
 function record!(l::LogInfo, a::LoggedAccess)
@@ -351,7 +352,9 @@ end
 
 Execute `expr` and return a [`LogInfo`](@ref) instance with the recorded events.
 The `DataFlowTask`s created by `expr` (directly, or by the tasks it creates) are
-logged, and `@log` waits for them to be completed before returning.
+logged, and `@log` waits for them to be completed before returning. A task
+created by `expr` but scheduled after `@log` returns (see [`@dtask`](@ref)) is
+not logged.
 
 Tasks which are not logged (e.g. spawned before `@log`, or by other code running
 concurrently) may still run during the logging window: the time the workers
