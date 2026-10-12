@@ -259,13 +259,15 @@ function remove_node!(dag::DAG, i, logger = nothing)
     try
         # `i` may have been removed by `empty!` while it was running
         haskey(dag.inoutlist, i) || return
-        if !isempty(inneighbors(dag, i))
-            @warn "removing a node with incoming neighbors"
+        (inlist, outlist) = pop!(dag.inoutlist, i)
+        # `i` may finish before its predecessors, e.g. if it was interrupted
+        # while waiting for them: remove it from their outlist
+        for j in inlist
+            delete!(outneighbors(dag, j), i)
         end
-        (_, outlist) = pop!(dag.inoutlist, i)
         # remove i from the inlist of all its outneighbors
         for j in outlist
-            pop!(inneighbors(dag, j), i)
+            delete!(inneighbors(dag, j), i)
         end
         # recorded before notifying, so that the removal is logged once waiting
         # for the dag to be empty returns

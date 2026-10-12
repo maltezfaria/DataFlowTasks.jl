@@ -66,6 +66,9 @@ mutable struct DataFlowTask
                     try
                         wait(ti)
                     catch e
+                        # an exception thrown into `tj` (e.g. to interrupt it)
+                        # stops waiting
+                        e isa TaskFailedException || rethrow()
                         err = something(err, e)
                     end
                 end

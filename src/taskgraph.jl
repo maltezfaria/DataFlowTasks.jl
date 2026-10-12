@@ -129,8 +129,13 @@ function start_dag_cleaner(tg::TaskGraph = get_active_taskgraph())
     task = Threads.@spawn :interactive while true
         t = take!(tg.finished)
         t isa Stop && break
-        # remove task `t` from the dag (the removal is logged if `t` is)
-        remove_node!(tg, t, t.logger)
+        # remove task `t` from the dag (the removal is logged if `t` is). An
+        # error must not stop the cleaner, or the dag would never be emptied.
+        try
+            remove_node!(tg, t, t.logger)
+        catch e
+            @error "the dag cleaner failed to remove $t" exception = (e, catch_backtrace())
+        end
     end
     tg.dag_cleaner = task
     return tg.dag_cleaner

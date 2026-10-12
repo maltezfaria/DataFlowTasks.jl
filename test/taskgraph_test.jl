@@ -224,6 +224,29 @@ end
     end
 end
 
+@testset "Interrupting a waiting task does not stop the dag cleaner" begin
+    tg = DFT.TaskGraph(3)
+    A = ones(2)
+    i, j = DFT.with_taskgraph(tg) do
+        i = @dspawn (@W(A); sleep(0.3))
+        j = @dspawn sum(@R(A))
+        return i, j
+    end
+    sleep(0.1)
+    # `j` stops waiting for `i`, and leaves the dag before it
+    @suppress_err schedule(j, ErrorException("interrupted"); error = true)
+    @test timedwait(() -> istaskdone(j), 5) == :ok && istaskfailed(j)
+    wait(i)
+    # the dag is emptied, so that more tasks than its capacity can be spawned
+    t = Threads.@spawn DFT.with_taskgraph(tg) do
+        foreach(k -> @dspawn(identity(k)), 1:10)
+    end
+    @test timedwait(() -> istaskdone(t), 5) == :ok
+    @test timedwait(() -> isempty(tg), 5) == :ok
+    @test !istaskfailed(tg.dag_cleaner)
+    DFT.stop_dag_cleaner(tg)
+end
+
 @testset "with_taskgraph restores the active taskgraph" begin
     old = DFT.get_active_taskgraph()
     tg = DFT.TaskGraph()
