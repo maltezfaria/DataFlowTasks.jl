@@ -58,9 +58,11 @@ Run `f`, but push `DataFlowTask`s to `tg`.
 function with_taskgraph(f, tg)
     old = get_active_taskgraph()
     set_active_taskgraph!(tg)
-    res = f()
-    set_active_taskgraph!(old)
-    return res
+    try
+        return f()
+    finally
+        set_active_taskgraph!(old)
+    end
 end
 
 function addnode!(taskgraph::TaskGraph, tj, check = true)

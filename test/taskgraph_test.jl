@@ -137,3 +137,14 @@ end
     @test isempty(tg)
     DFT.stop_dag_cleaner(tg)
 end
+
+@testset "with_taskgraph restores the active taskgraph" begin
+    old = DFT.get_active_taskgraph()
+    tg = DFT.TaskGraph()
+    @test DFT.with_taskgraph(DFT.get_active_taskgraph, tg) === tg
+    @test DFT.get_active_taskgraph() === old
+    # also when `f` throws
+    @test_throws ErrorException DFT.with_taskgraph(() -> error("boom"), tg)
+    @test DFT.get_active_taskgraph() === old
+    DFT.stop_dag_cleaner(tg)
+end
