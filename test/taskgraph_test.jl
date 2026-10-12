@@ -16,8 +16,9 @@ DFT.set_active_taskgraph!(tg)
     t = fetch(fork_join(m, s))
     t1 = @elapsed fetch(fork_join(m, s))
     t2 = (2 + ceil(m / nw)) * s
-    # test that ideal vs actual time are close
-    @test abs(t1 - t2) < 1.0e-2
+    # test that ideal vs actual time are close: losing parallelism costs at
+    # least one extra block of `s` seconds, so allow for half a block of noise
+    @test t2 - 1.0e-2 < t1 < t2 + s / 2
 end
 
 @testset "Stop dag worker" begin
@@ -34,8 +35,9 @@ end
     @test DFT.num_nodes(tg.dag) == 0
     t1 = @elapsed fetch(fork_join(m, s))
     t2 = (2 + ceil(m / nw)) * s
-    # test that ideal vs actual time are close
-    @test abs(t1 - t2) < 1.0e-2
+    # test that ideal vs actual time are close: losing parallelism costs at
+    # least one extra block of `s` seconds, so allow for half a block of noise
+    @test t2 - 1.0e-2 < t1 < t2 + s / 2
 end
 
 @testset "Restart dag worker" begin
@@ -135,5 +137,16 @@ end
     @test @suppress_err(timedwait(() -> istaskdone(waiter), 5)) == :ok
     @test istaskfailed(t1) && istaskfailed(t2)
     @test isempty(tg)
+    DFT.stop_dag_cleaner(tg)
+end
+
+@testset "with_taskgraph restores the active taskgraph" begin
+    old = DFT.get_active_taskgraph()
+    tg = DFT.TaskGraph()
+    @test DFT.with_taskgraph(DFT.get_active_taskgraph, tg) === tg
+    @test DFT.get_active_taskgraph() === old
+    # also when `f` throws
+    @test_throws ErrorException DFT.with_taskgraph(() -> error("boom"), tg)
+    @test DFT.get_active_taskgraph() === old
     DFT.stop_dag_cleaner(tg)
 end

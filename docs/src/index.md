@@ -262,11 +262,11 @@ Some current limitations are listed below:
   support such a feature in the near future. Check [this
   issue](https://github.com/maltezfaria/DataFlowTasks.jl/issues/75) to track the
   development.
-- The main thread executes tasks, and is responsible for adding/removing nodes
-  from the DAG. This may hinder parallelism if the main thread is given a long
-  task since the processing of the dag will halt until the main thread becomes
-  free again. This could be a problem if the task execution times are *very
-  inhomogeneous*; a solution, not currently implemented, would be to allow for
-  blocking the main thread from executing tasks.
+- Tasks are added to the DAG by the code calling `@dspawn`, which therefore
+  blocks while the data dependencies are analyzed, and when the `TaskGraph` is
+  at full capacity. Tasks run on the `:default` threadpool, while finished tasks
+  are removed from the DAG by the `dag_cleaner`, which runs on the
+  `:interactive` threadpool when there is one (e.g. with `julia -t 4,1`, or
+  `julia -t 4` since Julia 1.12) so that it is not delayed by the computations.
 - Nesting `DataFlowTask`s, although possible, can be tricky. See [Nested
   Tasks](@ref nested-tasks) for a more in-depth discussion.
