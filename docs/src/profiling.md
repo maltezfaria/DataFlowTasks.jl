@@ -12,17 +12,15 @@ profiling parallel programs:
 
     Visualization tools require additional dependencies (such as `Makie` or
     `GraphViz`) which are only needed during the development stage. We are
-    therefore only declaring those as *weak dependencies* (for Julia v1.9 and
-    above). The user can either set up a stacked environment in which these
-    dependencies are available, or use the [`DataFlowTasks.stack_weakdeps_env!()`](@ref)
-    function which handles the environment stack automatically.
+    therefore only declaring those as *weak dependencies*: the corresponding
+    features are loaded together with these packages (e.g. with `using
+    GraphViz`), which must be available in the environment you are working in.
 
 Let's first introduce a small example that will help illustrate the features
 introduced here:
 
 ```@example profiling
 using DataFlowTasks
-DataFlowTasks.stack_weakdeps_env!() #hide
 
 # Utility functions
 init!(x)    = (x .= rand())     # Write

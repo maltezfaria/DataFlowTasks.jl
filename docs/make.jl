@@ -2,8 +2,6 @@ using Documenter
 using Literate
 using DataFlowTasks
 
-# Load weakdeps as early as possible
-DataFlowTasks.stack_weakdeps_env!()
 using GraphViz, CairoMakie
 
 draft = false

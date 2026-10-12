@@ -3,17 +3,24 @@ using LinearAlgebra
 using DataFlowTasks
 import DataFlowTasks as DFT
 
-# NOTE: the functions below call sleep to make sure the computation does not finish
-# before full dag is created. Otherwise the critical path may be "incomplete"
-# and the tests on `longest_path` will fail
+# NOTE: the dag cleaner is stopped while the tasks are spawned, so that finished
+# tasks stay in the dag until the full dag is created. Otherwise a task could be
+# removed before the tasks depending on it are inserted, and the critical path
+# would be "incomplete". The sleep makes the weights of the critical path
+# predictable.
 computing(A) = (sleep(0.01); A * A)
 computing(A, B) = (sleep(0.01); A * B)
 function work(A, B)
-    @dspawn computing(@RW(A)) label = "A²"
-    @dspawn computing(@RW(A)) label = "A²"
-    @dspawn computing(@RW(A)) label = "A²"
-    @dspawn computing(@RW(B)) label = "B²"
-    res = @dspawn computing(@RW(A), @RW(B)) label = "A*B"
+    DFT.stop_dag_cleaner()
+    res = try
+        @dspawn computing(@RW(A)) label = "A²"
+        @dspawn computing(@RW(A)) label = "A²"
+        @dspawn computing(@RW(A)) label = "A²"
+        @dspawn computing(@RW(B)) label = "B²"
+        @dspawn computing(@RW(A), @RW(B)) label = "A*B"
+    finally
+        DFT.start_dag_cleaner()
+    end
     return fetch(res)
 end
 
@@ -35,37 +42,34 @@ nbinsertion = length(logger.insertionlogs)
 path = DFT.longest_path(logger)
 @test path == [5, 3, 2, 1]
 
-if isdefined(Base, :get_extension)
-    DFT.stack_weakdeps_env!(; verbose = true)
-    using GraphViz, CairoMakie
+using GraphViz, Makie
 
-    @testset "DataFlowTasks_GraphVizExt" begin
-        # Check that the extension has been loaded correctly
-        GraphVizExt = Base.get_extension(DFT, :DataFlowTasks_GraphViz_Ext)
-        @test GraphVizExt isa Module
+@testset "DataFlowTasks_GraphVizExt" begin
+    # Check that the extension has been loaded correctly
+    GraphVizExt = Base.get_extension(DFT, :DataFlowTasks_GraphViz_Ext)
+    @test GraphVizExt isa Module
 
-        # DOT Format File
-        dotstr = DataFlowTasks.loggertodot(logger)
-        @test occursin("strict digraph dag", dotstr)
-        @test occursin("1 -> 2", dotstr)
-        @test occursin("2 -> 3", dotstr)
-        @test occursin("3 -> 5", dotstr)
-        @test occursin("4 -> 5", dotstr)
+    # DOT Format File
+    dotstr = DataFlowTasks.loggertodot(logger)
+    @test occursin("strict digraph dag", dotstr)
+    @test occursin("1 -> 2", dotstr)
+    @test occursin("2 -> 3", dotstr)
+    @test occursin("3 -> 5", dotstr)
+    @test occursin("4 -> 5", dotstr)
 
-        # GraphViz.Graph creation
-        graph = GraphViz.Graph(logger)
-        @test graph isa GraphViz.Graph
-    end
+    # GraphViz.Graph creation
+    graph = GraphViz.Graph(logger)
+    @test graph isa GraphViz.Graph
+end
 
-    @testset "DataFlowTasks_Makie_Ext" begin
-        # Check that the extension has been loaded correctly
-        MakieExt = Base.get_extension(DFT, :DataFlowTasks_Makie_Ext)
-        @test MakieExt isa Module
+@testset "DataFlowTasks_Makie_Ext" begin
+    # Check that the extension has been loaded correctly
+    MakieExt = Base.get_extension(DFT, :DataFlowTasks_Makie_Ext)
+    @test MakieExt isa Module
 
-        # Trace visualization
-        plt = plot(logger; categories = ["A²", "B²", "A*B"])
-        @test plt isa Makie.Figure
-    end
+    # Trace visualization
+    plt = plot(logger; categories = ["A²", "B²", "A*B"])
+    @test plt isa Makie.Figure
 end
 
 # do not reset the counter and make sure things still work

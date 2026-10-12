@@ -80,7 +80,6 @@ end
 
 # And the DAG can be visualized using `GraphViz`:
 
-DataFlowTasks.stack_weakdeps_env!() # Set up a stacked environment so that weak dependencies such as GraphViz can be loaded. More about that hereafter.
 using GraphViz # triggers additional code loading, powered by weak dependencies (julia >= 1.9)
 dag = GraphViz.Graph(log_info)
 DataFlowTasks.savedag("example_dag.svg", dag) #src
@@ -294,10 +293,7 @@ save("cholesky_trace.svg", trace) #src
 # the development process. These packages are therefore only considered as
 # optional dependencies; assuming they are available in your work environment,
 # calling e.g. `using GraphViz` will load some additional code from
-# `DataFlowTasks`. If these dependencies are not directly available in the
-# current environment stack, `DataFlowTasks.stack_weakdeps_env!()` can be called
-# to push to the loading stack a new environment in which these optional
-# dependencies are available.
+# `DataFlowTasks`.
 
 #-
 
