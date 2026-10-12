@@ -79,20 +79,15 @@ loading additional packages such as `GraphViz` or `Makie`. These are discussed
 in the following sections, where we also explain in more detail the meaning of
 the numbers output by [`DataFlowTasks.describe`](@ref).
 
-!!! tip "Fetching results in `@log` blocks"
+!!! note "The logging window"
 
-    When using `@log`, you typically want the block of code being benchmarked to
-    wait for the completion of its `DataFlowTask`s before returning (otherwise the
-    `LogInfo` object that is returned may lack information regarding the
-    `DataFlowTask`s that have not been completed). In the example above, that was
-    achieved through the use of `fetch` in the last line of the `work` function.
-
-!!! warning "Profiling functions that `yield`"
-  
-    The logged execution time of each `DataFlowTask` is the time elapsed between
-    the moment the code block passed to `@dspawn` starts executing, and the moment
-    it finishes. This means that if the code block `yield`s, the time recorded may
-    not be representative of the actual time the task spent *running*.
+    `@log` records the *logging window*: it starts before running the code block,
+    and ends once the code block has returned and all the `DataFlowTask`s spawned
+    while logging are completed (even if they are not fetched). For each task, the
+    time it actually spent *running* is measured separately from the time it spent
+    descheduled (sleeping, waiting on I/O or on a lock...). See [Understanding the
+    numbers](@ref understanding-the-numbers) for the meaning of the reported
+    quantities.
 
 ## DAG visualization
 
@@ -151,9 +146,11 @@ Let us explore the various parts of this graph.
 
 ### Parallel Trace
 
-The main plot (at the top) is the parallel trace visualization. In this example
-there were two threads; we can see on which thread the task was run, and the
-time it took.
+The main plot (at the top) is the parallel trace visualization: each task is
+shown as a bar on the thread where it started, from the moment its body started
+to the moment it finished. The bar is shaded according to the fraction of that
+time the task was actually running (see [the limitations of the parallel
+trace](@ref trace-limitations)).
 
 Even though tasks are grouped in categories by considering substrings in their
 labels, the full label is shown when hovering over a task in the interactive
@@ -169,19 +166,22 @@ Also note that inserting tasks into the graph involves memory allocations, and
 may thus trigger garbage collector sweeps. When this happens, the time spent in
 the garbage collector is also shown in the plot.
 
-### Run time: breakdown by activity
+### Time: breakdown by activity
 
-A barplot in the bottom left corner of the window gives us information on the
-break-down of parallel run times (summed over all threads):
+A barplot in the bottom left corner of the window gives us information on how
+the time was spent (summed over all threads):
 
-* `Computing` represents the total time spent in the tasks bodies (i.e. "useful"
+* `Running` represents the total time the tasks spent running (i.e. "useful"
   work);
-* `Task Insertion` represents the total time spent inserting nodes in the DAG
-  (i.e. overhead induced by `DataFlowTasks`), possibly including any time spent
-  in the GC if it is triggered by a memory allocation in the task insertion process;
-* `Other (idle)` represents the total idle time on all threads (which may be due to bad
-  scheduling, or simply arise by lack of enough exposed parallelism in the
-  algorithm).
+* `Idle` represents the time the workers (the threads running the tasks) did not
+  run any task, which may be due to bad scheduling, to a lack of exposed
+  parallelism in the algorithm, or to the program not spawning tasks fast enough;
+* `Blocked in tasks` represents the time the tasks spent descheduled during their
+  body (sleeping, waiting on I/O or on a lock...);
+* `Task insertion` represents the total time spent inserting nodes in the DAG
+  (i.e. overhead induced by `DataFlowTasks`), on the threads calling `@dspawn`,
+  possibly including any time spent in the GC if it is triggered by a memory
+  allocation in the task insertion process.
 
 ### Elapsed time & bounds
 
@@ -189,17 +189,17 @@ A barplot in the bottom center of the window tries to present insightful
 information about the elapsed (wall-clock) time of the computation, and its
 limiting factors:
 
-- `Elapsed` represents the measured "wall clock time" of the computation; it
-  should be larger than both of the bounds described below;
+- `Elapsed` represents the measured "wall clock time" of the logging window; it
+  is larger than both of the bounds described below;
 
-- `Critical Path` represents the time spent in the longest sequential path in
-  the DAG (shown in red in the DAG visualization). As said above, it bounds the
-  performance in that even infinitely many threads would still have to compute
-  this path sequentially;
-  
-- `No-Wait` represents the duration of a hypothetical computation in
-  which all computing time would be evenly distributed among threads (i.e. no
-  thread would ever have to wait). This also bounds the total time because it
+- `Critical Path` represents the duration of the longest chain of dependent
+  tasks in the DAG (shown in red in the DAG visualization). As said above, it
+  bounds the performance in that even infinitely many threads would still have
+  to run this chain sequentially;
+
+- `No-Wait` represents the duration of a hypothetical computation in which all
+  the running time would be evenly distributed among the workers (i.e. no
+  worker would ever have to wait). This also bounds the elapsed time because it
   does not account for dependencies between tasks.
 
 When looking for faster response times, this graph may suggest sensible ways to
@@ -209,12 +209,95 @@ tasks may be useful. On the other hand, if the measured time is close to the
 "without waiting" bound, then adding more workers may reduce the wall clock time
 and scale relatively well.
 
-### Computing time: breakdown by category
+### Running time: breakdown by category
 
 A barplot in the bottom right of the window displays a break-down of the total
-computing time (*i.e.* the total time spent on all threads while performing
+running time (*i.e.* the total time spent on all threads while running
 user-defined tasks), grouped by user-provided category as explained above.
 
 When trying to optimize the sequential performance of the algorithm, this is
 where one can get data about what actually takes time (and therefore could
 produce large gains in performance if it could be optimized).
+
+## [Understanding the numbers](@id understanding-the-numbers)
+
+[`DataFlowTasks.describe`](@ref) and `Makie.plot` both report the quantities of
+the [`LogSummary`](@ref DataFlowTasks.LogSummary) computed by
+[`DataFlowTasks.summarize`](@ref). Each of them has a single definition:
+
+| Quantity              | Definition                                                                 |
+|:--------------------- |:-------------------------------------------------------------------------- |
+| Elapsed time ``E``    | wall-clock time of the logging window                                      |
+| Workers ``P``         | number of threads running the tasks (the `:default` threadpool)            |
+| Worker time           | ``P \cdot E``, the time the workers were available                        |
+| Running ``W``         | total time the tasks spent running (from Julia's task metrics)             |
+| Idle                  | ``P \cdot E - W``, the time the workers did not run any task              |
+| Tasks blocked         | total time the tasks spent descheduled during their body                   |
+| Task insertion        | total time spent inserting tasks, on the threads calling `@dspawn`         |
+| Critical path         | wall time of the longest chain of dependent tasks                          |
+| No-wait               | ``W / P``                                                                  |
+
+Both the critical path and the no-wait time are lower bounds of the elapsed
+time. The tasks run on the `:default` threadpool, while `@dspawn` (and therefore
+the insertion of the tasks) runs on the thread of its caller, which is often
+the interactive thread.
+
+Let us look at a few simple cases to see these numbers at work. The tasks below
+either compute (`busy`), or sleep:
+
+```@example numbers
+using DataFlowTasks, CairoMakie
+busy(t) = (t₀ = time(); while time() - t₀ < t end)
+xs = [zeros(1) for _ in 1:2Threads.nthreads()]
+DataFlowTasks.@log fetch(@dspawn busy(0.01)) # compile
+nothing # hide
+```
+
+Tasks which only sleep do not run: the workers are idle, and the time the tasks
+spend sleeping is reported as blocked.
+
+```@example numbers
+log_info = DataFlowTasks.@log for x in xs
+    @dspawn (@W(x); sleep(0.1)) label = "sleep"
+end
+DataFlowTasks.describe(log_info)
+```
+
+Tasks which compute and then sleep run half of the time. While a task sleeps,
+its thread runs another task:
+
+```@example numbers
+log_info = DataFlowTasks.@log for x in xs
+    @dspawn (@W(x); busy(0.05); sleep(0.05)) label = "half"
+end
+DataFlowTasks.describe(log_info)
+```
+
+```@example numbers
+plot(log_info; categories = ["half"])
+```
+
+Finally, the logging window includes the work done by the program itself, here
+before spawning any task:
+
+```@example numbers
+log_info = DataFlowTasks.@log begin
+    busy(0.2)
+    for x in xs
+        @dspawn (@W(x); busy(0.05)) label = "work"
+    end
+end
+DataFlowTasks.describe(log_info)
+```
+
+### [Limitations of the parallel trace](@id trace-limitations)
+
+Julia measures the time each task spends running, but not *when* it is
+descheduled and resumed. Therefore, in the parallel trace:
+
+- a task which is descheduled is shaded according to the fraction of its
+  duration it was running, but the moments it was not running are not shown;
+- while a task is descheduled, its thread may run other tasks, so that the bars
+  of several tasks may overlap (as in the second example above);
+- a task which is descheduled may resume on another thread: it is shown on the
+  thread where it started.
