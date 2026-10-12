@@ -167,3 +167,40 @@ end
     @test fetch(inside) === tg
     DFT.stop_dag_cleaner(tg)
 end
+
+
+@testset "Priorities" begin
+    # with a single worker, tasks are started in the order they are queued
+    if Threads.nthreads(:default) > 1
+        n = 100
+        release = Threads.Atomic{Bool}(false)
+        function spin(release)
+            while !release[]
+                GC.safepoint() # let the garbage collector run
+            end
+            return
+        end
+        # occupy all the workers, so that the tasks below wait for a thread
+        blockers = [Threads.@spawn spin(release) for _ in 1:Threads.nthreads(:default)]
+        order = Threads.Atomic{Int}(0)
+        starts = zeros(Int, 2n)
+        xs = [zeros(1) for _ in 1:2n]
+        priorities = [isodd(i) ? 0 : 1000 for i in 1:2n]
+        # no task can finish while the workers are occupied, so the task graph
+        # must hold all of them (with fewer tasks, priorities show less clearly)
+        tasks = DFT.with_taskgraph(DFT.TaskGraph(2n)) do
+            return map(1:2n) do i
+                x = xs[i]
+                @dspawn (@W(x); starts[i] = Threads.atomic_add!(order, 1) + 1) priority =
+                    priorities[i]
+            end
+        end
+        release[] = true
+        foreach(wait, blockers)
+        foreach(wait, tasks)
+        # priorities are only approximately respected: most of the first tasks to
+        # start are the urgent ones
+        first_started = sortperm(starts)[1:n]
+        @test count(i -> priorities[i] == 0, first_started) >= 0.7n
+    end
+end

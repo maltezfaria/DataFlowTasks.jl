@@ -24,6 +24,7 @@ import DataFlowTasks as DFT
         @test t.data === (x, y, z, t.task)
         @test t.access_mode == (DFT.READ, DFT.WRITE, DFT.READWRITE, DFT.READWRITE)
         @test t.priority == 0
+        @test t.task.priority == 0
         @test t.label == ""
     end
 
@@ -55,7 +56,11 @@ import DataFlowTasks as DFT
         @test t.data === (x, y, t.task)
         @test t.access_mode == (DFT.WRITE, DFT.READ, DFT.READWRITE)
         @test t.priority == 2
+        @test t.task.priority == 2
         @test t.label == "task(2)"
+        # priorities are the ones of Julia tasks, in 0:typemax(UInt16)
+        @test_throws ArgumentError DFT.@dtask f(@R(x)) priority = -1
+        @test_throws ArgumentError DFT.@dtask f(@R(x)) priority = 2^16
     end
 
     @testset "invalid parameters" begin

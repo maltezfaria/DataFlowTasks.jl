@@ -208,8 +208,12 @@ Additionally, the following keyword arguments can be provided:
 
 - `label`: provide a label to identify the task. This is useful when logging
   scheduling information;
-- `priority`: inform the scheduler about the relative priority of the task. This
-  information is not (yet) leveraged by the default scheduler.
+- `priority`: an integer in `0:65535` (`0` by default) setting the priority of
+  the underlying Julia `Task`. As in Julia, `0` is the most urgent: when several
+  tasks are waiting for a thread, the ones with a smaller priority value tend to
+  be started first. Priorities do not interrupt running tasks, are only
+  approximately respected, and have no effect when the `:default` threadpool has
+  a single thread.
 
 ## Examples:
 

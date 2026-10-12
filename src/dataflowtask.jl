@@ -18,7 +18,7 @@ mutable struct DataFlowTask
     data::Tuple
     access_mode::NTuple{<:Any, AccessMode}
     tag::Int
-    priority::Float64
+    priority::UInt16
     label::String
     task::Task
     function DataFlowTask(
@@ -30,6 +30,11 @@ mutable struct DataFlowTask
             sch = get_active_taskgraph(),
         ) where {N}
         @assert length(data) == N
+        0 <= priority <= typemax(UInt16) || throw(
+            ArgumentError(
+                "task priority must be in 0:$(typemax(UInt16)) (0 being the most urgent), got $priority",
+            ),
+        )
         taskcounter = 0 # not yet inserted in a dag. This will be modified upon insertion.
         tj = new(data, mode, taskcounter, priority, label)
         # hold the lock so that the dag cleaner cannot modify the dependencies of
@@ -75,6 +80,9 @@ mutable struct DataFlowTask
                 put!(sch.finished, tj)
             end
         end
+        # when several tasks are waiting for a thread, Julia's scheduler tends to
+        # start the ones with the smallest priority value first
+        tj.task.priority = tj.priority
         tj.data = (tj.data..., tj.task)
         tj.access_mode = (tj.access_mode..., READWRITE)
         if _log_mode()
