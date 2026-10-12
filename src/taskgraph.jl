@@ -215,6 +215,20 @@ Additionally, the following keyword arguments can be provided:
   approximately respected, and have no effect when the `:default` threadpool has
   a single thread.
 
+## Semantics
+
+- The task is inserted in the active `TaskGraph` (see
+  [`get_active_taskgraph`](@ref)) before `@dspawn` returns. Its dependencies
+  are inferred from the tasks already in the `TaskGraph`, so that they follow the
+  order of the `@dspawn` calls (see [nested tasks](@ref nested-tasks) for the
+  case of tasks spawned concurrently).
+- If the `TaskGraph` is full, `@dspawn` blocks until a task finishes (see
+  [`resize!`](@ref)).
+- The task runs on the `:default` threadpool, once all the tasks it depends on
+  have finished. If one of them failed, the task fails as well.
+- `@dspawn` returns a [`DataFlowTask`](@ref), which can be `wait`ed on or
+  `fetch`ed like a Julia `Task`.
+
 ## Examples:
 
 Below are 3 equivalent ways to create the same `Task`, which expresses a
