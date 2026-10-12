@@ -274,7 +274,7 @@ end
 
 function _dtask(
         continuation,
-        expr::Expr,
+        expr,
         kwargs;
         source = LineNumberNode(@__LINE__, @__FILE__),
     )
@@ -351,7 +351,7 @@ function _dtask(
     end
 end
 
-_dtask(expr::Expr, params; kwargs...) = _dtask(identity, expr, params; kwargs...)
+_dtask(expr, params; kwargs...) = _dtask(identity, expr, params; kwargs...)
 
 """
     @dtask expr [kwargs...]
