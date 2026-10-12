@@ -9,57 +9,57 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 184)">
 <title>dag</title>
 <polygon fill="white" stroke="none" points="-4,4 -4,-184 251.52,-184 251.52,4 -4,4"/>
-<!-- 52640 -->
+<!-- 51600 -->
 <g id="node1" class="node">
-<title>52640</title>
+<title>51600</title>
 <ellipse fill="none" stroke="black" stroke-width="2" cx="57" cy="-162" rx="38.06" ry="18"/>
 <text xml:space="preserve" text-anchor="middle" x="57" y="-157.32" font-family="Times,serif" font-size="14.00">init A</text>
 </g>
-<!-- 52642 -->
+<!-- 51602 -->
 <g id="node3" class="node">
-<title>52642</title>
+<title>51602</title>
 <ellipse fill="none" stroke="black" stroke-width="2" cx="57" cy="-90" rx="57" ry="18"/>
 <text xml:space="preserve" text-anchor="middle" x="57" y="-85.33" font-family="Times,serif" font-size="14.00">mutate A</text>
 </g>
-<!-- 52640&#45;&gt;52642 -->
+<!-- 51600&#45;&gt;51602 -->
 <g id="edge1" class="edge">
-<title>52640&#45;&gt;52642</title>
+<title>51600&#45;&gt;51602</title>
 <path fill="none" stroke="black" stroke-width="2" d="M57,-143.34C57,-136.75 57,-129.08 57,-121.67"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="60.5,-121.93 57,-111.93 53.5,-121.93 60.5,-121.93"/>
 </g>
-<!-- 52641 -->
+<!-- 51601 -->
 <g id="node2" class="node">
-<title>52641</title>
+<title>51601</title>
 <ellipse fill="none" stroke="red" stroke-width="2" cx="190" cy="-162" rx="38.58" ry="18"/>
 <text xml:space="preserve" text-anchor="middle" x="190" y="-157.32" font-family="Times,serif" font-size="14.00">init B</text>
 </g>
-<!-- 52643 -->
+<!-- 51603 -->
 <g id="node4" class="node">
-<title>52643</title>
+<title>51603</title>
 <ellipse fill="none" stroke="red" stroke-width="2" cx="190" cy="-90" rx="57.52" ry="18"/>
 <text xml:space="preserve" text-anchor="middle" x="190" y="-85.33" font-family="Times,serif" font-size="14.00">mutate B</text>
 </g>
-<!-- 52641&#45;&gt;52643 -->
+<!-- 51601&#45;&gt;51603 -->
 <g id="edge2" class="edge">
-<title>52641&#45;&gt;52643</title>
+<title>51601&#45;&gt;51603</title>
 <path fill="none" stroke="red" stroke-width="2" d="M190,-143.34C190,-136.75 190,-129.08 190,-121.67"/>
 <polygon fill="red" stroke="red" stroke-width="2" points="193.5,-121.93 190,-111.93 186.5,-121.93 193.5,-121.93"/>
 </g>
-<!-- 52644 -->
+<!-- 51604 -->
 <g id="node5" class="node">
-<title>52644</title>
+<title>51604</title>
 <ellipse fill="none" stroke="red" stroke-width="2" cx="123" cy="-18" rx="54.36" ry="18"/>
 <text xml:space="preserve" text-anchor="middle" x="123" y="-13.32" font-family="Times,serif" font-size="14.00">read A,B</text>
 </g>
-<!-- 52642&#45;&gt;52644 -->
-<g id="edge4" class="edge">
-<title>52642&#45;&gt;52644</title>
+<!-- 51602&#45;&gt;51604 -->
+<g id="edge3" class="edge">
+<title>51602&#45;&gt;51604</title>
 <path fill="none" stroke="black" stroke-width="2" d="M72.97,-72.05C80.59,-63.97 89.88,-54.12 98.38,-45.11"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="100.78,-47.67 105.09,-37.99 95.68,-42.87 100.78,-47.67"/>
 </g>
-<!-- 52643&#45;&gt;52644 -->
-<g id="edge3" class="edge">
-<title>52643&#45;&gt;52644</title>
+<!-- 51603&#45;&gt;51604 -->
+<g id="edge4" class="edge">
+<title>51603&#45;&gt;51604</title>
 <path fill="none" stroke="red" stroke-width="2" d="M173.78,-72.05C166.04,-63.97 156.61,-54.12 147.99,-45.11"/>
 <polygon fill="red" stroke="red" stroke-width="2" points="150.6,-42.78 141.16,-37.98 145.54,-47.62 150.6,-42.78"/>
 </g>
