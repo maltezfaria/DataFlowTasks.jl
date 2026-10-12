@@ -35,7 +35,7 @@ img = Gray.(load("test-image.jpg"))
 #   Gray-scale image.
 
 contract(range, n) = range[(begin + n):(end - n)]
-expand(range, n) = (range[begin] - n):(range[end] - n)
+expand(range, n) = (range[begin] - n):(range[end] + n)
 
 function img2mat(img)
     PixelType = eltype(img)
