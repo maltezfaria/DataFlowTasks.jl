@@ -298,6 +298,10 @@ end
     with_logging!(f,l::LogInfo)
 
 Similar to [`with_logging`](@ref), but append events to `l`.
+
+When `l` is used for several calls, its logging window spans from the start of
+the first call to the end of the last one: the time between the calls is counted
+in the elapsed time, during which the workers are reported as idle.
 """
 function with_logging!(f, l::LogInfo)
     _log_mode() == true ||
