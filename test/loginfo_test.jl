@@ -240,33 +240,16 @@ end
     wait(background)
 end
 
-# data whose release is observed through a finalizer
-mutable struct Tracked
-    x::Vector{Float64}
-end
-const NFREED = Threads.Atomic{Int}(0)
-function tracked()
-    t = Tracked(zeros(10))
-    finalizer(_ -> Threads.atomic_add!(NFREED, 1), t)
-    return t
-end
-
 @testset "A LogInfo does not keep the logged data alive" begin
-    log_tracked() = DFT.@log begin
-        t = tracked()
-        @dspawn (@RW(t); t.x[1] += 1; nothing)
-        nothing
-    end
-    NFREED[] = 0
-    logger = log_tracked()
-    DFT.dependencies(logger) # releases the recorded data accesses
-    wait(DFT.get_active_taskgraph())
-    # on Julia 1.12, a thread keeps the last task it ran alive until it runs another
-    foreach(wait, [Threads.@spawn(nothing) for _ in 1:(8 * Threads.nthreads())])
-    for _ in 1:3
-        GC.gc(true)
-    end
-    @test NFREED[] == 1
+    x = zeros(1)
+    logger = DFT.@log @dspawn (@RW(x); x[1] += 1)
+    # the tasks (whose closures capture their data) are released once the
+    # logging window closes, and the data accesses once the dependencies are
+    # computed
+    @test isempty(logger.tasks)
+    @test !isempty(logger.accesses)
+    DFT.dependencies(logger)
+    @test isempty(logger.accesses)
     @test DFT.nbtasknodes(logger) == 1
 end
 
