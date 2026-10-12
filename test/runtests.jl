@@ -25,3 +25,7 @@ end
 @safetestset "Summary tests" begin
     include("summary_test.jl")
 end
+
+@safetestset "Timeline tests" begin
+    include("timeline_test.jl")
+end

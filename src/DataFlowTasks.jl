@@ -32,6 +32,7 @@ const Maybe{T} = Union{T, Nothing}
 
 include("utils.jl")
 include("logger.jl")
+include("timeline.jl")
 include("dataflowtask.jl")
 include("dag.jl")
 include("taskgraph.jl")
