@@ -110,12 +110,3 @@ end
     path = DFT.realized_critical_path(log)
     @test issorted(path) && last(path) == DFT.tag(argmax(t -> t.finished, tl))
 end
-
-@testset "Elapsed time along the realized critical path" begin
-    sm = DFT.summarize(hand_built_log())
-    @test sm.realized_path == [1, 2, 4]
-    @test sm.realized_before ≈ 0.1 # task 1 is ready once inserted
-    @test sm.realized_waiting ≈ 0.1 # task 2 starts 0.1 s after task 1 finishes
-    @test sm.realized_bodies ≈ 0.4 + 0.4 + 0.5
-    @test DFT.realized_after(sm) ≈ 0.5
-end

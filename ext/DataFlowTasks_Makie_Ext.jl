@@ -47,7 +47,7 @@ threads.
 - The insertions in the DAG are shown in lane `0`: the time spent waiting for the
   DAG (in grey), in the garbage collector (in yellow), and analysing the data
   dependencies (in red).
-- The tasks of the realized critical path (see
+- If `realized_path` is `true`, the tasks of the realized critical path (see
   [`DataFlowTasks.realized_critical_path`](@ref)) are outlined in black.
 - The task with tag `highlight` (if any) is outlined in purple, its predecessors
   in blue and its successors in orange, and the predecessor which made it ready
@@ -58,8 +58,8 @@ threads.
     categories = String[]
     "Tag of the task to highlight with its dependencies, or `0` for none."
     highlight = 0
-    "Whether to show the realized critical path."
-    realized_path = true
+    "Whether to outline the realized critical path."
+    realized_path = false
 end
 
 seconds(l::LogInfo, t) = DFT._seconds(l, t)
@@ -154,14 +154,6 @@ function tracelegend(position, loginfo::LogInfo, summary::LogSummary)
         push!(elements, PolyElement(; polycolor = GC_COLOR))
         push!(labels, "gc")
     end
-    push!(elements, PolyElement(; polycolor = :transparent, strokecolor = :black, strokewidth = 2))
-    percent(x) = string(round(Int, 100 * x / summary.elapsed), "%")
-    push!(
-        labels,
-        "realized critical path ($(percent(summary.realized_bodies)) task bodies, " *
-            "$(percent(summary.realized_waiting)) waiting to start, " *
-            "$(percent(summary.realized_before)) before its first task)",
-    )
     return Legend(position, elements, labels; orientation = :horizontal, framevisible = false)
 end
 
