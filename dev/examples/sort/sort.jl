@@ -35,7 +35,7 @@ barplot(v; color = ceil.(Int, eachindex(v) ./ 8), colormap = :Paired_4, colorran
 
 # Now we can merge the first two 8-element blocks into a sorted 16-element
 # block. And do the same for the 3rd and 4th 8-element blocks. We'll need an
-# auxilliary array `w` to store the results:
+# auxiliary array `w` to store the results:
 
 function merge!(dest, left, right)
     ## pre-condition:
@@ -201,7 +201,7 @@ end
     to what classically happens with a `for` loop, which creates a new binding
     at each iteration).
 
-    This is a real-world occurrence of the situation described in more details
+    This is a real-world occurrence of the situation described in more detail
     in the [troubleshooting page](@ref troubleshooting-captures).
 
 =#
@@ -229,8 +229,8 @@ bench_seq = @benchmark mergesort!(x, $buf) setup = (x = copy(data)) evals = 1
 
 bench_dft = @benchmark mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 1
 
-# The parallel version does exhibit some speed-up, but not as much as one would
-# hope for given the number of threads used in the computation:
+# The parallel version does exhibit some speed-up, but it degrades as the
+# number of threads grows:
 
 (;
     nthreads = Threads.nthreads(),
@@ -242,6 +242,9 @@ bench_dft = @benchmark mergesort_dft!(x, $buf) setup = (x = copy(data)) evals = 
 # `Makie`:
 
 log_info = DataFlowTasks.@log mergesort_dft!(copy(data))
+#md s = DataFlowTasks.summarize(log_info) #hide
+#md last_merge = maximum(DataFlowTasks.task_duration(t) for t in log_info.tasklogs if startswith(t.label, "merge")) * 1.0e-9 #hide
+#md @assert last_merge > 0.03 * s.elapsed "the last merge is not a large part of the elapsed time" #hide
 plot(log_info; categories = ["sort", "merge", "copy", "result"])
 
 # The parallel profile explains it all: at the beginning of the computation,
@@ -249,9 +252,9 @@ plot(log_info; categories = ["sort", "merge", "copy", "result"])
 # tasks. There is a lot of expressed parallelism to be taken advantage of at
 # this stage, and `DataFlowTasks` seems to do a good job. But as the algorithm
 # advances, fewer and fewer blocks have to be merged, which are larger and
-# larger... until the last merge of the whole array (which is performed
-# sequentially) seemingly accounts for as much as 25% of the whole computation
-# time!
+# larger... until the last merge of the whole array, which is performed
+# sequentially by a single task while the other threads have nothing left to do.
+# The more threads, the larger the part of the computation time it takes.
 
 # ## Parallel merge
 
@@ -342,7 +345,7 @@ k = i + j - 1
 @assert issorted(dest)
 
 # The following function automates the splitting of the arrays into `P` parts,
-# desribed as a vector of `(iₚ, jₚ, kₚ)` tuples:
+# described as a vector of `(iₚ, jₚ, kₚ)` tuples:
 
 function split_indices(P, dest, left, right)
     (I, J, K) = length(left), length(right), length(dest)
@@ -381,7 +384,7 @@ function parallel_merge_dft!(dest, left, right; label = "")
     end
 
     ## Split the arrays into `P` parts. It is important to use `@dspawn` here so
-    ## that `split_indices` wait until the previous tasks are finished sorting
+    ## that `split_indices` waits until the previous tasks are finished sorting
     idxs_t = @dspawn split_indices(P, @R(dest), @R(left), @R(right)) label = "split\n$label"
     idxs = fetch(idxs_t)::Vector{NTuple{3, UnitRange{Int}}}
 
@@ -448,11 +451,7 @@ v = rand(N)
 # The task graph is now a bit more complicated. Here we see for example that the
 # last level of merge has been split into 2 parts (labelled "merge A" and "merge B"):
 
-## Temporarily stop the DAG cleaner from dynamically removing nodes from the task
-## graph in order to obtain the full "static graph".
-DataFlowTasks.stop_dag_cleaner()
 log_info = DataFlowTasks.@log parallel_mergesort_dft!(copy(v))
-DataFlowTasks.start_dag_cleaner()
 
 using GraphViz
 dag = GraphViz.Graph(log_info)
@@ -483,7 +482,9 @@ plot(log_info, categories = ["sort", "merge", "copy", "result", "split"])
 
 bench_seq
 
-# to the cumulated run time of the tasks (shown as "Computing" in the `log_info`
-# description):
+# to the cumulated run time of the tasks (shown as "Running tasks" in the
+# description of `log_info`):
 
+#md s = DataFlowTasks.summarize(log_info) #hide
+#md @assert s.running > 0.9 * time(minimum(bench_seq)) * 1.0e-9 "the tasks run for much less than the sequential version" #hide
 DataFlowTasks.describe(log_info)
