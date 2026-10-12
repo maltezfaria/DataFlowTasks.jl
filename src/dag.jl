@@ -19,9 +19,12 @@ struct DAG{T}
     cond_empty::Threads.Condition
     lock::ReentrantLock
     sz_max::Base.RefValue{Int}
-    counter::Base.RefValue{Int}
     _buffer::Set{Int} # used to keep track of visited nodes when needed
 end
+
+# Tags of the `DataFlowTask`s, unique across all the DAGs so that a log can hold
+# the tasks of several DAGs. Within a DAG, they are increasing in insertion order.
+const TASK_COUNTER = Threads.Atomic{Int}(0)
 
 """
     DAG{T}(sz)
@@ -38,7 +41,7 @@ function DAG{T}(sz = typemax(Int)) where {T}
     cond_push = Threads.Condition(lock)
     cond_empty = Threads.Condition(lock)
     _buffer = Set{Int}()
-    return DAG{T}(inoutlist, cond_push, cond_empty, lock, Ref(sz), Ref(0), _buffer)
+    return DAG{T}(inoutlist, cond_push, cond_empty, lock, Ref(sz), _buffer)
 end
 
 function Base.resize!(dag::DAG, sz)
@@ -179,27 +182,27 @@ end
 
 function _addnode!(dag::DAG, kv::Pair, check)
     k, _ = kv
-    dag.counter[] += 1
-    k isa DataFlowTask && (k.tag = dag.counter[])
+    k isa DataFlowTask && (k.tag = Threads.atomic_add!(TASK_COUNTER, 1) + 1)
     push!(dag.inoutlist, kv)
     check && update_edges!(dag, k)
     return dag
 end
 
 """
-    update_edges!(dag::DAG,i)
+    update_edges!(dag::DAG, i, linear = _linear_dag())
 
 Perform the data-flow analysis to update the edges of node `i`. Both incoming
-and outgoing edges are updated.
+and outgoing edges are updated. If `linear` is `true`, `i` only depends on the
+previous node (see [`force_linear_dag`](@ref)).
 """
-function update_edges!(dag::DAG, nodej)
+function update_edges!(dag::DAG, nodej, linear = _linear_dag())
     transitively_connected = dag._buffer
     empty!(transitively_connected)
     # update dependencies from newer to older and reinfornce transitivity by
     # skipping predecessors of nodes which are already connected
     for (nodei, _) in Iterators.reverse(dag)
         nodei == nodej && continue
-        if _linear_dag()
+        if linear
             addedge!(dag, nodei, nodej)
             break
         end

@@ -4,26 +4,22 @@ using DataFlowTasks
 using Suppressor
 import DataFlowTasks as DFT
 
-# NOTE: the dag cleaner is stopped while the tasks are spawned, so that finished
-# tasks stay in the dag until the full dag is created. Otherwise a task could be
-# removed before the tasks depending on it are inserted, and the critical path
-# would be "incomplete". The sleep makes the weights of the critical path
-# predictable.
+# NOTE: the sleep makes the weights of the critical path predictable. The tasks
+# may finish before the tasks depending on them are inserted: the logged
+# dependencies are complete nonetheless.
 computing(A) = (sleep(0.01); A * A)
 computing(A, B) = (sleep(0.01); A * B)
 function work(A, B)
-    DFT.stop_dag_cleaner()
-    res = try
-        @dspawn computing(@RW(A)) label = "A²"
-        @dspawn computing(@RW(A)) label = "A²"
-        @dspawn computing(@RW(A)) label = "A²"
-        @dspawn computing(@RW(B)) label = "B²"
-        @dspawn computing(@RW(A), @RW(B)) label = "A*B"
-    finally
-        DFT.start_dag_cleaner()
-    end
+    @dspawn computing(@RW(A)) label = "A²"
+    @dspawn computing(@RW(A)) label = "A²"
+    @dspawn computing(@RW(A)) label = "A²"
+    @dspawn computing(@RW(B)) label = "B²"
+    res = @dspawn computing(@RW(A), @RW(B)) label = "A*B"
     return fetch(res)
 end
+
+# tags are unique across all the task graphs: number them from the first one
+first_tag(logger) = minimum(DFT.tag, logger.tasklogs) - 1
 
 A = ones(20, 20)
 B = ones(20, 20)
@@ -40,8 +36,9 @@ nbinsertion = length(logger.insertionlogs)
 @test nbinsertion == 5
 
 # Critical Path
+t₀ = first_tag(logger)
 path = DFT.longest_path(logger)
-@test path == [5, 3, 2, 1]
+@test path == [5, 3, 2, 1] .+ t₀
 
 using GraphViz, Makie
 
@@ -53,10 +50,10 @@ using GraphViz, Makie
     # DOT Format File
     dotstr = DataFlowTasks.loggertodot(logger)
     @test occursin("strict digraph dag", dotstr)
-    @test occursin("1 -> 2", dotstr)
-    @test occursin("2 -> 3", dotstr)
-    @test occursin("3 -> 5", dotstr)
-    @test occursin("4 -> 5", dotstr)
+    @test occursin("$(t₀ + 1) -> $(t₀ + 2)", dotstr)
+    @test occursin("$(t₀ + 2) -> $(t₀ + 3)", dotstr)
+    @test occursin("$(t₀ + 3) -> $(t₀ + 5)", dotstr)
+    @test occursin("$(t₀ + 4) -> $(t₀ + 5)", dotstr)
 
     # GraphViz.Graph creation
     graph = GraphViz.Graph(logger)
@@ -73,7 +70,7 @@ end
     @test plt isa Makie.Figure
 end
 
-# do not reset the counter and make sure things still work
+# log again, and make sure things still work
 logger = DFT.@log work(A, B)
 nbtasks = DFT.nbtasknodes(logger)
 nbinsertion = length(logger.insertionlogs)
@@ -82,7 +79,7 @@ nbinsertion = length(logger.insertionlogs)
 
 # Critical Path
 path = DFT.longest_path(logger)
-@test path == [5, 3, 2, 1] .+ nbtasks
+@test path == [5, 3, 2, 1] .+ first_tag(logger)
 
 @testset "Concurrent logging" begin
     # many independent tasks finishing concurrently on different threads
@@ -149,4 +146,61 @@ end
     t = Threads.@spawn nothing
     wait(t)
     @test isnothing(Base.Experimental.task_running_time_ns(t))
+end
+
+
+@testset "Complete dependencies" begin
+    deps(logger, t) = sort(DFT.dependencies(logger)[t])
+    x, y = zeros(1), zeros(1)
+
+    # a task finished and removed from the dag before a task depending on it is
+    # inserted: the scheduler sees no dependency, but the logged graph has it
+    logger = DFT.@log begin
+        a = @dspawn (@W(x); sleep(0.05))
+        wait(a)
+        wait(DFT.get_active_taskgraph()) # `a` is removed from the dag
+        @dspawn (@R(x); sleep(0.05))
+    end
+    ta, tb = sort(logger.tasklogs)
+    @test isempty(tb.inneighbors)
+    @test deps(logger, DFT.tag(tb)) == [DFT.tag(ta)]
+    @test DFT.longest_path(logger) == [DFT.tag(tb), DFT.tag(ta)]
+    # the data accesses are released once analysed
+    @test isempty(logger.accesses)
+
+    # when no task is removed, the logged graph is the one of the scheduler
+    DFT.stop_dag_cleaner()
+    logger = try
+        DFT.@log for i in 1:20
+            z = isodd(i) ? x : y
+            @dspawn (@RW(z); @R(x); nothing)
+        end
+    finally
+        DFT.start_dag_cleaner()
+    end
+    @test all(logger.tasklogs) do t
+        return deps(logger, DFT.tag(t)) == sort(t.inneighbors)
+    end
+
+    # linear dag: each task depends on the previous one
+    DFT.force_linear_dag(true)
+    logger = try
+        DFT.@log for z in (x, y, x)
+            @dspawn @R(z)
+        end
+    finally
+        DFT.force_linear_dag(false)
+    end
+    t1, t2, t3 = DFT.tag.(sort(logger.tasklogs))
+    @test (deps(logger, t2), deps(logger, t3)) == ([t1], [t2])
+
+    # tasks of different task graphs do not depend on each other
+    tg = DFT.TaskGraph()
+    logger = DFT.@log begin
+        @dspawn @W(x)
+        DFT.with_taskgraph(() -> @dspawn(@W(x)), tg)
+    end
+    @test allunique(DFT.tag.(logger.tasklogs))
+    @test all(isempty, values(DFT.dependencies(logger)))
+    DFT.stop_dag_cleaner(tg)
 end

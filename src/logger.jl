@@ -56,6 +56,25 @@ struct InsertionLog
     tid::Int
 end
 
+#=
+Data accesses of a `DataFlowTask`, recorded at its insertion while logging, from
+which the complete dependency graph of the logged tasks is computed (see
+`dependencies`). `graph` identifies the DAG the task was inserted in.
+=#
+struct LoggedAccess
+    tag::Int64
+    graph::UInt
+    data::Tuple
+    access_mode::Tuple
+    linear::Bool
+end
+
+tag(a::LoggedAccess) = a.tag
+Base.isless(a::LoggedAccess, b::LoggedAccess) = isless(a.tag, b.tag)
+function data_dependency(a::LoggedAccess, b::LoggedAccess)
+    return _data_dependency(a.data, a.access_mode, b.data, b.access_mode)
+end
+
 """
     mutable struct LogInfo
 
@@ -70,6 +89,11 @@ seconds).
 
 Use [`DataFlowTasks.describe`](@ref) or [`DataFlowTasks.summarize`](@ref) to
 analyze a `LogInfo`, and `GraphViz.Graph` or `Makie.plot` to visualize it.
+
+!!! note
+    A `LogInfo` keeps references to the data accessed by the logged tasks until
+    their dependencies are first needed (e.g. by `describe`), so that the
+    complete dependency graph of the tasks can be computed.
 """
 mutable struct LogInfo
     const tasklogs::Vector{TaskLog}
@@ -77,6 +101,12 @@ mutable struct LogInfo
     const lock::ReentrantLock
     # tasks scheduled while logging, which the logging window waits for
     const tasks::Vector{Task}
+    # data accesses of the tasks inserted while logging, released once the
+    # dependencies are computed
+    const accesses::Vector{LoggedAccess}
+    # complete dependencies of the logged tasks (tag => tags of predecessors),
+    # computed lazily
+    dependencies::Dict{Int64, Vector{Int64}}
     time_start::UInt64
     time_finish::UInt64
     nworkers::Int
@@ -85,7 +115,19 @@ mutable struct LogInfo
 end
 
 function LogInfo()
-    return LogInfo(TaskLog[], InsertionLog[], ReentrantLock(), Task[], 0, 0, 0, 0.0, 0.0)
+    return LogInfo(
+        TaskLog[],
+        InsertionLog[],
+        ReentrantLock(),
+        Task[],
+        LoggedAccess[],
+        Dict{Int64, Vector{Int64}}(),
+        0,
+        0,
+        0,
+        0.0,
+        0.0,
+    )
 end
 
 #= Append `log` to the logs of `l` in a thread-safe manner =#
@@ -100,6 +142,43 @@ end
 function record!(l::LogInfo, t::Task)
     @lock l.lock push!(l.tasks, t)
     return l
+end
+function record!(l::LogInfo, a::LoggedAccess)
+    @lock l.lock push!(l.accesses, a)
+    return l
+end
+
+#=
+Complete dependencies of the logged tasks, as a `Dict` mapping the tag of each
+task to the tags of its direct predecessors.
+
+The edges recorded during the execution only connect each task to the tasks
+still in the DAG when it was inserted: a task already finished and removed from
+the DAG is missing. Here, the same data-flow analysis (`update_edges!`) is
+replayed for all the logged tasks of each DAG, in insertion order, so that the
+result is the DAG that an unbounded `TaskGraph` without cleaning would have
+built.
+
+The accesses are released once analysed. Dependencies between tasks logged
+before and after a call to `dependencies` (e.g. in separate `with_logging!`
+calls on the same `LogInfo`) are therefore not found.
+=#
+function dependencies(l::LogInfo)
+    @lock l.lock begin
+        isempty(l.accesses) && return l.dependencies
+        accesses = sort(l.accesses; by = tag)
+        for graph in unique(a.graph for a in accesses)
+            dag = DAG{LoggedAccess}()
+            for a in accesses
+                a.graph == graph || continue
+                push!(dag.inoutlist, a => (Set{LoggedAccess}(), Set{LoggedAccess}()))
+                update_edges!(dag, a, a.linear)
+                l.dependencies[tag(a)] = [tag(p) for p in inneighbors(dag, a)]
+            end
+        end
+        empty!(l.accesses)
+        return l.dependencies
+    end
 end
 
 #= Wait for all the tasks recorded in `l`, including the ones recorded while
@@ -279,11 +358,27 @@ end
 
 Base.isless(t1::TaskLog, t2::TaskLog) = isless(t1.tag, t2.tag)
 
-function topological_sort(l::LogInfo)
-    return sort(l.tasklogs)
+#= A logged task, with its predecessors in the complete dependency graph =#
+struct LoggedNode
+    log::TaskLog
+    intags::Vector{Int64}
 end
 
-intags(t::TaskLog) = t.inneighbors
+tag(n::LoggedNode) = tag(n.log)
+intags(n::LoggedNode) = n.intags
+weight(n::LoggedNode) = weight(n.log)
+
+function topological_sort(l::LogInfo)
+    deps = dependencies(l)
+    logged = Set(tag(t) for t in l.tasklogs)
+    # the edges seen by the scheduler complete the replayed ones (e.g. for tasks
+    # whose accesses were not recorded). Tags increase along the edges, and only
+    # the predecessors which were logged (and ran) are part of the graph.
+    return map(sort(l.tasklogs)) do t
+        intags = union(t.inneighbors, get(deps, tag(t), Int64[]))
+        return LoggedNode(t, filter!(∈(logged), intags))
+    end
+end
 # The critical path is weighted by the wall time of the task bodies: along a
 # chain of dependent tasks the bodies run one after the other, so that the length
 # of the critical path is a lower bound of the elapsed time.
@@ -523,7 +618,8 @@ function loggertodot(logger)
     str = "strict digraph dag {rankdir=LR;layout=dot;rankdir=TB;"
     str *= """concentrate=true;"""
 
-    for tasklog in logger.tasklogs
+    for node in topological_sort(logger)
+        tasklog = node.log
         # Tasklog.tag node attributes
         str *= """ $(tasklog.tag) """
         tasklog.label != "" && (str *= """ [label="$(tasklog.label)"] """)
@@ -531,7 +627,7 @@ function loggertodot(logger)
         str *= """[penwidth=2];"""
 
         # Defines edges
-        for neighbour in tasklog.inneighbors
+        for neighbour in intags(node)
             red = false
 
             # Is this connection is in critical path
