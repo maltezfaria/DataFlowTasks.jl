@@ -1,6 +1,6 @@
 name = "DataFlowTasks"
 uuid = "d1549cb6-e9f4-42f8-98cc-ffc8d067ff5b"
-version = "0.2.0"
+version = "0.3.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
