@@ -8,15 +8,12 @@ function __init__()
     return @info "Loading DataFlowTasks general plot utilities"
 end
 
-#= Colors of `n` categories, followed by the color of the tasks in no category =#
+#= Colors of `n` categories, followed by the color of the tasks in no category.
+The colors are repeated if there are more categories than colors. =#
 function category_colors(n::Int)
-    if n ≥ 4
-        grad = cgrad(:tab10)[1:(n + 1)]
-        deleteat!(grad, 4) # the red is used for the insertions
-    else
-        grad = cgrad(:tab10)[1:n]
-    end
-    return RGBAf[grad..., to_color(:black)]
+    # the red is used for the insertions
+    tab = cgrad(:tab10)[[1:3; 5:10]]
+    return RGBAf[(tab[mod1(i, length(tab))] for i in 1:n)..., to_color(:black)]
 end
 
 const INSERTION_COLOR = RGBAf(1, 0, 0, 1)

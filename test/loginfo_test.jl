@@ -98,6 +98,10 @@ end
     pos = Point2f((t.started + t.finished) / 2, t.lane)
     @test MakieExt.task_at(tasks, pos) === t
     @test isnothing(MakieExt.task_at(tasks, Point2f(-1, t.lane)))
+
+    # the colors are repeated when there are many categories
+    @test length(MakieExt.category_colors(12)) == 13
+    @test plot(logger; categories = ["c$i" for i in 1:12]) isa Makie.Figure
 end
 
 # log again, and make sure things still work
