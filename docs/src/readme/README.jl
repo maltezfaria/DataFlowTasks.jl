@@ -124,6 +124,8 @@ DataFlowTasks.savedag("example_dag.svg", dag) #src
 # A sequential tiled factorization algorithm can be implemented as:
 
 using LinearAlgebra
+## the tasks run in parallel: each of them should use a single BLAS thread
+BLAS.set_num_threads(1)
 
 tilerange(ti, ts) = ((ti - 1) * ts + 1):(ti * ts)
 
