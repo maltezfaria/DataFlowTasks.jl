@@ -32,9 +32,9 @@ mutable struct DataFlowTask
             sch = get_active_taskgraph(),
         ) where {N}
         @assert length(data) == N
-        0 <= priority <= typemax(UInt16) || throw(
+        priority isa Integer && 0 <= priority <= typemax(UInt16) || throw(
             ArgumentError(
-                "task priority must be in 0:$(typemax(UInt16)) (0 being the most urgent), got $priority",
+                "task priority must be an integer in 0:$(typemax(UInt16)) (0 being the most urgent), got $priority",
             ),
         )
         taskcounter = 0 # not yet inserted in a dag. This will be modified upon insertion.

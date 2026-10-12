@@ -273,11 +273,16 @@ NOTE: this reads internal fields of `Task` (Julia ≥ 1.12), since the public
 `Base.Experimental.task_running_time_ns` only accounts for completed running
 periods.
 =#
-function running_time_ns(t::Task = current_task())
-    t.metrics_enabled || return nothing
-    running = @atomic :monotonic t.running_time_ns
-    started = @atomic :monotonic t.last_started_running_at
-    return running + (time_ns() - started)
+@static if all(f -> hasfield(Task, f), (:metrics_enabled, :running_time_ns, :last_started_running_at))
+    function running_time_ns(t::Task = current_task())
+        t.metrics_enabled || return nothing
+        running = @atomic :monotonic t.running_time_ns
+        started = @atomic :monotonic t.last_started_running_at
+        return running + (time_ns() - started)
+    end
+else
+    # the internal fields changed: fall back to the wall time
+    running_time_ns(t::Task = current_task()) = nothing
 end
 
 #TODO: show more relevant information
