@@ -14,6 +14,7 @@ TiledIteration = "06e1c1a7-607b-532d-9fad-de7d9aa2abac"
 [compat]
 BenchmarkTools = "1"
 CairoMakie = "0.15"
+DataFlowTasks = "0.3"
 Documenter = "1"
 GraphViz = "0.3"
 Hwloc = "3"
