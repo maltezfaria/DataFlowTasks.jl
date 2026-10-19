@@ -8,11 +8,13 @@ draft = false
 
 const ON_CI = get(ENV, "CI", "false") == "true"
 const GIT_HEAD = chomp(read(`git rev-parse HEAD`, String))
+# a single `Pkg.add` into the fresh environment: on Julia 1.13.2, a later `Pkg.add`
+# that changes the version of an indirect dependency fails with `Unknown package`
+# (JuliaLang/Pkg.jl#4866)
 const SETUP = """
 #nb import Pkg
 #nb Pkg.activate(temp=true)
-#nb Pkg.add(name="DataFlowTasks", rev="$GIT_HEAD")
-#nb foreach(Pkg.add, DEPENDENCIES)
+#nb Pkg.add([Pkg.PackageSpec(name="DataFlowTasks", rev="$GIT_HEAD"); Pkg.PackageSpec.(DEPENDENCIES)])
 """
 
 ON_CI && (draft = false) # always full build on CI
