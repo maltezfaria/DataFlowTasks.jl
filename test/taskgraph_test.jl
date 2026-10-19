@@ -284,7 +284,7 @@ end
 @testset "Priorities" begin
     # with a single worker, tasks are started in the order they are queued
     if Threads.nthreads(:default) > 1
-        n = 100
+        n = 1000
         release = Threads.Atomic{Bool}(false)
         spinning = Threads.Atomic{Int}(0)
         function spin(release)
