@@ -17,12 +17,21 @@ Pkg.activate("../../..") #src
 # cross operator](https://en.wikipedia.org/wiki/Roberts_cross) is applied to
 # detect edges in the image.
 #
-# Let us first load a test image:
+# Let us first load a test image, and define a `showimg` function to display
+# images using `CairoMakie`:
 
-using Images
+using Images, CairoMakie
 url = "https://upload.wikimedia.org/wikipedia/commons/c/c3/Equus_zebra_hartmannae_-_Etosha_2015.jpg"
 ispath("test-image.jpg") || download(url, "test-image.jpg")
 img = Gray.(load("test-image.jpg"))
+
+function showimg(img)
+    fig, ax, _ = image(rotr90(img); axis = (; aspect = DataAspect()))
+    hidedecorations!(ax)
+    return fig
+end
+
+showimg(img)
 
 # We start by defining a few helper functions:
 #
@@ -84,7 +93,7 @@ blurred = zero(mat)
 
 blur!(blurred, mat; width)
 
-mat2img(PixelType, blurred)
+showimg(mat2img(PixelType, blurred))
 
 #  The `roberts!` function applies the Roberts cross operator to the provided
 #  image. Like above, it operates by default on all pixels in the image
@@ -109,7 +118,7 @@ end
 contour = zero(mat)
 roberts!(contour, mat)
 
-mat2img(PixelType, contour)
+showimg(mat2img(PixelType, contour))
 
 # Chaining the blur and roberts filters may make edge detection less noisy:
 
@@ -122,7 +131,7 @@ mat1 = copy(mat)
 tmp = zero(mat)
 
 blur_roberts!(mat1; width, tmp)
-mat2img(PixelType, mat1)
+showimg(mat2img(PixelType, mat1))
 
 # The elapsed time in this sequential version will serve as reference to
 # evaluate the performance of other implementations:
@@ -171,7 +180,7 @@ ts = 512
 mat1 .= mat
 blur_roberts_tiled!(mat1, ts; width, tmp)
 
-mat2img(PixelType, mat1)
+showimg(mat2img(PixelType, mat1))
 
 # Depending on the system, the fact that memory is now accessed in blocks may
 # (or may not) have a significant impact on the performance, due to cache
@@ -232,15 +241,13 @@ end
 mat1 .= mat;
 blur_roberts_dft!(mat1, ts; width, tmp) |> wait
 
-mat2img(PixelType, mat1)
+showimg(mat2img(PixelType, mat1))
 
 #-
 
 t_dft = @belapsed wait(blur_roberts_dft!(x, ts; width = $width, tmp = $tmp)) setup = (x = copy(mat)) evals = 1
 
 # ## Performance analysis
-
-using CairoMakie
 
 barplot(
     [t_seq, t_tiled, t_dft],
